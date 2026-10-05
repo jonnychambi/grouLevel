@@ -62,12 +62,8 @@
   ],
   "rewrites": [
     {
-      "source": "/admin",
-      "destination": "/404.html"
-    },
-    {
-      "source": "/admin/:path*",
-      "destination": "/404.html"
+      "source": "/admin/:path+",
+      "destination": "/admin/index.html"
     }
   ]
 }

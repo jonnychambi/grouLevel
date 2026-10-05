@@ -126,6 +126,13 @@ writeFileSync(
   template.replace('</head>', '    <meta name="robots" content="noindex" />\n  </head>')
 );
 
+// Administración: shell propio (200, noindex) para /admin.
+mkdirSync(join(dist, 'admin'), { recursive: true });
+writeFileSync(
+  join(dist, 'admin', 'index.html'),
+  template.replace(/<title>[\s\S]*?<\/title>/, '<title>Administración | Groulevel</title>').replace('</head>', '    <meta name="robots" content="noindex, nofollow" />\n  </head>')
+);
+
 const today = new Date().toISOString().slice(0, 10);
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
