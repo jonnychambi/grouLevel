@@ -5,7 +5,7 @@ export const SITE = {
   description:
     'Compara cursos, bootcamps, diplomados y maestrías en tecnología de las principales instituciones. Precios, duración y modalidad en un solo lugar.',
   /** URL pública absoluta (sin "/" final). Se inyecta en build con VITE_SITE_URL. */
-  url: ((import.meta.env.VITE_SITE_URL as string | undefined) ?? 'https://jonnychambi.github.io/grouLevel').replace(/\/$/, ''),
+  url: ((import.meta.env.VITE_SITE_URL as string | undefined) ?? 'https://www.groulevel.com').replace(/\/$/, ''),
   locale: 'es_PE',
   country: 'Perú',
   contactEmail: 'partners@groulevel.example',

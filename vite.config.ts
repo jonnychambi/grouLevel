@@ -5,9 +5,9 @@ import tailwindcss from '@tailwindcss/vite';
 
 /**
  * BASE_PATH controla el subdirectorio de publicación.
- * GitHub Pages de proyecto → "/<repo>/". Dominio propio → "/".
+ * Dominio propio / Vercel (por defecto) → "/". GitHub Pages de proyecto → "/<repo>/".
  */
-const base = process.env.BASE_PATH ?? '/grouLevel/';
+const base = process.env.BASE_PATH ?? '/';
 
 export default defineConfig({
   base,

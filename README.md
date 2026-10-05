@@ -14,7 +14,7 @@ React 19 · TypeScript · Vite · Tailwind CSS v4 · React Router. Sin backend: 
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173/grouLevel/
+npm run dev        # http://localhost:5173/
 npm test           # tests unitarios (búsqueda, filtros, lead scoring)
 npm run build      # typecheck + build + pre-render de rutas, sitemap y robots
 npm run preview
@@ -91,10 +91,16 @@ Eventos tipados: `search_performed`, `filter_applied`, `course_viewed`, `compare
 ## SEO
 Title/description/canonical/Open Graph/Twitter dinámicos, JSON-LD (WebSite + SearchAction, Course, EducationalOrganization, BreadcrumbList, ItemList), breadcrumbs, URLs semánticas. En el build, `scripts/postbuild.mjs` genera un `index.html` por ruta conocida (62) con su meta y contenido básico, más `sitemap.xml`, `robots.txt` y `404.html` (fallback SPA).
 
-## Despliegue en GitHub Pages
-1. En el repositorio: **Settings → Pages → Source: GitHub Actions**.
-2. Push a `main` (o ejecutar el workflow manualmente). `.github/workflows/deploy.yml` corre tests, construye con `BASE_PATH=/<repo>/` y publica `dist/`.
-3. Para dominio propio: `BASE_PATH=/` y `VITE_SITE_URL=https://tu-dominio`.
+## Despliegue
+
+### Producción — Vercel (www.groulevel.com)
+- Proyecto de Vercel conectado a este repositorio: cada push a `main` despliega a producción y cada rama/PR genera un preview.
+- `vercel.json` define build (`npm run build` → `dist/`), URLs limpias, caché inmutable para `/assets/*`, cabeceras de seguridad y la redirección `groulevel.com → www.groulevel.com`.
+- Defaults del build: `BASE_PATH=/` y `VITE_SITE_URL=https://www.groulevel.com` (canonical, Open Graph, sitemap y robots).
+- DNS: `www` → CNAME al valor que indica Vercel; dominio raíz → registro A que indica Vercel (se redirige a `www`).
+
+### Espejo — GitHub Pages
+`.github/workflows/deploy.yml` corre los tests y publica en `https://<usuario>.github.io/<repo>/` (con `BASE_PATH=/<repo>/`). Su canonical apunta a www.groulevel.com para no duplicar contenido en buscadores. Si ya no lo necesitas, desactiva Pages o elimina el job `deploy`.
 
 ## Marca
 Sistema “Dark Intelligence”: Deep Navy `#050816`, Midnight `#091225`, Violet `#7657FF`, Blue `#246BFE`, Cyan `#00E7FF`, Cool Gray `#9DAABD`; tipografía Geist / Geist Mono; G propietaria (arco 315° + puntos Signal → Processing → Growth). Tokens en `src/index.css`.

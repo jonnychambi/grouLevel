@@ -13,13 +13,13 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 const read = (p) => JSON.parse(readFileSync(join(root, p), 'utf8'));
 
-const SITE_URL = (process.env.VITE_SITE_URL ?? 'https://jonnychambi.github.io/grouLevel').replace(/\/$/, '');
+const SITE_URL = (process.env.VITE_SITE_URL ?? 'https://www.groulevel.com').replace(/\/$/, '');
 const courses = read('src/data/courses.json');
 const institutions = read('src/data/institutions.json');
 const categories = read('src/data/categories.json');
 const template = readFileSync(join(dist, 'index.html'), 'utf8');
 /** Prefijo de rutas de la app (coincide con BASE_PATH de Vite). */
-const BASE = (process.env.BASE_PATH ?? '/grouLevel/').replace(/\/$/, '');
+const BASE = (process.env.BASE_PATH ?? '/').replace(/\/$/, '');
 const href = (path) => `${BASE}${path}`;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

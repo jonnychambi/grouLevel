@@ -35,7 +35,8 @@ jobs:
         env:
           # /<repo>/ para Pages de proyecto. Con dominio propio usa "/".
           BASE_PATH: /${{ github.event.repository.name }}/
-          VITE_SITE_URL: ${{ steps.pages.outputs.base_url || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
+          # El sitio oficial es www.groulevel.com (Vercel): canonical y sitemap apuntan ahí.
+          VITE_SITE_URL: https://www.groulevel.com
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:
