@@ -9,6 +9,7 @@
  */
 import type { AnalyticsEvent } from '../types';
 import { createPersistentStore } from '../hooks/usePersistentStore';
+import { sessionStore } from './storage';
 
 export const GA_ID = ((import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined) ?? '').trim();
 export const gaEnabled = /^G-[A-Z0-9]{4,}$/.test(GA_ID);
@@ -18,6 +19,19 @@ export const consentStore = createPersistentStore<ConsentChoice>('analytics-cons
 
 const isAdmin = () => window.location.pathname.replace(import.meta.env.BASE_URL, '/').startsWith('/admin');
 let started = false;
+
+/**
+ * Modo depuración: abrir el sitio con ?ga_debug=1 envía los eventos con debug_mode,
+ * de modo que aparecen al instante en GA4 → Administrar → DebugView (dura toda la sesión;
+ * ?ga_debug=0 lo apaga). También los muestra en la consola del navegador.
+ */
+function debugEnabled(): boolean {
+  const flag = new URLSearchParams(window.location.search).get('ga_debug');
+  if (flag === '1') sessionStore.set('ga-debug', true);
+  if (flag === '0') sessionStore.set('ga-debug', false);
+  return sessionStore.get<boolean>('ga-debug', false);
+}
+let debug = false;
 
 function gtag(...args: unknown[]) {
   window.dataLayer = window.dataLayer ?? [];
@@ -40,7 +54,9 @@ export function initGA(): void {
     wait_for_update: 500
   });
   gtag('js', new Date());
-  gtag('config', GA_ID, { send_page_view: false });
+  debug = debugEnabled();
+  gtag('config', GA_ID, { send_page_view: false, ...(debug ? { debug_mode: true } : {}) });
+  if (debug) console.info(`[GA4] Modo depuración activo (${GA_ID}). Consentimiento: ${granted ? 'aceptado' : 'pendiente/rechazado'}.`);
   const script = document.createElement('script');
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_ID)}`;
@@ -62,7 +78,9 @@ export function trackPageView(): void {
     const page = window.location.pathname + window.location.search;
     if (page === lastPage) return;
     lastPage = page;
-    gtag('event', 'page_view', { page_location: window.location.href, page_path: page, page_title: document.title });
+    const params = { page_location: window.location.href, page_path: page, page_title: document.title };
+    gtag('event', 'page_view', debug ? { ...params, debug_mode: true } : params);
+    if (debug) console.info('[GA4] page_view', params);
   }, 400);
 }
 
@@ -91,5 +109,6 @@ export function toGA(e: AnalyticsEvent): [string, Record<string, unknown>] {
 export function gaSink(e: AnalyticsEvent): void {
   if (!started || isAdmin()) return;
   const [name, params] = toGA(e);
-  gtag('event', name, { ...params, session_id_internal: e.session_id });
+  gtag('event', name, { ...params, session_id_internal: e.session_id, ...(debug ? { debug_mode: true } : {}) });
+  if (debug) console.info(`[GA4] ${name}`, params, consentStore.get() === 'granted' ? '' : '(sin consentimiento: GA4 no lo mostrará en informes)');
 }

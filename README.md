@@ -118,6 +118,8 @@ Cada lead registra programa, institución, URL, fecha, fuente, campaña y UTMs (
 - Eventos → GA4: `search` (búsqueda), `view_item` (ficha), `add_to_compare`, `view_comparison`, `begin_lead_form`, **`generate_lead`** (con valor, moneda, tier y Signal Score), `add_to_wishlist`, `share`, `click_institution_site`. Nunca se envían nombre, email ni teléfono.
 - En GA4 marca **`generate_lead`** como evento clave (conversión). Para ver `lead_tier`, `lead_score` o `lead_source` en los informes, regístralos como dimensiones/métricas personalizadas.
 - Los mismos eventos se envían a `window.dataLayer` con prefijo `gl_` por si más adelante se usa Google Tag Manager.
+- **Depuración:** abre el sitio con `?ga_debug=1` (acepta las cookies) y los eventos aparecen al instante en GA4 → Administrar → **DebugView**; también se listan en la consola del navegador. `?ga_debug=0` lo apaga.
+- Los eventos nuevos tardan hasta 24 h en aparecer en Administrar → Eventos (pestaña *Eventos recientes*); los enviados sin consentimiento no se muestran en informes.
 - `/interno/metricas` sigue calculando el funnel con los eventos del navegador (útil para pruebas).
 
 ## Leads
