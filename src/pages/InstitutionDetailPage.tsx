@@ -39,7 +39,7 @@ export default function InstitutionDetailPage() {
   }
 
   const categories = [...new Set(programs.map((p) => p.category))].map((id) => catalog.categories.find((c) => c.id === id)!).filter(Boolean);
-  const modalities = [...new Set(programs.map((p) => p.modality))];
+  const modalities = [...new Set(programs.map((p) => p.modality).filter((m): m is NonNullable<typeof m> => !!m))];
   const types = [...new Set(programs.map((p) => p.program_type))];
 
   return (
@@ -54,8 +54,8 @@ export default function InstitutionDetailPage() {
               <h1 className="text-3xl text-white sm:text-4xl">{institution.name}</h1>
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
                 <span>{institution.type}</span>
-                <span className="flex items-center gap-1"><Icon name="map-pin" size={14} />{institution.city}, {institution.country}</span>
-                <span>Desde {institution.founded}</span>
+                <span className="flex items-center gap-1"><Icon name="map-pin" size={14} />{institution.city && institution.city !== institution.country ? `${institution.city}, ${institution.country}` : institution.country}</span>
+                {institution.founded && <span>Desde {institution.founded}</span>}
               </p>
             </div>
           </div>

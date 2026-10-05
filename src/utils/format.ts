@@ -8,13 +8,18 @@ export function formatMoney(amount: number, currency: Currency): string {
   return `${SYMBOL[currency]} ${n}`;
 }
 
-/** Precio final que paga el usuario (promocional si existe). */
-export function effectivePrice(course: Pick<Course, 'price' | 'discount_price'>): number {
+/** Precio final que paga el usuario (promocional si existe). null = no publicado. */
+export function effectivePrice(course: Pick<Course, 'price' | 'discount_price'>): number | null {
+  if (course.price == null) return null;
   return course.discount_price ?? course.price;
 }
 
 export function isFree(course: Pick<Course, 'price' | 'discount_price'>): boolean {
   return effectivePrice(course) === 0;
+}
+
+export function hasPrice(course: Pick<Course, 'price' | 'discount_price'>): boolean {
+  return effectivePrice(course) != null;
 }
 
 /** Convierte a otra moneda usando el tipo de cambio referencial. */
@@ -24,27 +29,42 @@ export function convert(amount: number, from: Currency, to: Currency): number {
   return from === 'USD' ? amount * rate : amount / rate;
 }
 
-/** Precio efectivo normalizado a PEN (para ordenar/filtrar de forma homogénea). */
-export function priceInPEN(course: Course): number {
-  return convert(effectivePrice(course), course.currency, 'PEN');
+/** Precio efectivo normalizado a PEN (para ordenar/filtrar de forma homogénea). null = no publicado. */
+export function priceInPEN(course: Pick<Course, 'price' | 'discount_price' | 'currency'>): number | null {
+  const p = effectivePrice(course);
+  return p == null ? null : convert(p, course.currency, 'PEN');
 }
 
-export function discountPercent(course: Course): number | null {
-  if (course.discount_price == null || course.price <= 0) return null;
-  return Math.round((1 - course.discount_price / course.price) * 100);
+export function discountPercent(course: Pick<Course, 'price' | 'discount_price'>): number | null {
+  if (course.discount_price == null || course.price == null || course.price <= 0) return null;
+  const pct = Math.round((1 - course.discount_price / course.price) * 100);
+  return pct > 0 ? pct : null;
 }
 
-export function formatDate(iso: string | null, opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }): string {
-  if (!iso) return 'Acceso inmediato';
+/** Formatea una fecha ISO. Sin fecha → texto publicado por la institución o "Por confirmar". */
+export function formatDate(iso: string | null, opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }, fallback = 'Por confirmar'): string {
+  if (!iso) return fallback;
   const [y, m, d] = iso.split('-').map(Number);
   return new Intl.DateTimeFormat('es-PE', opts).format(new Date(y, m - 1, d));
 }
 
-export function formatDuration(course: Pick<Course, 'duration_hours' | 'duration_weeks'>): string {
-  return `${course.duration_hours} h`;
+/** Texto de inicio para listados: fecha, "A tu ritmo" (asincrónico) o "Por confirmar". */
+export function startLabel(course: Pick<Course, 'start_date' | 'start_text' | 'modality'>, opts?: Intl.DateTimeFormatOptions): string {
+  if (course.start_date) return formatDate(course.start_date, opts ?? { day: 'numeric', month: 'short' });
+  if (course.modality === 'grabado') return 'A tu ritmo';
+  return 'Por confirmar';
 }
 
-export function formatWeeks(weeks: number): string {
+/** Duración corta: "96 h", "12 semanas" o el texto publicado. */
+export function durationLabel(course: Pick<Course, 'duration_hours' | 'duration_weeks' | 'duration_text'>): string {
+  if (course.duration_hours != null) return `${course.duration_hours} h`;
+  if (course.duration_weeks != null) return `${course.duration_weeks} sem`;
+  if (course.duration_text) return course.duration_text.length > 18 ? course.duration_text.slice(0, 17) + '…' : course.duration_text;
+  return 'No publicada';
+}
+
+export function formatWeeks(weeks: number | null): string {
+  if (weeks == null) return '';
   if (weeks >= 52 && weeks % 4 === 0) {
     const months = Math.round(weeks / 4.33);
     return `${months} meses`;

@@ -69,7 +69,8 @@ const TYPE_INTENTS: [string[], ProgramType][] = [
 const MODALITY_INTENTS: [string[], Modality][] = [
   [['vivo', 'sincronico', 'sincrono', 'live'], 'en-vivo'],
   [['grabado', 'grabados', 'asincronico', 'asincrono', 'ritmo'], 'grabado'],
-  [['hibrido', 'semipresencial', 'presencial'], 'hibrido']
+  [['hibrido', 'semipresencial'], 'hibrido'],
+  [['presencial', 'presenciales'], 'presencial']
 ];
 
 const LEVEL_INTENTS: [string[], Level][] = [
@@ -164,11 +165,13 @@ export function buildIndex(courses: CourseWithInstitution[], categories: Categor
         field(course.name, 10),
         field(course.tools, 7),
         field(cat ? [cat.name, ...cat.keywords] : course.category, 6),
-        field(course.subcategory, 4),
+        field(course.subcategory ?? '', 4),
+        field([course.published_type ?? '', ...course.objectives], 3),
         field([course.institution.name, course.institution.short_name], 6),
         field(course.skills, 5),
         field(course.keywords, 4),
         field(course.syllabus.flatMap((m) => [m.title, ...m.topics]), 2),
+        field(course.teachers.map((t) => t.name), 2),
         field(course.short_description, 2),
         field(course.description, 1)
       ]
@@ -254,12 +257,12 @@ export function search(index: IndexedCourse[], query: string): SearchResult {
   if (intent.programType) applyIntent('programType', (h) => h.course.program_type === intent.programType);
   if (intent.modality) applyIntent('modality', (h) => h.course.modality === intent.modality);
   if (intent.level) applyIntent('level', (h) => h.course.level === intent.level);
-  if (intent.free) applyIntent('free', (h) => (h.course.discount_price ?? h.course.price) === 0);
+  if (intent.free) applyIntent('free', (h) => h.course.price != null && (h.course.discount_price ?? h.course.price) === 0);
   if (intent.cheap) appliedIntent.cheap = true;
 
   // Pequeño boost a listings destacados y a la calidad percibida (no altera la pertinencia).
   for (const h of hits) {
-    h.score += (h.course.featured ? 3 : 0) + h.course.rating * 0.5;
+    h.score += (h.course.featured ? 3 : 0) + (h.course.rating ?? 0) * 0.5 + h.course.completeness;
   }
   hits.sort((a, b) => b.score - a.score);
   return { hits, parsed, approximate, appliedIntent };

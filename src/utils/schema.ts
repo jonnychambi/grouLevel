@@ -29,34 +29,31 @@ export function breadcrumbSchema(items: { name: string; path: string }[]) {
 }
 
 export function courseSchema(c: CourseWithInstitution) {
-  const modeMap = { 'en-vivo': 'online', grabado: 'online', hibrido: 'blended' } as const;
+  const modeMap = { 'en-vivo': 'online', grabado: 'online', hibrido: 'blended', presencial: 'onsite' } as const;
+  const price = effectivePrice(c);
+  const hours = c.duration_hours;
   return {
     '@context': 'https://schema.org',
     '@type': 'Course',
     name: c.name,
     description: c.short_description,
     url: abs(`/programa/${c.slug}`),
-    inLanguage: 'es',
-    educationalLevel: c.level,
-    teaches: c.skills,
-    timeRequired: `PT${c.duration_hours}H`,
+    inLanguage: c.language === 'Inglés' ? 'en' : 'es',
+    ...(c.level ? { educationalLevel: c.level } : {}),
+    ...(c.objectives.length || c.skills.length ? { teaches: c.objectives.length ? c.objectives : c.skills } : {}),
+    ...(hours ? { timeRequired: `PT${hours}H` } : {}),
     provider: { '@type': 'EducationalOrganization', name: c.institution.name, sameAs: c.institution.website },
-    offers: {
-      '@type': 'Offer',
-      category: effectivePrice(c) === 0 ? 'Free' : 'Paid',
-      price: effectivePrice(c),
-      priceCurrency: c.currency,
-      availability: 'https://schema.org/InStock'
-    },
+    ...(price != null
+      ? { offers: { '@type': 'Offer', category: price === 0 ? 'Free' : 'Paid', price, priceCurrency: c.currency, url: c.url } }
+      : {}),
     hasCourseInstance: {
       '@type': 'CourseInstance',
-      courseMode: modeMap[c.modality],
-      courseSchedule: { '@type': 'Schedule', description: c.schedule },
+      ...(c.modality ? { courseMode: modeMap[c.modality], description: MODALITY_LABELS[c.modality] } : {}),
+      ...(c.schedule ? { courseSchedule: { '@type': 'Schedule', description: c.schedule } } : {}),
       ...(c.start_date ? { startDate: c.start_date } : {}),
-      description: MODALITY_LABELS[c.modality],
-      instructor: c.teachers.map((t) => ({ '@type': 'Person', name: t.name, jobTitle: t.role }))
+      ...(c.teachers.length ? { instructor: c.teachers.map((t) => ({ '@type': 'Person', name: t.name })) } : {})
     },
-    aggregateRating: { '@type': 'AggregateRating', ratingValue: c.rating, reviewCount: c.reviews_count }
+    ...(c.rating != null && c.reviews_count ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: c.rating, reviewCount: c.reviews_count } } : {})
   };
 }
 

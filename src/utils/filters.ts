@@ -71,9 +71,11 @@ function priceBucketLabel(b: PriceBucket, currency: Currency): string {
 }
 
 function inPriceBucket(course: CourseWithInstitution, id: string, currency: Currency): boolean {
+  const raw = effectivePrice(course);
+  if (id === 'consultar') return raw == null;
   const b = PRICE_BUCKETS[currency].find((x) => x.id === id);
-  if (!b) return false;
-  const price = convert(effectivePrice(course), course.currency, currency);
+  if (!b || raw == null) return false;
+  const price = convert(raw, course.currency, currency);
   if (b.id === 'gratis') return price === 0;
   return price > 0 && price >= b.min && price < b.max;
 }
@@ -112,12 +114,12 @@ const fromLabels = (labels: Record<string, string>): FilterOption[] => Object.en
 export const FILTER_GROUPS: FilterGroup[] = [
   { key: 'categories', label: 'Categoría', param: 'cat', defaultOpen: true, options: (ctx) => ctx.categories.map((c) => ({ value: c.id, label: c.name })), matches: (c, v) => c.category === v },
   { key: 'types', label: 'Tipo de programa', param: 'tipo', defaultOpen: true, options: () => fromLabels(PROGRAM_TYPE_LABELS), matches: (c, v) => c.program_type === v },
-  { key: 'price', label: 'Precio', param: 'precio', defaultOpen: true, options: (ctx) => PRICE_BUCKETS[ctx.currency].map((b) => ({ value: b.id, label: priceBucketLabel(b, ctx.currency) })), matches: (c, v, s) => inPriceBucket(c, v, s.currency) },
+  { key: 'price', label: 'Precio', param: 'precio', defaultOpen: true, options: (ctx) => [...PRICE_BUCKETS[ctx.currency].map((b) => ({ value: b.id, label: priceBucketLabel(b, ctx.currency) })), { value: 'consultar', label: 'Precio no publicado' }], matches: (c, v, s) => inPriceBucket(c, v, s.currency) },
   { key: 'modalities', label: 'Modalidad', param: 'modalidad', defaultOpen: true, options: () => fromLabels(MODALITY_LABELS), matches: (c, v) => c.modality === v },
-  { key: 'durations', label: 'Duración', param: 'duracion', options: () => DURATION_BUCKETS.map(({ id, label }) => ({ value: id, label })), matches: (c, v) => { const b = DURATION_BUCKETS.find((x) => x.id === v); return !!b && c.duration_hours >= b.min && c.duration_hours < b.max; } },
+  { key: 'durations', label: 'Duración', param: 'duracion', options: () => DURATION_BUCKETS.map(({ id, label }) => ({ value: id, label })), matches: (c, v) => { const b = DURATION_BUCKETS.find((x) => x.id === v); return !!b && c.duration_hours != null && c.duration_hours >= b.min && c.duration_hours < b.max; } },
   { key: 'institutions', label: 'Institución', param: 'inst', options: (ctx) => ctx.institutions.map((i) => ({ value: i.id, label: i.name })), matches: (c, v) => c.institution_id === v },
   { key: 'levels', label: 'Nivel', param: 'nivel', options: () => fromLabels(LEVEL_LABELS), matches: (c, v) => c.level === v },
-  { key: 'certificates', label: 'Certificación', param: 'cert', options: () => fromLabels(CERTIFICATE_LABELS), matches: (c, v) => (v === 'incluye' ? true : c.certificate.type === v) }
+  { key: 'certificates', label: 'Certificación', param: 'cert', options: () => fromLabels(CERTIFICATE_LABELS), matches: (c, v) => (c.certificate ? (v === 'incluye' ? true : c.certificate.type === v) : false) }
 ];
 
 /** Aplica todos los filtros (opcionalmente excepto un grupo, para calcular facetas). */
@@ -146,23 +148,67 @@ export function sortCourses(courses: CourseWithInstitution[], sort: SortKey, rel
   const list = [...courses];
   const byRelevance = (a: CourseWithInstitution, b: CourseWithInstitution) => {
     if (relevance && relevance.size) return (relevance.get(b.id) ?? 0) - (relevance.get(a.id) ?? 0);
-    // Sin consulta: destacados primero, luego calidad (rating ponderado por volumen de reseñas).
-    const q = (c: CourseWithInstitution) => (c.featured ? 100 : 0) + c.rating * Math.log10(10 + c.reviews_count);
+    // Sin consulta: destacados primero, luego calidad de la información y próximos inicios.
+    const q = (c: CourseWithInstitution) => listingQuality(c);
     return q(b) - q(a);
+  };
+  /** Compara valores numéricos dejando siempre al final los no publicados. */
+  const nullsLast = (get: (c: CourseWithInstitution) => number | null, dir: 1 | -1) => (a: CourseWithInstitution, b: CourseWithInstitution) => {
+    const x = get(a);
+    const y = get(b);
+    if (x == null && y == null) return byRelevance(a, b);
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (x - y) * dir || byRelevance(a, b);
   };
   const cmp: Record<SortKey, (a: CourseWithInstitution, b: CourseWithInstitution) => number> = {
     relevancia: byRelevance,
-    'precio-asc': (a, b) => priceInPEN(a) - priceInPEN(b),
-    'precio-desc': (a, b) => priceInPEN(b) - priceInPEN(a),
-    'duracion-asc': (a, b) => a.duration_hours - b.duration_hours,
-    'duracion-desc': (a, b) => b.duration_hours - a.duration_hours,
-    valoracion: (a, b) => b.rating - a.rating || b.reviews_count - a.reviews_count
+    'precio-asc': nullsLast(priceInPEN, 1),
+    'precio-desc': nullsLast(priceInPEN, -1),
+    'duracion-asc': nullsLast((c) => c.duration_hours, 1),
+    'duracion-desc': nullsLast((c) => c.duration_hours, -1),
+    valoracion: nullsLast((c) => c.rating, -1)
   };
-  return list.sort(cmp[sort]);
+  const sorted = list.sort(cmp[sort]);
+  return sort === 'relevancia' && !(relevance && relevance.size) ? diversify(sorted) : sorted;
+}
+
+/**
+ * Evita que una sola institución acapare las primeras posiciones del listado por defecto:
+ * mantiene el orden por calidad pero no repite institución en posiciones consecutivas
+ * mientras haya alternativas (los destacados conservan su lugar).
+ */
+export function diversify(courses: CourseWithInstitution[], window = 2): CourseWithInstitution[] {
+  const pending = [...courses];
+  const out: CourseWithInstitution[] = [];
+  while (pending.length) {
+    const recent = new Set(out.slice(-window).map((c) => c.institution_id));
+    let idx = pending.findIndex((c) => c.featured || !recent.has(c.institution_id));
+    if (idx === -1) idx = 0;
+    out.push(pending.splice(idx, 1)[0]);
+  }
+  return out;
 }
 
 export function activeFilterCount(state: FilterState): number {
   return FILTER_GROUPS.reduce((n, g) => n + (state[g.key] as string[]).length, 0);
+}
+
+/**
+ * Puntaje de "calidad del listing" para ordenar sin consulta: destacados, valoración (si existe),
+ * información completa (precio, duración, inicio) y fecha de inicio cercana.
+ */
+export function listingQuality(c: CourseWithInstitution): number {
+  let q = c.featured ? 100 : 0;
+  if (c.rating != null) q += c.rating * Math.log10(10 + (c.reviews_count ?? 0));
+  q += c.completeness * 10;
+  if (c.price != null) q += 3;
+  if (c.duration_hours != null) q += 1;
+  if (c.start_date) {
+    const days = (new Date(c.start_date).getTime() - Date.now()) / 86_400_000;
+    if (days >= 0 && days <= 60) q += 3;
+  }
+  return q;
 }
 
 /* ---------------------------- URL <-> estado ---------------------------- */

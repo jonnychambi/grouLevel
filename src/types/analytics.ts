@@ -20,7 +20,7 @@ export interface CourseContext {
   institution_id: string;
   category: string;
   program_type: string;
-  price: number;
+  price: number | null;
   currency: string;
   featured: boolean;
 }

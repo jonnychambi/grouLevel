@@ -4,7 +4,7 @@
 
 Groulevel es un marketplace/comparador de programas de formación en tecnología (Perú → Latinoamérica). Ayuda a profesionales a buscar, filtrar, comparar y elegir cursos, bootcamps, diplomados, certificaciones, programas ejecutivos, maestrías y membresías, y genera leads calificados para las instituciones.
 
-> ⚠️ **Datos de demostración.** Las 8 instituciones, 31 programas, docentes, precios y valoraciones incluidos son **ficticios** (`is_demo: true`) y se identifican como tales en la interfaz.
+**Catálogo real:** 309 programas de 20 instituciones (Perú y LATAM), importados del relevamiento `compara_learning_cursos.xlsx` y administrables desde `/admin`. Los datos que una institución no publica se muestran como “No publicado / Precio a consultar”: nunca se inventan.
 
 Funnel principal: **Descubrir → Buscar → Filtrar → Evaluar → Comparar → Ver detalle → Solicitar información → Lead.**
 
@@ -32,6 +32,7 @@ npm run preview
 | `/instituciones/partners` | Propuesta B2B y formulario de contacto |
 | `/nosotros`, `/favoritos` | Nosotros y favoritos (localStorage) |
 | `/interno/metricas` | Panel interno (noindex) con métricas del funnel calculadas desde los eventos locales |
+| `/admin` | Módulo de administración (contraseña): programas, instituciones e historial de versiones |
 
 ## Arquitectura
 
@@ -53,6 +54,28 @@ src/
   components/  layout · search · filters · course · compare · institution · lead · ui
   pages/       una por ruta, con code-splitting
 ```
+
+## Datos: importación desde Excel
+
+`scripts/import_xlsx.py` convierte la hoja **CURSOS** al modelo de Groulevel (`src/data/*.json`):
+
+```bash
+pip install openpyxl
+npm run data:import -- ruta/compara_learning_cursos.xlsx
+```
+
+Criterios: solo registros con extracción *Completo/Parcial* (se descartan URLs caídas), sin duplicados, dentro del foco tecnológico (se excluyen finanzas, energía, derecho, MBA…), y solo las columnas necesarias (las de control de la extracción no se publican). “No especificado” se guarda como `null`. Los IDs son estables (`crs-<ID_ORIGEN>`), así que re-importar no rompe URLs, favoritos ni leads. Se añadieron las categorías *Marketing Digital*, *Gestión de Proyectos y Agilidad* y *Gestión y Gobierno de TI*.
+
+## Módulo de administración (`/admin`)
+
+- **Acceso:** contraseña única (`ADMIN_PASSWORD`, variable sensible en Vercel). Sesión firmada con HMAC (`ADMIN_SESSION_SECRET`), válida 12 h, guardada solo en la pestaña.
+- **Programas:** búsqueda y filtros (institución, categoría, estado, datos incompletos, sin precio, sin inicio), indicador de completitud, edición de todos los campos (precio y cuotas, duración, modalidad, inicio, certificación, temario por módulos, docentes, herramientas, “incluye”…), crear, duplicar, eliminar y cambiar estado en lote (**Publicado / Borrador / Oculto**).
+- **Instituciones:** crear y editar (nombre, tipo, país, web, descripción, color o logo).
+- **Versiones:** cada guardado crea una versión inmutable; se conservan 50 y se puede restaurar cualquiera. Exportar a JSON y restablecer desde el catálogo del build.
+- **Arquitectura:** Vercel Functions (`api/admin.ts`, `api/catalog.ts`) + **Vercel Blob privado** (`catalog/versions/*.json`). El servidor valida el catálogo (`api/_lib/validate.ts`) y evita pisar cambios de otra sesión (409).
+- **Publicación:** el sitio lee `/api/catalog` (caché de 60 s en el CDN), así que los cambios se ven en ~1 minuto sin redeploy. El pre-render SEO (títulos, sitemap) usa la última versión publicada en cada despliegue. Si la API no está disponible (GitHub Pages, desarrollo local) el sitio usa los JSON del build.
+
+Variables en Vercel: `BLOB_READ_WRITE_TOKEN` (la crea el Blob store), `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`.
 
 ### Migrar de JSON a un backend
 - **Catálogo:** define `VITE_DATA_API_URL` (usa `RestDataSource`) o crea otra implementación de `DataSource` (p. ej. Supabase) y devuélvela en `getDataSource()`.

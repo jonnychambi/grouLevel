@@ -14,8 +14,7 @@ export function TeacherCard({ teacher }: { teacher: Teacher }) {
       )}
       <div className="min-w-0">
         <h3 className="text-base text-white">{teacher.name}</h3>
-        <p className="text-sm text-gray">{teacher.role} · {teacher.company}</p>
-        <p className="mt-2 text-sm text-muted">{teacher.experience}</p>
+        {teacher.profile && <p className="mt-1 text-sm text-gray">{teacher.profile}</p>}
         {teacher.linkedin && (
           <a href={teacher.linkedin} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm text-blue-soft hover:text-white">
             <Icon name="linkedin" size={14} /> LinkedIn

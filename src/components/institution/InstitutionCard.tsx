@@ -11,7 +11,7 @@ export function InstitutionCard({ institution, programs }: { institution: Instit
         <InstitutionLogo institution={institution} size={52} />
         <div className="min-w-0">
           <h3 className="text-lg leading-snug text-white"><Link to={href} className="hover:text-cyan">{institution.name}</Link></h3>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted"><Icon name="map-pin" size={14} />{institution.city}, {institution.country}</p>
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted"><Icon name="map-pin" size={14} />{institution.city && institution.city !== institution.country ? `${institution.city}, ${institution.country}` : institution.country}</p>
         </div>
       </div>
       <p className="mt-4 line-clamp-3 flex-1 text-sm text-gray">{institution.description}</p>

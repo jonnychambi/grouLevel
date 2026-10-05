@@ -42,7 +42,7 @@ export default function LeadModal({ course, source, onClose }: { course: CourseW
       <InstitutionLogo institution={course.institution} size={40} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-white">{course.name}</p>
-        <p className="truncate text-xs text-muted">{course.institution.name} · {PROGRAM_TYPE_LABELS[course.program_type]} · {MODALITY_LABELS[course.modality]}</p>
+        <p className="truncate text-xs text-muted">{course.institution.name} · {PROGRAM_TYPE_LABELS[course.program_type]} {course.modality ? ` · ${MODALITY_LABELS[course.modality]}` : ''}</p>
       </div>
       <PriceDisplay course={course} size="sm" showFrom={false} className="hidden text-right sm:block" />
     </div>

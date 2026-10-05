@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { CourseWithInstitution } from '../../types';
-import { formatDate } from '../../utils/format';
+import { durationLabel, startLabel } from '../../utils/format';
 import { LEVEL_LABELS, MODALITY_LABELS, MODALITY_SHORT, PROGRAM_TYPE_LABELS } from '../../utils/labels';
 import { useLeadModal } from '../../context/LeadModalContext';
 import type { LeadSource } from '../../types';
@@ -12,7 +12,7 @@ import { Rating } from '../ui/Rating';
 import { CompareButton } from './CompareButton';
 import { FavoriteButton } from './FavoriteButton';
 
-const MODALITY_ICON: Record<string, IconName> = { 'en-vivo': 'live', grabado: 'play', hibrido: 'layers' };
+const MODALITY_ICON: Record<string, IconName> = { 'en-vivo': 'live', grabado: 'play', hibrido: 'layers', presencial: 'building' };
 
 function Fact({ icon, label, value, title }: { icon: IconName; label: string; value: string; title?: string }) {
   return (
@@ -53,15 +53,15 @@ export function CourseCard({ course, source = 'listado' }: { course: CourseWithI
       <p className="mt-1.5 line-clamp-2 text-sm text-muted">{course.short_description}</p>
 
       <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2.5">
-        <Fact icon={MODALITY_ICON[course.modality]} label="Modalidad" value={MODALITY_SHORT[course.modality]} title={MODALITY_LABELS[course.modality]} />
-        <Fact icon="clock" label="Duración" value={`${course.duration_hours} h`} title={`${course.duration_hours} horas en ${course.duration_weeks} semanas`} />
-        <Fact icon="level" label="Nivel" value={LEVEL_LABELS[course.level]} />
-        <Fact icon="calendar" label="Inicio" value={course.start_date ? formatDate(course.start_date, { day: 'numeric', month: 'short' }) : 'Inmediato'} />
+        <Fact icon={course.modality ? MODALITY_ICON[course.modality] : 'live'} label="Modalidad" value={course.modality ? MODALITY_SHORT[course.modality] : 'No publicada'} title={course.modality ? MODALITY_LABELS[course.modality] : undefined} />
+        <Fact icon="clock" label="Duración" value={durationLabel(course)} title={course.duration_text ?? undefined} />
+        <Fact icon="level" label="Nivel" value={course.level ? LEVEL_LABELS[course.level] : 'Nivel no indicado'} />
+        <Fact icon="calendar" label="Inicio" value={startLabel(course)} title={course.start_text ?? undefined} />
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4">
         <PriceDisplay course={course} size="md" />
-        <Rating value={course.rating} count={course.reviews_count} compact />
+        {course.rating != null && <Rating value={course.rating} count={course.reviews_count ?? undefined} compact />}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">

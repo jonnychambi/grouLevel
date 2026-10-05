@@ -1,6 +1,6 @@
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
-import { Layout } from './components/layout/Layout';
+import { Layout, PageFallback } from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 
 // Code-splitting por ruta: el home carga primero; el resto bajo demanda.
@@ -14,10 +14,13 @@ const AboutPage = lazy(() => import('./pages/AboutPage'));
 const FavoritesPage = lazy(() => import('./pages/FavoritesPage'));
 const MetricsPage = lazy(() => import('./pages/MetricsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 export default function App() {
   return (
     <Routes>
+      {/* Administración: fuera del layout público, cargada solo bajo demanda. */}
+      <Route path="admin/*" element={<Suspense fallback={<PageFallback />}><AdminPage /></Suspense>} />
       <Route element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="programas" element={<ProgramsPage />} />

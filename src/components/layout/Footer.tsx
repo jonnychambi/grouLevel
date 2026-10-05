@@ -46,7 +46,7 @@ export function Footer() {
       <div className="border-t border-line">
         <div className="container-page flex flex-col gap-3 py-6 text-xs text-muted md:flex-row md:items-center md:justify-between">
           <p>
-            <strong className="font-medium text-gray">Versión de demostración.</strong> Las instituciones, programas, precios, docentes y valoraciones mostrados son ficticios y se usan solo para probar la plataforma.
+            <strong className="font-medium text-gray">Información referencial.</strong> Los datos de cada programa se obtienen del sitio web oficial de la institución y pueden cambiar. Confírmalos con la institución antes de matricularte.
           </p>
           <p className="shrink-0">© {new Date().getFullYear()} Groulevel</p>
         </div>

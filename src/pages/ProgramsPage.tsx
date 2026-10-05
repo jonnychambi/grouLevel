@@ -152,7 +152,7 @@ export default function ProgramsPage() {
               <button className="btn btn-ghost btn-sm lg:hidden" onClick={() => setDrawerOpen(true)} aria-haspopup="dialog">
                 <Icon name="sliders" size={16} /> Filtros {filtersActive > 0 && <span className="tnum text-cyan">({filtersActive})</span>}
               </button>
-              {result && <SortSelector value={result.effectiveSort} onChange={setSort} />}
+              {result && <SortSelector value={result.effectiveSort} onChange={setSort} hide={catalog?.courses.some((c) => c.rating != null) ? [] : ['valoracion']} />}
             </div>
           </div>
 

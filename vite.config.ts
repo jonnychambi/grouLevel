@@ -15,6 +15,8 @@ export default defineConfig({
   build: {
     target: 'es2022',
     cssCodeSplit: true,
+    // El chunk del catálogo (JSON) solo se descarga como respaldo si /api/catalog no responde.
+    chunkSizeWarningLimit: 1100,
     rollupOptions: {
       output: {
         manualChunks(id) {

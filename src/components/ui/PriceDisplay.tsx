@@ -12,8 +12,18 @@ interface Props {
 /** Precio con alta visibilidad: final, regular tachado, % de descuento y equivalencia en PEN. */
 export function PriceDisplay({ course, size = 'md', showFrom = true, showConversion = false, className = '' }: Props) {
   const final = effectivePrice(course);
-  const pct = discountPercent(course as Course);
+  const pct = discountPercent(course);
   const sizes = { sm: 'text-lg', md: 'text-2xl', lg: 'text-3xl sm:text-4xl' };
+
+  if (final == null) {
+    return (
+      <div className={className}>
+        <span className={`${size === 'sm' ? 'text-sm' : 'text-base'} font-medium text-gray`} title="La institución no publica el precio en su web">
+          Precio a consultar
+        </span>
+      </div>
+    );
+  }
 
   if (final === 0) {
     return (
@@ -28,7 +38,7 @@ export function PriceDisplay({ course, size = 'md', showFrom = true, showConvers
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         {showFrom && <span className="text-xs text-muted">Desde</span>}
         <span className={`${sizes[size]} tnum font-semibold tracking-tight text-white`}>{formatMoney(final, course.currency)}</span>
-        {course.discount_price != null && (
+        {course.discount_price != null && course.price != null && (
           <span className="tnum text-sm text-dim line-through" aria-label={`Precio regular ${formatMoney(course.price, course.currency)}`}>
             {formatMoney(course.price, course.currency)}
           </span>

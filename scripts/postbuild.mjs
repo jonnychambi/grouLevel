@@ -14,9 +14,35 @@ const dist = join(root, 'dist');
 const read = (p) => JSON.parse(readFileSync(join(root, p), 'utf8'));
 
 const SITE_URL = (process.env.VITE_SITE_URL ?? 'https://www.groulevel.com').replace(/\/$/, '');
-const courses = read('src/data/courses.json');
-const institutions = read('src/data/institutions.json');
-const categories = read('src/data/categories.json');
+/**
+ * Fuente del catálogo para el pre-render: la última versión publicada desde /admin (Vercel Blob)
+ * si hay token disponible en el build; si no, los JSON del repositorio.
+ */
+async function loadCatalog() {
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    try {
+      const { list, get } = await import('@vercel/blob');
+      const { blobs } = await list({ prefix: 'catalog/versions/', limit: 1000 });
+      const latest = blobs.sort((a, b) => (a.pathname < b.pathname ? 1 : -1))[0];
+      if (latest) {
+        const res = await get(latest.pathname, { access: 'private', useCache: false });
+        if (res?.statusCode === 200) {
+          const data = JSON.parse(await new Response(res.stream).text());
+          console.log(`postbuild: catálogo desde el administrador (${latest.pathname})`);
+          return data;
+        }
+      }
+    } catch (e) {
+      console.warn('postbuild: no se pudo leer el catálogo publicado, se usan los JSON del repo:', e.message);
+    }
+  }
+  return { courses: read('src/data/courses.json'), institutions: read('src/data/institutions.json'), categories: read('src/data/categories.json') };
+}
+const catalog = await loadCatalog();
+const courses = catalog.courses.filter((c) => (c.status ?? 'publicado') === 'publicado');
+const institutions = catalog.institutions;
+const usedCategories = new Set(courses.map((c) => c.category));
+const categories = catalog.categories.filter((c) => usedCategories.has(c.id));
 const template = readFileSync(join(dist, 'index.html'), 'utf8');
 /** Prefijo de rutas de la app (coincide con BASE_PATH de Vite). */
 const BASE = (process.env.BASE_PATH ?? '/').replace(/\/$/, '');
@@ -25,9 +51,11 @@ const href = (path) => `${BASE}${path}`;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const TYPE = { curso: 'Curso', especializacion: 'Especialización', certificacion: 'Certificación', bootcamp: 'Bootcamp', diplomado: 'Diplomado', 'programa-ejecutivo': 'Programa ejecutivo', maestria: 'Maestría', membresia: 'Membresía' };
 const money = (c) => {
+  if (c.price == null) return 'precio a consultar';
   const p = c.discount_price ?? c.price;
   return p === 0 ? 'Gratis' : `${c.currency === 'PEN' ? 'S/' : 'US$'} ${p.toLocaleString('en-US')}`;
 };
+const facts = (c) => [TYPE[c.program_type], c.duration_hours ? `${c.duration_hours} horas` : c.duration_text, money(c)].filter(Boolean).join(', ');
 const instById = new Map(institutions.map((i) => [i.id, i]));
 
 /** @type {{path:string,title:string,description:string,body:string,priority:number,index?:boolean}[]} */
@@ -55,11 +83,11 @@ const routes = [
     return {
       path: `/programa/${c.slug}`, priority: 0.8,
       title: `${c.name} · ${inst?.short_name ?? ''} | Groulevel`,
-      description: `${c.short_description} ${TYPE[c.program_type]}, ${c.duration_hours} horas, ${money(c)}.`,
-      body: `<h1>${esc(c.name)}</h1><p>${esc(inst?.name ?? '')} · ${TYPE[c.program_type]} · ${c.duration_hours} h · ${esc(money(c))}</p><p>${esc(c.description)}</p>`
+      description: `${c.short_description} ${facts(c)}.`.slice(0, 300),
+      body: `<h1>${esc(c.name)}</h1><p>${esc(inst?.name ?? '')} · ${esc(facts(c))}</p><p>${esc(c.description)}</p>`
     };
   }),
-  ...institutions.map((i) => ({
+  ...institutions.filter((i) => courses.some((c) => c.institution_id === i.id)).map((i) => ({
     path: `/institucion/${i.slug}`, priority: 0.6,
     title: `${i.name}: programas y cursos | Groulevel`,
     description: `${i.description.slice(0, 150)}`,
@@ -108,7 +136,7 @@ ${routes
 </urlset>
 `;
 writeFileSync(join(dist, 'sitemap.xml'), sitemap);
-writeFileSync(join(dist, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: ${new URL(SITE_URL + '/').pathname}interno/\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+writeFileSync(join(dist, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: ${new URL(SITE_URL + '/').pathname}interno/\nDisallow: ${new URL(SITE_URL + '/').pathname}admin\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
 writeFileSync(join(dist, '.nojekyll'), '');
 
 console.log(`postbuild: ${routes.length} rutas pre-generadas, 404.html, sitemap.xml (${routes.filter((r) => r.index !== false).length} URLs), robots.txt`);

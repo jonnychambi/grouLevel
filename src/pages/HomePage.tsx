@@ -63,7 +63,18 @@ export default function HomePage() {
 
   const featured = catalog ? featuredCourses(catalog, 6) : [];
   // Ejemplo real del comparador: los 3 programas de Data Analytics/BI mejor valorados.
-  const sample = catalog ? catalog.courses.filter((c) => ['data-analytics', 'business-analytics'].includes(c.category) && c.price > 0).sort((a, b) => b.reviews_count * b.rating - a.reviews_count * a.rating).slice(0, 3) : [];
+  const sample = useMemo(() => {
+    if (!catalog) return [];
+    const picked: typeof catalog.courses = [];
+    const seen = new Set<string>();
+    for (const c of featuredCourses(catalog, 400)) {
+      if (c.category !== 'data-analytics' || c.price == null || c.duration_hours == null || seen.has(c.institution_id)) continue;
+      picked.push(c);
+      seen.add(c.institution_id);
+      if (picked.length === 3) break;
+    }
+    return picked;
+  }, [catalog]);
 
   return (
     <>
@@ -93,7 +104,7 @@ export default function HomePage() {
             {[
               { k: 'Programas', v: catalog?.courses.length },
               { k: 'Instituciones', v: catalog?.institutions.length },
-              { k: 'Áreas tech', v: catalog?.categories.length }
+              { k: 'Áreas tech', v: catalog ? counts.size : undefined }
             ].map((s) => (
               <div key={s.k}>
                 <dt className="label-mono">{s.k}</dt>
@@ -135,7 +146,7 @@ export default function HomePage() {
           <Link to="/programas" className="btn btn-ghost btn-sm hidden sm:inline-flex">Ver todos <Icon name="arrow-right" size={15} /></Link>
         </div>
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {(catalog?.categories ?? Array.from({ length: 8 }, (_, i) => ({ id: String(i), slug: '', name: '', group: '' }))).map((c) => (
+          {(catalog?.categories.filter((c) => (counts.get(c.id) ?? 0) > 0) ?? Array.from({ length: 8 }, (_, i) => ({ id: String(i), slug: '', name: '', group: '' }))).map((c) => (
             <li key={c.id}>
               {loading ? (
                 <div className="skeleton h-[84px]" />
@@ -207,8 +218,8 @@ export default function HomePage() {
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <span className="label-mono">Selección</span>
-            <h2 id="feat-title" className="mt-2 text-3xl text-white sm:text-4xl">Programas destacados y mejor valorados</h2>
-            <p className="mt-2 text-sm text-muted">Los listings marcados como “Destacado” son posiciones patrocinadas por la institución.</p>
+            <h2 id="feat-title" className="mt-2 text-3xl text-white sm:text-4xl">Programas para empezar a comparar</h2>
+            <p className="mt-2 text-sm text-muted">Programas con información más completa y próximos inicios. Los marcados como “Destacado” son posiciones patrocinadas.</p>
           </div>
         </div>
         <CourseGrid courses={featured} loading={loading} source="home" />

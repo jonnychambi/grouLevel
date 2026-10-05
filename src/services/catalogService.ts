@@ -27,7 +27,7 @@ export function loadCatalog(): Promise<Catalog> {
       .then(([courses, institutions, categories]) => {
         const instById = new Map(institutions.map((i) => [i.id, i]));
         const joined: CourseWithInstitution[] = courses
-          .filter((c) => instById.has(c.institution_id))
+          .filter((c) => instById.has(c.institution_id) && (c.status ?? 'publicado') === 'publicado')
           .map((c) => ({ ...c, institution: instById.get(c.institution_id)! }));
         return {
           courses: joined,

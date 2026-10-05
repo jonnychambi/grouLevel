@@ -15,8 +15,12 @@ export function relatedCourses(target: CourseWithInstitution, all: CourseWithIns
       if (c.category === target.category) score += 10;
       if (c.modality === target.modality) score += 3;
       const p = priceInPEN(c);
-      const ratio = targetPrice === 0 || p === 0 ? (targetPrice === p ? 1 : 0) : Math.min(p, targetPrice) / Math.max(p, targetPrice);
-      score += ratio * 5;
+      if (p != null && targetPrice != null) {
+        const ratio = targetPrice === 0 || p === 0 ? (targetPrice === p ? 1 : 0) : Math.min(p, targetPrice) / Math.max(p, targetPrice);
+        score += ratio * 5;
+      }
+      if (c.institution_id !== target.institution_id) score += 1; // diversidad de instituciones para comparar
+      if (c.status !== 'publicado') score -= 1000;
       score += c.tools.filter((t) => tools.has(t.toLowerCase())).length * 1.5;
       if (c.level === target.level) score += 1;
       return { c, score };
