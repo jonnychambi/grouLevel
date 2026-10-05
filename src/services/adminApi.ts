@@ -2,7 +2,7 @@
  * Cliente del API de administración (/api/admin). La sesión vive en sessionStorage
  * (se cierra al cerrar la pestaña) y expira a las 12 horas.
  */
-import type { Category, Course, Institution } from '../types';
+import type { Category, Course, Institution, Lead, LeadStatus } from '../types';
 import { sessionStore } from './storage';
 
 export interface AdminCatalog {
@@ -80,3 +80,14 @@ export async function loadBundledCatalog(): Promise<AdminCatalog> {
   ]);
   return { courses, institutions, categories };
 }
+
+/* ------------------------------------------------------------------ Leads */
+
+export type StoredLead = Lead & { pathname: string };
+
+export const fetchLeads = (limit = 1000) => call<{ leads: StoredLead[]; total: number }>(`leads&limit=${limit}`);
+
+export const updateLeadStatus = (pathname: string, patch: { status?: LeadStatus; notes?: string }) =>
+  call<{ lead: StoredLead }>('lead', { method: 'POST', body: JSON.stringify({ pathname, ...patch }) });
+
+export const deleteLeadRecord = (pathname: string) => call<{ ok: true }>('lead-delete', { method: 'POST', body: JSON.stringify({ pathname }) });

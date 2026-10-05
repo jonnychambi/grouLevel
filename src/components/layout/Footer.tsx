@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Logo } from '../ui/Logo';
+import { gaEnabled } from '../../services/ga';
+import { OPEN_CONSENT_EVENT } from './ConsentBanner';
 
 const EXPLORE = [
   { slug: 'data-analytics', name: 'Data Analytics' },
@@ -48,7 +50,10 @@ export function Footer() {
           <p>
             <strong className="font-medium text-gray">Información referencial.</strong> Los datos de cada programa se obtienen del sitio web oficial de la institución y pueden cambiar. Confírmalos con la institución antes de matricularte.
           </p>
-          <p className="shrink-0">© {new Date().getFullYear()} Groulevel</p>
+          <p className="flex shrink-0 items-center gap-4">
+            {gaEnabled && <button className="hover:text-white" onClick={() => window.dispatchEvent(new Event(OPEN_CONSENT_EVENT))}>Preferencias de cookies</button>}
+            <span>© {new Date().getFullYear()} Groulevel</span>
+          </p>
         </div>
       </div>
     </footer>

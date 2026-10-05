@@ -1,10 +1,10 @@
 /**
  * LeadService — abstracción del envío de leads.
  *
- * Los componentes llaman a `getLeadService().submit(...)`. Hoy la implementación es
- * `LocalLeadService` (guarda en localStorage y simula latencia). Para producción:
- *  - `HttpLeadService` (API REST propia, Supabase Edge Function, Make/Zapier webhook…)
- *    se activa definiendo VITE_LEAD_API_URL, sin tocar la UI.
+ * Los componentes llaman a `getLeadService().submit(...)`. Por defecto se usa `ApiLeadService`,
+ * que guarda el lead en el servidor (/api/leads → Vercel Blob privado, visible en /admin → Leads).
+ * Si el API no existe en el entorno (GitHub Pages, desarrollo local) se usa `LocalLeadService`.
+ * `HttpLeadService` permite apuntar a otro backend con VITE_LEAD_API_URL, sin tocar la UI.
  */
 import type { CourseWithInstitution, Lead, LeadFormInput, LeadSignals } from '../types';
 import { scoreLead } from '../utils/leadScoring';
@@ -17,7 +17,11 @@ export interface LeadSubmission {
   input: LeadFormInput;
   course: CourseWithInstitution;
   signals: LeadSignals;
+  /** Campo trampa anti-bots (debe llegar vacío). */
+  honeypot?: string;
 }
+
+export class LeadSubmitError extends Error {}
 
 export interface LeadService {
   submit(submission: LeadSubmission): Promise<Lead>;
@@ -59,7 +63,7 @@ export function buildLead({ input, course, signals }: LeadSubmission): Lead {
 export class LocalLeadService implements LeadService {
   async submit(submission: LeadSubmission): Promise<Lead> {
     await new Promise((r) => setTimeout(r, 650)); // simula red
-    const lead = { ...buildLead(submission), status: 'enviado' as const };
+    const lead = { ...buildLead(submission), status: 'nuevo' as const };
     const leads = storage.get<Lead[]>(STORAGE_KEYS.leads, []);
     storage.set(STORAGE_KEYS.leads, [...leads, lead]);
     recordCplEvent(lead);
@@ -81,11 +85,47 @@ export class HttpLeadService implements LeadService {
     });
     if (!res.ok) throw new Error('No pudimos enviar tu solicitud. Inténtalo nuevamente.');
     recordCplEvent(lead);
-    return { ...lead, status: 'enviado' };
+    return { ...lead, status: 'nuevo' };
   }
   async list(): Promise<Lead[]> {
     const res = await fetch(this.endpoint);
     return res.ok ? res.json() : [];
+  }
+}
+
+/** Guarda el lead en el servidor de Groulevel. */
+export class ApiLeadService implements LeadService {
+  constructor(private endpoint: string, private fallback: LeadService) {}
+  async submit(submission: LeadSubmission): Promise<Lead> {
+    const local = buildLead(submission);
+    const attribution = getAttribution();
+    let res: Response;
+    try {
+      res = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: submission.input,
+          signals: submission.signals,
+          course_id: submission.course.id,
+          page_url: window.location.href,
+          attribution,
+          website: submission.honeypot ?? ''
+        })
+      });
+    } catch {
+      throw new LeadSubmitError('No pudimos conectarnos. Revisa tu conexión e inténtalo nuevamente.');
+    }
+    // Sin API en este entorno → registro local (mismo comportamiento que antes).
+    if (res.status === 404 || !(res.headers.get('content-type') ?? '').includes('application/json')) return this.fallback.submit(submission);
+    const body = (await res.json()) as Partial<Lead> & { message?: string; errors?: string[] };
+    if (!res.ok) throw new LeadSubmitError(body.errors?.length ? `${body.message ?? 'Revisa los datos.'} ${body.errors.join(' ')}` : body.message ?? 'No pudimos enviar tu solicitud. Inténtalo nuevamente.');
+    const lead: Lead = { ...local, ...body, status: 'nuevo' } as Lead;
+    recordCplEvent(lead);
+    return lead;
+  }
+  list(): Promise<Lead[]> {
+    return this.fallback.list();
   }
 }
 
@@ -94,7 +134,7 @@ let service: LeadService | null = null;
 export function getLeadService(): LeadService {
   if (!service) {
     const endpoint = import.meta.env.VITE_LEAD_API_URL as string | undefined;
-    service = endpoint ? new HttpLeadService(endpoint) : new LocalLeadService();
+    service = endpoint ? new HttpLeadService(endpoint) : new ApiLeadService(`${import.meta.env.BASE_URL}api/leads`, new LocalLeadService());
   }
   return service;
 }

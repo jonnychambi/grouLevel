@@ -6,6 +6,9 @@
  *   PUT  /api/admin?action=catalog   { catalog, baseVersion, note } → { version }   (409 si otra persona guardó antes)
  *   GET  /api/admin?action=versions                                 → { versions }
  *   POST /api/admin?action=restore   { pathname }                   → { version }
+ *   GET  /api/admin?action=leads     [&limit=500]                    → { leads, total }
+ *   POST /api/admin?action=lead      { pathname, status?, notes? }   → { lead }
+ *   POST /api/admin?action=lead-delete { pathname }                  → { ok }
  *
  * Todas las acciones salvo login requieren Authorization: Bearer <token>.
  */
@@ -13,6 +16,7 @@ import { checkPassword, isConfigured, issueToken, verifyRequest } from './_lib/a
 import { json, readJson } from './_lib/http.js';
 import { isStoreConfigured, listVersions, readLatest, readVersion, writeVersion } from './_lib/store.js';
 import { validateCatalog, type CatalogPayload } from './_lib/validate.js';
+import { deleteLead, listLeads, updateLead } from './_lib/leads.js';
 
 const action = (request: Request) => new URL(request.url).searchParams.get('action') ?? '';
 
@@ -44,6 +48,15 @@ export async function POST(request: Request): Promise<Response> {
     const version = await writeVersion({ ...data, meta: { ...(data.meta ?? {}), restored_from: body.pathname, saved_at: new Date().toISOString() } }, 'restaurado');
     return json(200, { version });
   }
+  if (act === 'lead' || act === 'lead-delete') {
+    const denied = guard(request);
+    if (denied) return denied;
+    const body = await readJson<{ pathname?: string; status?: string; notes?: string }>(request);
+    if (!body?.pathname) return json(400, { error: 'bad_request', message: 'Falta el lead.' });
+    if (act === 'lead-delete') return (await deleteLead(body.pathname)) ? json(200, { ok: true }) : json(404, { error: 'not_found' });
+    const lead = await updateLead(body.pathname, body);
+    return lead ? json(200, { lead }) : json(404, { error: 'not_found', message: 'El lead no existe.' });
+  }
   return json(404, { error: 'unknown_action' });
 }
 
@@ -56,6 +69,10 @@ export async function GET(request: Request): Promise<Response> {
     return json(200, { catalog: latest?.data ?? null, version: latest?.version ?? null });
   }
   if (act === 'versions') return json(200, { versions: await listVersions() });
+  if (act === 'leads') {
+    const limit = Math.min(5000, Math.max(1, Number(new URL(request.url).searchParams.get('limit')) || 500));
+    return json(200, await listLeads(limit));
+  }
   return json(404, { error: 'unknown_action' });
 }
 

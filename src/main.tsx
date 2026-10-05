@@ -5,10 +5,12 @@ import App from './App';
 import { LeadModalProvider } from './context/LeadModalContext';
 import { ToastProvider } from './context/ToastContext';
 import { captureAttribution } from './services/attribution';
+import { initGA } from './services/ga';
 import { loadCatalog } from './services/catalogService';
 import './index.css';
 
 captureAttribution();
+initGA();
 // Precarga del catálogo en paralelo al render inicial.
 void loadCatalog().catch(() => undefined);
 

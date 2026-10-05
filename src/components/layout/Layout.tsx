@@ -2,6 +2,7 @@ import { Suspense, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useCompare } from '../../hooks/useCompare';
 import { CompareTray } from '../compare/CompareTray';
+import { ConsentBanner } from './ConsentBanner';
 import { Footer } from './Footer';
 import { Header } from './Header';
 
@@ -38,6 +39,7 @@ export function Layout() {
       </main>
       <Footer />
       <CompareTray />
+      <ConsentBanner />
     </div>
   );
 }

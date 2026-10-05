@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { SITE } from '../config/site';
+import { trackPageView } from '../services/ga';
 
 export interface SeoOptions {
   title?: string;
@@ -64,5 +65,6 @@ export function useSeo({ title, description = SITE.description, path, image, typ
       script.textContent = ld;
       document.head.appendChild(script);
     }
+    trackPageView();
   }, [title, description, path, image, type, noindex, ld]);
 }

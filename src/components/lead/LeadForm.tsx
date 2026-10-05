@@ -29,7 +29,7 @@ export function validateLead(v: Partial<LeadFormInput>): Errors {
 interface Props {
   institutionName: string;
   submitting: boolean;
-  onSubmit: (input: LeadFormInput) => void;
+  onSubmit: (input: LeadFormInput, honeypot: string) => void;
 }
 
 function Field({ id, label, error, children, hint }: { id: string; label: string; error?: string; hint?: string; children: ReactNode }) {
@@ -49,6 +49,7 @@ export function LeadForm({ institutionName, submitting, onSubmit }: Props) {
   const [values, setValues] = useState<Partial<LeadFormInput>>({ country: 'Perú', consent: false, ...saved });
   const [errors, setErrors] = useState<Errors>({});
   const [touched, setTouched] = useState(false);
+  const [trap, setTrap] = useState('');
 
   const set = <K extends keyof LeadFormInput>(k: K, v: LeadFormInput[K]) => {
     const next = { ...values, [k]: v };
@@ -68,7 +69,7 @@ export function LeadForm({ institutionName, submitting, onSubmit }: Props) {
     }
     const input = values as LeadFormInput;
     storage.set<Profile>(PROFILE_KEY, { first_name: input.first_name, last_name: input.last_name, email: input.email, whatsapp: input.whatsapp, country: input.country });
-    onSubmit(input);
+    onSubmit(input, trap);
   };
 
   const fid = (k: keyof LeadFormInput) => `${uid}-${k}`;
@@ -76,6 +77,11 @@ export function LeadForm({ institutionName, submitting, onSubmit }: Props) {
 
   return (
     <form onSubmit={submit} noValidate className="space-y-5 px-5 py-5 sm:px-6">
+      {/* Campo trampa anti-bots: invisible para personas y lectores de pantalla. */}
+      <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+        <label htmlFor={`${uid}-website`}>Sitio web</label>
+        <input id={`${uid}-website`} name="website" type="text" tabIndex={-1} autoComplete="off" value={trap} onChange={(e) => setTrap(e.target.value)} />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id={fid('first_name')} label="Nombre" error={errors.first_name}>
           <input {...aria('first_name')} className="input" autoComplete="given-name" value={values.first_name ?? ''} onChange={(e) => set('first_name', e.target.value)} data-autofocus />

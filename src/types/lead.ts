@@ -13,6 +13,9 @@ export type SignalTier = 'HIGH_INTENT' | 'WARM' | 'NURTURE' | 'LOW';
 /** Segmento comercial clásico para CRM. */
 export type LeadSegment = 'hot' | 'warm' | 'cold';
 
+/** Seguimiento comercial del lead. */
+export type LeadStatus = 'nuevo' | 'contactado' | 'enviado' | 'matriculado' | 'descartado';
+
 /** Origen de la interacción dentro de Groulevel. */
 export type LeadSource = 'detalle' | 'comparador' | 'listado' | 'institucion' | 'favoritos' | 'home';
 
@@ -73,5 +76,8 @@ export interface Lead extends LeadFormInput {
   lead_score: number;
   lead_tier: SignalTier;
   lead_segment: LeadSegment;
-  status: 'nuevo' | 'enviado' | 'contactado';
+  status: LeadStatus;
+  /** Notas internas del equipo comercial (solo administrador). */
+  notes?: string;
+  updated_at?: string;
 }

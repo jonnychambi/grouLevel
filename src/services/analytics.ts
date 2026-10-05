@@ -13,6 +13,7 @@ import type { AnalyticsEvent, AnalyticsEventMap, AnalyticsEventName, CourseConte
 import { getAttribution, getSessionId } from './attribution';
 import { STORAGE_KEYS, storage } from './storage';
 import { effectivePrice, uid } from '../utils/format';
+import { gaSink } from './ga';
 
 type Sink = (event: AnalyticsEvent) => void;
 
@@ -26,13 +27,13 @@ declare global {
 const MAX_EVENTS = 1000;
 
 const sinks: Sink[] = [
-  // Google Tag Manager / dataLayer
+  // Google Tag Manager / dataLayer (formato GTM; GA4 usa su propio sink)
   (e) => {
     window.dataLayer = window.dataLayer ?? [];
-    window.dataLayer.push({ event: e.name, ...e.props, session_id: e.session_id, page: e.page });
+    window.dataLayer.push({ event: `gl_${e.name}`, ...e.props, session_id: e.session_id, page: e.page });
   },
-  // GA4 si existe gtag
-  (e) => window.gtag?.('event', e.name, e.props),
+  // Google Analytics 4 (si hay ID configurado y la página no es /admin)
+  gaSink,
   // Buffer local
   (e) => {
     const events = storage.get<AnalyticsEvent[]>(STORAGE_KEYS.events, []);

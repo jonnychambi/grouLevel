@@ -110,8 +110,23 @@ Cada lead registra programa, institución, URL, fecha, fuente, campaña y UTMs (
 - **Featured listings:** campo `featured`; se posicionan primero en relevancia y se etiquetan “Destacado”.
 - **Comisión por venta:** tipo `Order` (`order_id, course_id, institution_id, sale_amount, commission_percentage, commission_amount`) y `buildOrder()` listos para el checkout.
 
-## Analítica
-Eventos tipados: `search_performed`, `filter_applied`, `course_viewed`, `compare_added`, `comparison_viewed`, `lead_form_opened`, `lead_submitted`, `institution_viewed`, `outbound_click`, `favorite_added` (+ `compare_removed`, `favorite_removed`, `share_clicked`). Cada evento lleva contexto (course_id, institution_id, category, price, source…), sesión y UTMs, y se envía a `window.dataLayer` (GTM), `gtag` si existe y un buffer local. `utils/metrics.ts` calcula Search→View, View→Lead, Comparison→Lead, leads por institución/programa/categoría/fuente/campaña, CPL, revenue y Signal Score promedio.
+## Analítica (Google Analytics 4)
+
+- Se activa con la variable **`VITE_GA_MEASUREMENT_ID`** (`G-XXXXXXX`) en Vercel → Settings → Environment Variables (Production) y un nuevo despliegue. Sin ella, no se carga nada de Google.
+- **Consent Mode v2:** las cookies analíticas están denegadas hasta que la persona acepta en el aviso; la elección se recuerda y se puede cambiar en el pie (“Preferencias de cookies”). Sin cookies publicitarias.
+- Page views en cada cambio de ruta (SPA) con el título correcto. No se mide `/admin`.
+- Eventos → GA4: `search` (búsqueda), `view_item` (ficha), `add_to_compare`, `view_comparison`, `begin_lead_form`, **`generate_lead`** (con valor, moneda, tier y Signal Score), `add_to_wishlist`, `share`, `click_institution_site`. Nunca se envían nombre, email ni teléfono.
+- En GA4 marca **`generate_lead`** como evento clave (conversión). Para ver `lead_tier`, `lead_score` o `lead_source` en los informes, regístralos como dimensiones/métricas personalizadas.
+- Los mismos eventos se envían a `window.dataLayer` con prefijo `gl_` por si más adelante se usa Google Tag Manager.
+- `/interno/metricas` sigue calculando el funnel con los eventos del navegador (útil para pruebas).
+
+## Leads
+
+- El formulario “Solicitar información” envía a **`POST /api/leads`**, que valida los datos, verifica que el programa exista, **recalcula el Signal Score en el servidor** y guarda el lead en Vercel Blob privado (`leads/AAAA-MM/…json`, un archivo por lead). No se guarda la IP.
+- Anti-spam: campo trampa invisible y límite de envíos por IP.
+- **`/admin` → Leads:** totales, filtros (estado, intención, institución, periodo, búsqueda), detalle con enlaces directos a WhatsApp y email, estado de seguimiento (*Nuevo, Contactado, Enviado a la institución, Matriculado, Descartado*), notas internas, **exportación a CSV** (abre directo en Excel) y eliminación (p. ej. si alguien pide borrar sus datos).
+- Opcional: **`LEAD_WEBHOOK_URL`** reenvía cada lead a un webhook (Zapier/Make → Google Sheets, HubSpot, email…).
+- Donde no hay API (GitHub Pages, desarrollo local) los leads se guardan en el navegador, como antes.
 
 ## SEO
 Title/description/canonical/Open Graph/Twitter dinámicos, JSON-LD (WebSite + SearchAction, Course, EducationalOrganization, BreadcrumbList, ItemList), breadcrumbs, URLs semánticas. En el build, `scripts/postbuild.mjs` genera un `index.html` por ruta conocida (62) con su meta y contenido básico, más `sitemap.xml`, `robots.txt` y `404.html` (fallback SPA).

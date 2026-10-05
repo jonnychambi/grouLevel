@@ -20,7 +20,7 @@ export default function LeadModal({ course, source, onClose }: { course: CourseW
   const [status, setStatus] = useState<Status>({ kind: 'form' });
   const [lastInput, setLastInput] = useState<LeadFormInput | null>(null);
 
-  const submit = async (input: LeadFormInput) => {
+  const submit = async (input: LeadFormInput, honeypot = '') => {
     setLastInput(input);
     setStatus({ kind: 'submitting' });
     try {
@@ -28,7 +28,8 @@ export default function LeadModal({ course, source, onClose }: { course: CourseW
       const lead = await getLeadService().submit({
         input,
         course,
-        signals: { compared_programs: compared.includes(course.id) ? compared.length : 0, viewed_programs: recentStore.get().length, source }
+        signals: { compared_programs: compared.includes(course.id) ? compared.length : 0, viewed_programs: recentStore.get().length, source },
+        honeypot
       });
       track('lead_submitted', { ...courseContext(course), source, lead_id: lead.id, lead_score: lead.lead_score, lead_tier: lead.lead_tier, lead_segment: lead.lead_segment });
       setStatus({ kind: 'success', firstName: input.first_name.trim() });
