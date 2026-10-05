@@ -5,6 +5,7 @@
  */
 import type { Category, CourseWithInstitution, Institution } from '../types';
 import { getDataSource } from './dataSource';
+import { fetchReviewsSummary } from './reviewsService';
 import { buildIndex, search, suggest, type QueryIntent, type SearchResult, type Suggestion } from '../utils/search';
 import { applyFilters, facetCounts, sortCourses, type FacetKey, type FilterContext, type FilterState, type SortKey } from '../utils/filters';
 import { relatedCourses } from '../utils/related';
@@ -23,8 +24,17 @@ let catalogPromise: Promise<Catalog> | null = null;
 export function loadCatalog(): Promise<Catalog> {
   if (!catalogPromise) {
     const ds = getDataSource();
-    catalogPromise = Promise.all([ds.getCourses(), ds.getInstitutions(), ds.getCategories()])
-      .then(([courses, institutions, categories]) => {
+    catalogPromise = Promise.all([ds.getCourses(), ds.getInstitutions(), ds.getCategories(), fetchReviewsSummary()])
+      .then(([rawCourses, rawInstitutions, categories, reviews]) => {
+        // Valoraciones de usuarios (reseñas aprobadas) → programas e instituciones.
+        const institutions = rawInstitutions.map((i) => {
+          const r = reviews.institutions[i.id];
+          return r?.count ? { ...i, rating: r.avg, reviews_count: r.count } : { ...i, rating: null, reviews_count: 0 };
+        });
+        const courses = rawCourses.map((c) => {
+          const r = reviews.courses[c.id];
+          return r?.count ? { ...c, rating: r.avg, reviews_count: r.count } : c;
+        });
         const instById = new Map(institutions.map((i) => [i.id, i]));
         const joined: CourseWithInstitution[] = courses
           .filter((c) => instById.has(c.institution_id) && (c.status ?? 'publicado') === 'publicado')

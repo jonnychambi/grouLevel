@@ -9,6 +9,9 @@
  *   GET  /api/admin?action=leads     [&limit=500]                    → { leads, total }
  *   POST /api/admin?action=lead      { pathname, status?, notes? }   → { lead }
  *   POST /api/admin?action=lead-delete { pathname }                  → { ok }
+ *   GET  /api/admin?action=reviews                                  → { reviews }
+ *   POST /api/admin?action=review    { pathname, status?, reply?, rejection_reason? } → { review }
+ *   POST /api/admin?action=review-delete { pathname }               → { ok }
  *
  * Todas las acciones salvo login requieren Authorization: Bearer <token>.
  */
@@ -17,6 +20,7 @@ import { json, readJson } from './_lib/http.js';
 import { isStoreConfigured, listVersions, readLatest, readVersion, writeVersion } from './_lib/store.js';
 import { validateCatalog, type CatalogPayload } from './_lib/validate.js';
 import { deleteLead, listLeads, updateLead } from './_lib/leads.js';
+import { deleteReview, listAllReviews, moderateReview } from './_lib/reviews.js';
 
 const action = (request: Request) => new URL(request.url).searchParams.get('action') ?? '';
 
@@ -48,6 +52,15 @@ export async function POST(request: Request): Promise<Response> {
     const version = await writeVersion({ ...data, meta: { ...(data.meta ?? {}), restored_from: body.pathname, saved_at: new Date().toISOString() } }, 'restaurado');
     return json(200, { version });
   }
+  if (act === 'review' || act === 'review-delete') {
+    const denied = guard(request);
+    if (denied) return denied;
+    const body = await readJson<{ pathname?: string; status?: string; reply?: string; rejection_reason?: string }>(request);
+    if (!body?.pathname) return json(400, { error: 'bad_request', message: 'Falta la reseña.' });
+    if (act === 'review-delete') return (await deleteReview(body.pathname)) ? json(200, { ok: true }) : json(404, { error: 'not_found' });
+    const review = await moderateReview(body.pathname, body);
+    return review ? json(200, { review }) : json(404, { error: 'not_found', message: 'La reseña no existe.' });
+  }
   if (act === 'lead' || act === 'lead-delete') {
     const denied = guard(request);
     if (denied) return denied;
@@ -69,6 +82,7 @@ export async function GET(request: Request): Promise<Response> {
     return json(200, { catalog: latest?.data ?? null, version: latest?.version ?? null });
   }
   if (act === 'versions') return json(200, { versions: await listVersions() });
+  if (act === 'reviews') return json(200, { reviews: await listAllReviews() });
   if (act === 'leads') {
     const limit = Math.min(5000, Math.max(1, Number(new URL(request.url).searchParams.get('limit')) || 500));
     return json(200, await listLeads(limit));

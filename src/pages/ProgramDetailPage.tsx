@@ -1,10 +1,12 @@
 import { useEffect, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { CompareButton } from '../components/course/CompareButton';
 import { FavoriteButton } from '../components/course/FavoriteButton';
 import { RecentlyViewed } from '../components/course/RecentlyViewed';
 import { RelatedCourses } from '../components/course/RelatedCourses';
 import { TeacherCard } from '../components/course/TeacherCard';
+import { ReviewsSection } from '../components/reviews/ReviewsSection';
+import { Stars } from '../components/reviews/Stars';
 import { InstitutionLogo } from '../components/institution/InstitutionLogo';
 import { Accordion } from '../components/ui/Accordion';
 import { Badge } from '../components/ui/Badge';
@@ -12,7 +14,6 @@ import { Breadcrumbs } from '../components/ui/Breadcrumbs';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Icon, type IconName } from '../components/ui/Icon';
 import { PriceDisplay } from '../components/ui/PriceDisplay';
-import { Rating } from '../components/ui/Rating';
 import { useLeadModal } from '../context/LeadModalContext';
 import { useToast } from '../context/ToastContext';
 import { useCatalog } from '../hooks/useCatalog';
@@ -34,7 +35,8 @@ const SECTIONS = [
   { id: 'modalidad', label: 'Modalidad' },
   { id: 'certificacion', label: 'Certificación' },
   { id: 'precio', label: 'Precio' },
-  { id: 'institucion', label: 'Institución' }
+  { id: 'institucion', label: 'Institución' },
+  { id: 'resenas', label: 'Valoraciones' }
 ];
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
@@ -95,6 +97,14 @@ export default function ProgramDetailPage() {
   const openLead = useLeadModal();
   const notify = useToast();
   const course = catalog?.bySlug.get(slug);
+
+  // Enlaces con ancla (p. ej. #resenas desde la tarjeta): desplazar cuando el contenido ya existe.
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!course || !hash) return;
+    const t = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    return () => clearTimeout(t);
+  }, [course, hash]);
 
   useEffect(() => {
     if (!course) return;
@@ -171,7 +181,13 @@ export default function ProgramDetailPage() {
               </div>
               <h1 className="mt-4 text-4xl leading-[1.05] text-white sm:text-5xl">{course.name}</h1>
               <p className="mt-4 max-w-2xl text-lg text-gray">{course.short_description}</p>
-              {course.rating != null && <div className="mt-4"><Rating value={course.rating} count={course.reviews_count ?? undefined} /></div>}
+              <a href="#resenas" className="mt-4 inline-flex items-center gap-2 text-sm text-gray hover:text-white">
+                {course.rating != null && course.reviews_count ? (
+                  <><Stars value={course.rating} size={16} /><span className="tnum font-medium text-white">{course.rating.toFixed(1)}</span><span>({course.reviews_count} {course.reviews_count === 1 ? 'reseña' : 'reseñas'})</span></>
+                ) : (
+                  <><Icon name="star" size={15} className="text-warn" />Sé el primero en valorar este programa</>
+                )}
+              </a>
 
               <dl className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <KeyFact icon="clock" label="Duración" value={durationLabel(course)} sub={course.duration_hours != null ? (course.duration_weeks ? formatWeeks(course.duration_weeks) : course.duration_text ?? undefined) : undefined} />
@@ -355,6 +371,9 @@ export default function ProgramDetailPage() {
                 <div>
                   <h3 className="text-lg text-white">{course.institution.name}</h3>
                   <p className="text-sm text-muted">{course.institution.type} · {course.institution.country}</p>
+                  {course.institution.rating != null && (course.institution.reviews_count ?? 0) > 0 && (
+                    <p className="mt-1 flex items-center gap-1.5 text-sm text-gray"><Stars value={course.institution.rating} size={14} /><span className="tnum text-white">{course.institution.rating.toFixed(1)}</span> · {course.institution.reviews_count} {course.institution.reviews_count === 1 ? 'reseña' : 'reseñas'}</p>
+                  )}
                 </div>
               </div>
               <p className="mt-4 text-gray">{course.institution.description}</p>
@@ -366,6 +385,8 @@ export default function ProgramDetailPage() {
               </div>
             </div>
           </Section>
+
+          <ReviewsSection course={course} />
 
           <p className="flex items-start gap-2 text-xs text-muted">
             <Icon name="info" size={14} className="mt-0.5 shrink-0" />

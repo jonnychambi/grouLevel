@@ -13,6 +13,8 @@ export interface AnalyticsEventMap {
   favorite_added: CourseContext;
   favorite_removed: { course_id: string };
   share_clicked: CourseContext & { method: 'native' | 'clipboard' };
+  review_submitted: CourseContext & { rating: number; relationship: string };
+  reviews_viewed: { course_id: string; count: number };
 }
 
 export interface CourseContext {

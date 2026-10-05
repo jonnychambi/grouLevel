@@ -138,6 +138,9 @@ export interface Institution {
   programs_url?: string | null;
   /** Nombres con los que aparece en fuentes externas (ej. el Excel), para el importador. */
   aliases?: string[];
+  /** Valoración promedio de sus programas (reseñas aprobadas). Se calcula al cargar el catálogo. */
+  rating?: number | null;
+  reviews_count?: number;
   logo?: string | null;
   is_demo: boolean;
 }

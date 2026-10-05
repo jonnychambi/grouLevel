@@ -4,6 +4,7 @@ import { CourseEditor, emptyCourse, STATUS_LABELS } from '../components/admin/Co
 import { emptyInstitution, InstitutionEditor } from '../components/admin/InstitutionEditor';
 import { ImportPanel } from '../components/admin/ImportPanel';
 import { LeadsPanel } from '../components/admin/LeadsPanel';
+import { ReviewsPanel } from '../components/admin/ReviewsPanel';
 import { InstitutionLogo } from '../components/institution/InstitutionLogo';
 import { Icon } from '../components/ui/Icon';
 import { Logo } from '../components/ui/Logo';
@@ -18,7 +19,7 @@ import { effectivePrice, formatDate, formatMoney } from '../utils/format';
 import { PROGRAM_TYPE_LABELS } from '../utils/labels';
 import { normalize } from '../utils/text';
 
-type Tab = 'programas' | 'leads' | 'instituciones' | 'importar' | 'versiones';
+type Tab = 'programas' | 'leads' | 'reseñas' | 'instituciones' | 'importar' | 'versiones';
 type Editing = { kind: 'course'; course: Course; isNew: boolean } | { kind: 'institution'; institution: Institution; isNew: boolean } | null;
 type Notice = { tone: 'ok' | 'error' | 'info'; text: string; details?: string[] } | null;
 
@@ -137,7 +138,7 @@ export default function AdminPage() {
           <Link to="/" aria-label="Ir al sitio"><Logo size={18} /></Link>
           <span className="rounded-full border border-violet/40 px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.14em] text-violet-soft">Admin</span>
           <nav className="ml-2 flex gap-1" aria-label="Secciones del administrador">
-            {(['programas', 'leads', 'instituciones', 'importar', 'versiones'] as Tab[]).map((t) => (
+            {(['programas', 'leads', 'reseñas', 'instituciones', 'importar', 'versiones'] as Tab[]).map((t) => (
               <button key={t} onClick={() => { setTab(t); setEditing(null); }} aria-current={tab === t ? 'page' : undefined} className={`rounded-full px-3 py-1.5 text-sm capitalize ${tab === t ? 'bg-raise text-white' : 'text-gray hover:text-white'}`}>
                 {t}
               </button>
@@ -224,6 +225,8 @@ export default function AdminPage() {
             onBulkStatus={(ids, status) => void persist({ ...catalog, courses: catalog.courses.map((c) => (ids.has(c.id) ? { ...c, status } : c)) }, `estado ${status} ${ids.size}`, `${ids.size} programas marcados como ${STATUS_LABELS[status].toLowerCase()}.`)}
             saving={saving}
           />
+        ) : tab === 'reseñas' ? (
+          <ReviewsPanel onError={handleError} onNotice={(text) => setNotice({ tone: 'ok', text })} />
         ) : tab === 'leads' ? (
           <LeadsPanel onError={handleError} />
         ) : tab === 'importar' ? (

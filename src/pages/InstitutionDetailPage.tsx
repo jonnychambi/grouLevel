@@ -5,6 +5,7 @@ import { InstitutionLogo } from '../components/institution/InstitutionLogo';
 import { Breadcrumbs } from '../components/ui/Breadcrumbs';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Icon } from '../components/ui/Icon';
+import { Stars } from '../components/reviews/Stars';
 import { useCatalog } from '../hooks/useCatalog';
 import { useSeo } from '../hooks/useSeo';
 import { track } from '../services/analytics';
@@ -59,6 +60,9 @@ export default function InstitutionDetailPage() {
               </p>
             </div>
           </div>
+          {institution.rating != null && (institution.reviews_count ?? 0) > 0 && (
+            <p className="mt-5 flex items-center gap-2"><Stars value={institution.rating} size={18} /><span className="tnum text-lg font-semibold text-white">{institution.rating.toFixed(1)}</span><span className="text-sm text-muted">· {institution.reviews_count} {institution.reviews_count === 1 ? 'reseña' : 'reseñas'} de sus programas</span></p>
+          )}
           <p className="mt-6 max-w-2xl text-lg text-gray">{institution.description}</p>
           <ul className="mt-5 flex flex-wrap gap-2">{institution.accreditations.map((a) => <li key={a} className="chip"><Icon name="shield" size={14} />{a}</li>)}</ul>
           <a href={institution.website} target="_blank" rel="noopener noreferrer nofollow" className="mt-6 inline-flex items-center gap-1.5 text-sm text-blue-soft hover:text-white">

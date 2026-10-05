@@ -2,7 +2,7 @@
  * Cliente del API de administración (/api/admin). La sesión vive en sessionStorage
  * (se cierra al cerrar la pestaña) y expira a las 12 horas.
  */
-import type { Category, Course, Institution, Lead, LeadStatus } from '../types';
+import type { Category, Course, Institution, Lead, LeadStatus, Review, ReviewStatus } from '../types';
 import { sessionStore } from './storage';
 
 export interface AdminCatalog {
@@ -91,3 +91,14 @@ export const updateLeadStatus = (pathname: string, patch: { status?: LeadStatus;
   call<{ lead: StoredLead }>('lead', { method: 'POST', body: JSON.stringify({ pathname, ...patch }) });
 
 export const deleteLeadRecord = (pathname: string) => call<{ ok: true }>('lead-delete', { method: 'POST', body: JSON.stringify({ pathname }) });
+
+/* --------------------------------------------------------------- Reseñas */
+
+export type StoredReview = Review & { pathname: string };
+
+export const fetchReviews = () => call<{ reviews: StoredReview[] }>('reviews');
+
+export const moderateReview = (pathname: string, patch: { status?: ReviewStatus; reply?: string; rejection_reason?: string }) =>
+  call<{ review: StoredReview }>('review', { method: 'POST', body: JSON.stringify({ pathname, ...patch }) });
+
+export const deleteReviewRecord = (pathname: string) => call<{ ok: true }>('review-delete', { method: 'POST', body: JSON.stringify({ pathname }) });

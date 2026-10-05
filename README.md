@@ -91,6 +91,14 @@ Variables en Vercel: `BLOB_READ_WRITE_TOKEN` (la crea el Blob store), `ADMIN_PAS
 ## Buscador inteligente
 Interpreta lenguaje natural (`"maestría de inteligencia artificial"`, `"curso de Python barato"`, `"data analytics online"`): detecta tipo de programa, modalidad, nivel, gratis/barato; expande sinónimos (IA ⇄ inteligencia artificial, ML, BI…); pondera nombre, herramientas, categoría, institución, habilidades y temario; tolera errores de tipeo. Las intenciones se aplican como filtro solo si dejan resultados, y se muestran al usuario (“Interpretamos tu búsqueda como…”). Autocompletado con categorías, herramientas, programas e instituciones (combobox ARIA).
 
+## Reseñas y valoraciones (1–5 ★)
+
+- Cualquier visitante puede valorar un programa desde `/programa/<slug>#resenas` (estrellas, relación con el programa, título, comentario, nombre y email privado). Validación en cliente y servidor (`src/utils/reviews.ts`), honeypot y límite de 5 envíos/10 min por IP; un email solo puede reseñar una vez cada programa.
+- Las reseñas se guardan como **pendientes** en Vercel Blob (`reviews/<courseId>/…`). En `/admin` → **Reseñas** se aprueban, rechazan (con motivo), responden públicamente o eliminan.
+- Solo las **aprobadas** se publican (`reviews-public/<courseId>.json`) y cuentan en el resumen `reviews-public/summary.json`, que agrega la valoración por programa y por institución.
+- El sitio lee `GET /api/reviews?summary=1` (caché CDN ~1 min) y muestra la valoración en cada tarjeta de programa, en la ficha (sección "Valoraciones") y en las tarjetas/fichas de institución.
+- Evento GA: `review_submitted`.
+
 ## Lead scoring — Signal Score™ (0–100)
 `utils/leadScoring.ts`, configuración desacoplada (`DEFAULT_SCORING_CONFIG`):
 

@@ -8,7 +8,7 @@ import { InstitutionLogo } from '../institution/InstitutionLogo';
 import { Badge } from '../ui/Badge';
 import { Icon, type IconName } from '../ui/Icon';
 import { PriceDisplay } from '../ui/PriceDisplay';
-import { Rating } from '../ui/Rating';
+import { Stars } from '../reviews/Stars';
 import { CompareButton } from './CompareButton';
 import { FavoriteButton } from './FavoriteButton';
 
@@ -34,7 +34,14 @@ export function CourseCard({ course, source = 'listado' }: { course: CourseWithI
       <header className="flex items-start gap-3">
         <InstitutionLogo institution={course.institution} size={40} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm text-gray">{course.institution.name}</p>
+          <p className="flex min-w-0 items-center gap-1.5 text-sm text-gray">
+            <span className="truncate">{course.institution.name}</span>
+            {course.institution.rating != null && (course.institution.reviews_count ?? 0) > 0 && (
+              <span className="shrink-0 tnum text-xs text-muted" title={`Valoración de ${course.institution.name}: ${course.institution.rating.toFixed(1)} de 5 (${course.institution.reviews_count} reseñas)`}>
+                <span className="text-warn">★</span> {course.institution.rating.toFixed(1)}
+              </span>
+            )}
+          </p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             <Badge tone="type" mono>{PROGRAM_TYPE_LABELS[course.program_type]}</Badge>
             {course.featured && (
@@ -52,6 +59,21 @@ export function CourseCard({ course, source = 'listado' }: { course: CourseWithI
       </h3>
       <p className="mt-1.5 line-clamp-2 text-sm text-muted">{course.short_description}</p>
 
+      <Link to={`${href}#resenas`} className="mt-3 inline-flex items-center gap-1.5 self-start text-sm" aria-label={course.rating != null && course.reviews_count ? `Valoración ${course.rating.toFixed(1)} de 5, ${course.reviews_count} reseñas` : 'Sin reseñas aún'}>
+        {course.rating != null && course.reviews_count ? (
+          <>
+            <Stars value={course.rating} size={14} />
+            <span className="tnum font-medium text-white">{course.rating.toFixed(1)}</span>
+            <span className="tnum text-muted">({course.reviews_count})</span>
+          </>
+        ) : (
+          <>
+            <Stars value={0} size={14} />
+            <span className="text-muted hover:text-white">Sin reseñas aún</span>
+          </>
+        )}
+      </Link>
+
       <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2.5">
         <Fact icon={course.modality ? MODALITY_ICON[course.modality] : 'live'} label="Modalidad" value={course.modality ? MODALITY_SHORT[course.modality] : 'No publicada'} title={course.modality ? MODALITY_LABELS[course.modality] : undefined} />
         <Fact icon="clock" label="Duración" value={durationLabel(course)} title={course.duration_text ?? undefined} />
@@ -61,7 +83,6 @@ export function CourseCard({ course, source = 'listado' }: { course: CourseWithI
 
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4">
         <PriceDisplay course={course} size="md" />
-        {course.rating != null && <Rating value={course.rating} count={course.reviews_count ?? undefined} compact />}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
