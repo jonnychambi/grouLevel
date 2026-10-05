@@ -1,0 +1,31 @@
+{
+  "name": "groulevel",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Groulevel — comparador y marketplace de formación tecnológica (MVP)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build && node scripts/postbuild.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "data:demo": "node scripts/build-demo-data.mjs"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}

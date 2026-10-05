@@ -1,0 +1,3737 @@
+[
+  {
+    "id": "crs-001",
+    "slug": "data-analytics-professional",
+    "name": "Data Analytics Professional",
+    "institution_id": "inst-adi",
+    "category": "data-analytics",
+    "subcategory": "Analítica de negocio",
+    "program_type": "diplomado",
+    "short_description": "De Excel y SQL a Power BI y Python: el recorrido completo para trabajar como analista de datos.",
+    "description": "Diplomado práctico que forma analistas de datos capaces de extraer, limpiar, modelar y comunicar información para la toma de decisiones. Cada módulo se trabaja sobre un caso de negocio (retail, banca y consumo masivo) y termina con un proyecto integrador presentado ante un jurado.",
+    "price": 1890,
+    "discount_price": 1490,
+    "currency": "PEN",
+    "duration_hours": 96,
+    "duration_weeks": 16,
+    "modality": "en-vivo",
+    "schedule": "Martes y jueves · 7:00–10:00 p. m. (hora Perú)",
+    "level": "intermedio",
+    "start_date": "2026-10-27",
+    "certificate": {
+      "type": "incluye",
+      "description": "Diploma digital de Andes Data Institute con código de verificación y detalle de horas."
+    },
+    "teachers": [
+      {
+        "name": "Lucía Paredes",
+        "role": "Head of Analytics",
+        "company": "Kallpa Retail",
+        "experience": "12 años liderando equipos de BI y analítica comercial.",
+        "linkedin": null
+      },
+      {
+        "name": "Diego Salazar",
+        "role": "Senior Data Analyst",
+        "company": "Qori Fintech",
+        "experience": "8 años en analítica de riesgos y SQL avanzado.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Excel",
+      "SQL",
+      "Power BI",
+      "Python",
+      "Azure"
+    ],
+    "skills": [
+      "Limpieza de datos",
+      "Modelado de datos",
+      "Visualización",
+      "Storytelling con datos",
+      "KPIs de negocio"
+    ],
+    "syllabus": [
+      {
+        "title": "Fundamentos de Data Analytics",
+        "hours": 12,
+        "description": "Rol del analista, ciclo de vida del dato y métricas de negocio.",
+        "topics": [
+          "Tipos de análisis",
+          "KPIs y métricas",
+          "Excel para análisis"
+        ]
+      },
+      {
+        "title": "SQL para análisis",
+        "hours": 24,
+        "description": "Consultas, joins y funciones de ventana sobre bases transaccionales.",
+        "topics": [
+          "SELECT, JOIN, GROUP BY",
+          "CTEs",
+          "Funciones de ventana"
+        ]
+      },
+      {
+        "title": "Power BI",
+        "hours": 30,
+        "description": "Modelado, DAX y diseño de dashboards ejecutivos.",
+        "topics": [
+          "Power Query",
+          "Modelo estrella",
+          "DAX esencial",
+          "Diseño de dashboards"
+        ]
+      },
+      {
+        "title": "Python para análisis",
+        "hours": 20,
+        "description": "pandas y visualización para automatizar análisis.",
+        "topics": [
+          "pandas",
+          "Matplotlib",
+          "Automatización de reportes"
+        ]
+      },
+      {
+        "title": "Proyecto integrador",
+        "hours": 10,
+        "description": "Caso real de punta a punta presentado ante jurado.",
+        "topics": [
+          "Definición del problema",
+          "Dashboard final",
+          "Presentación ejecutiva"
+        ]
+      }
+    ],
+    "requirements": [
+      "Excel a nivel intermedio",
+      "Laptop con Windows o macOS"
+    ],
+    "featured": true,
+    "rating": 4.8,
+    "reviews_count": 412,
+    "financing": {
+      "installments": 4,
+      "installment_amount": 390,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "Hasta 4 cuotas sin intereses con tarjeta."
+    },
+    "keywords": [
+      "analista de datos",
+      "bi",
+      "dashboards",
+      "reportes"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/data-analytics-professional",
+    "is_demo": true
+  },
+  {
+    "id": "crs-002",
+    "slug": "power-bi-para-negocios",
+    "name": "Power BI para Negocios",
+    "institution_id": "inst-adi",
+    "category": "business-analytics",
+    "subcategory": "Business Intelligence",
+    "program_type": "curso",
+    "short_description": "Construye dashboards profesionales en Power BI en 8 sesiones en vivo.",
+    "description": "Curso intensivo para profesionales de finanzas, comercial y operaciones que necesitan pasar de reportes en Excel a dashboards interactivos en Power BI. Incluye plantillas descargables y revisión de tu dashboard final.",
+    "price": 390,
+    "discount_price": 320,
+    "currency": "PEN",
+    "duration_hours": 24,
+    "duration_weeks": 4,
+    "modality": "en-vivo",
+    "schedule": "Lunes y miércoles · 7:30–10:30 p. m. (hora Perú)",
+    "level": "basico",
+    "start_date": "2026-10-19",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado digital de aprobación con 24 horas académicas."
+    },
+    "teachers": [
+      {
+        "name": "Lucía Paredes",
+        "role": "Head of Analytics",
+        "company": "Kallpa Retail",
+        "experience": "12 años liderando equipos de BI y analítica comercial.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Power BI",
+      "Excel",
+      "Power Query"
+    ],
+    "skills": [
+      "Dashboards",
+      "DAX",
+      "Modelado de datos",
+      "Reportes ejecutivos"
+    ],
+    "syllabus": [
+      {
+        "title": "Introducción a Power BI",
+        "hours": 3,
+        "description": "Interfaz, conexión a fuentes y primer reporte.",
+        "topics": [
+          "Power BI Desktop",
+          "Fuentes de datos"
+        ]
+      },
+      {
+        "title": "Power Query",
+        "hours": 6,
+        "description": "Transformación y limpieza de datos.",
+        "topics": [
+          "Combinar consultas",
+          "Columnas personalizadas"
+        ]
+      },
+      {
+        "title": "Modelado y DAX",
+        "hours": 9,
+        "description": "Relaciones, medidas y funciones de tiempo.",
+        "topics": [
+          "Modelo estrella",
+          "CALCULATE",
+          "Time intelligence"
+        ]
+      },
+      {
+        "title": "Diseño y publicación",
+        "hours": 6,
+        "description": "Buenas prácticas visuales y Power BI Service.",
+        "topics": [
+          "Storytelling",
+          "Publicación y permisos"
+        ]
+      }
+    ],
+    "requirements": [
+      "Excel básico"
+    ],
+    "featured": false,
+    "rating": 4.7,
+    "reviews_count": 958,
+    "financing": {
+      "installments": null,
+      "installment_amount": null,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "Pago único."
+    },
+    "keywords": [
+      "powerbi",
+      "bi",
+      "dashboards",
+      "reportes",
+      "microsoft"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/power-bi-para-negocios",
+    "is_demo": true
+  },
+  {
+    "id": "crs-003",
+    "slug": "sql-para-analisis-de-datos",
+    "name": "SQL para Análisis de Datos",
+    "institution_id": "inst-misti",
+    "category": "data-analytics",
+    "subcategory": "Bases de datos",
+    "program_type": "curso",
+    "short_description": "Aprende a consultar bases de datos con SQL a tu ritmo, con ejercicios autocorregidos.",
+    "description": "Curso grabado con más de 120 ejercicios prácticos para dominar SQL desde cero hasta consultas analíticas. Ideal para quienes necesitan extraer datos sin depender del área de sistemas.",
+    "price": 190,
+    "discount_price": null,
+    "currency": "PEN",
+    "duration_hours": 18,
+    "duration_weeks": 6,
+    "modality": "grabado",
+    "schedule": "A tu ritmo · acceso por 12 meses",
+    "level": "basico",
+    "start_date": null,
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado digital al completar el 100% del curso y la evaluación final."
+    },
+    "teachers": [
+      {
+        "name": "Rosa Quispe",
+        "role": "Database Engineer",
+        "company": "NubeSur",
+        "experience": "9 años administrando bases de datos SQL Server y PostgreSQL.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "SQL",
+      "PostgreSQL",
+      "SQL Server"
+    ],
+    "skills": [
+      "Consultas SQL",
+      "Joins",
+      "Agregaciones",
+      "Funciones de ventana"
+    ],
+    "syllabus": [
+      {
+        "title": "Primeros pasos con SQL",
+        "hours": 4,
+        "description": "Modelo relacional y consultas básicas.",
+        "topics": [
+          "SELECT",
+          "WHERE",
+          "ORDER BY"
+        ]
+      },
+      {
+        "title": "Agregaciones y joins",
+        "hours": 6,
+        "description": "Combinar tablas y resumir información.",
+        "topics": [
+          "GROUP BY",
+          "INNER/LEFT JOIN"
+        ]
+      },
+      {
+        "title": "SQL analítico",
+        "hours": 6,
+        "description": "Subconsultas, CTEs y funciones de ventana.",
+        "topics": [
+          "CTEs",
+          "ROW_NUMBER",
+          "Acumulados"
+        ]
+      },
+      {
+        "title": "Caso final",
+        "hours": 2,
+        "description": "Análisis de ventas de una cadena de tiendas.",
+        "topics": [
+          "Caso práctico"
+        ]
+      }
+    ],
+    "requirements": [
+      "Ninguno"
+    ],
+    "featured": false,
+    "rating": 4.6,
+    "reviews_count": 1320,
+    "financing": {
+      "installments": null,
+      "installment_amount": null,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "Pago único."
+    },
+    "keywords": [
+      "base de datos",
+      "consultas",
+      "postgres"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/sql-para-analisis-de-datos",
+    "is_demo": true
+  },
+  {
+    "id": "crs-004",
+    "slug": "excel-avanzado-y-power-query",
+    "name": "Excel Avanzado y Power Query",
+    "institution_id": "inst-misti",
+    "category": "business-analytics",
+    "subcategory": "Ofimática avanzada",
+    "program_type": "curso",
+    "short_description": "Tablas dinámicas, funciones avanzadas y Power Query para automatizar reportes.",
+    "description": "Curso grabado y práctico para dejar de hacer reportes manuales. Aprenderás funciones de búsqueda modernas, tablas dinámicas, Power Query y Power Pivot con archivos reales de negocio.",
+    "price": 149,
+    "discount_price": 99,
+    "currency": "PEN",
+    "duration_hours": 12,
+    "duration_weeks": 3,
+    "modality": "grabado",
+    "schedule": "A tu ritmo · acceso por 12 meses",
+    "level": "basico",
+    "start_date": null,
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado digital de Misti Tech."
+    },
+    "teachers": [
+      {
+        "name": "Javier Mendoza",
+        "role": "Financial Planning Analyst",
+        "company": "Inti Energy",
+        "experience": "10 años automatizando reportes financieros.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Excel",
+      "Power Query",
+      "Power Pivot"
+    ],
+    "skills": [
+      "Tablas dinámicas",
+      "XLOOKUP",
+      "Automatización de reportes"
+    ],
+    "syllabus": [
+      {
+        "title": "Funciones avanzadas",
+        "hours": 3,
+        "description": "Funciones lógicas y de búsqueda.",
+        "topics": [
+          "XLOOKUP",
+          "FILTER",
+          "LET"
+        ]
+      },
+      {
+        "title": "Tablas dinámicas",
+        "hours": 3,
+        "description": "Resumen y análisis multidimensional.",
+        "topics": [
+          "Segmentaciones",
+          "Campos calculados"
+        ]
+      },
+      {
+        "title": "Power Query",
+        "hours": 4,
+        "description": "Extraer y transformar datos sin fórmulas.",
+        "topics": [
+          "Combinar archivos",
+          "Transformaciones"
+        ]
+      },
+      {
+        "title": "Power Pivot",
+        "hours": 2,
+        "description": "Modelo de datos en Excel.",
+        "topics": [
+          "Relaciones",
+          "Medidas"
+        ]
+      }
+    ],
+    "requirements": [
+      "Excel básico"
+    ],
+    "featured": false,
+    "rating": 4.5,
+    "reviews_count": 2210,
+    "financing": {
+      "installments": null,
+      "installment_amount": null,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "Pago único."
+    },
+    "keywords": [
+      "hojas de calculo",
+      "tablas dinamicas",
+      "ofimatica"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/excel-avanzado-y-power-query",
+    "is_demo": true
+  },
+  {
+    "id": "crs-005",
+    "slug": "python-para-data-science",
+    "name": "Python para Data Science",
+    "institution_id": "inst-adi",
+    "category": "data-science",
+    "subcategory": "Programación para datos",
+    "program_type": "especializacion",
+    "short_description": "Python, pandas, estadística y tus primeros modelos predictivos con scikit-learn.",
+    "description": "Especialización en vivo que lleva a profesionales sin experiencia en programación a construir análisis y modelos predictivos en Python. Incluye un proyecto de predicción de demanda con datos reales anonimizados.",
+    "price": 1290,
+    "discount_price": 1090,
+    "currency": "PEN",
+    "duration_hours": 60,
+    "duration_weeks": 10,
+    "modality": "en-vivo",
+    "schedule": "Sábados · 9:00 a. m.–1:00 p. m. + 1 sesión semanal de práctica",
+    "level": "intermedio",
+    "start_date": "2026-11-07",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado de especialización con 60 horas académicas."
+    },
+    "teachers": [
+      {
+        "name": "Andrea Villanueva",
+        "role": "Data Scientist",
+        "company": "Lumen Health",
+        "experience": "7 años construyendo modelos de pronóstico.",
+        "linkedin": null
+      },
+      {
+        "name": "Diego Salazar",
+        "role": "Senior Data Analyst",
+        "company": "Qori Fintech",
+        "experience": "8 años en analítica de riesgos y SQL avanzado.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Python",
+      "Jupyter",
+      "pandas",
+      "scikit-learn",
+      "Matplotlib"
+    ],
+    "skills": [
+      "Programación en Python",
+      "Estadística aplicada",
+      "Modelos predictivos",
+      "Visualización"
+    ],
+    "syllabus": [
+      {
+        "title": "Python desde cero",
+        "hours": 12,
+        "description": "Sintaxis, estructuras de datos y funciones.",
+        "topics": [
+          "Variables y tipos",
+          "Listas y diccionarios",
+          "Funciones"
+        ]
+      },
+      {
+        "title": "Análisis con pandas",
+        "hours": 16,
+        "description": "Limpieza y transformación de datasets.",
+        "topics": [
+          "DataFrames",
+          "Merge y groupby",
+          "Fechas"
+        ]
+      },
+      {
+        "title": "Estadística aplicada",
+        "hours": 12,
+        "description": "Distribuciones, pruebas de hipótesis y correlación.",
+        "topics": [
+          "Descriptiva",
+          "Inferencia",
+          "A/B testing"
+        ]
+      },
+      {
+        "title": "Machine Learning inicial",
+        "hours": 14,
+        "description": "Regresión y clasificación con scikit-learn.",
+        "topics": [
+          "Regresión lineal",
+          "Árboles de decisión",
+          "Validación"
+        ]
+      },
+      {
+        "title": "Proyecto final",
+        "hours": 6,
+        "description": "Pronóstico de demanda.",
+        "topics": [
+          "Caso práctico"
+        ]
+      }
+    ],
+    "requirements": [
+      "Excel intermedio",
+      "Lógica básica"
+    ],
+    "featured": false,
+    "rating": 4.7,
+    "reviews_count": 386,
+    "financing": {
+      "installments": 3,
+      "installment_amount": 364,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "Hasta 3 cuotas sin intereses."
+    },
+    "keywords": [
+      "programacion",
+      "pandas",
+      "ciencia de datos"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/python-para-data-science",
+    "is_demo": true
+  },
+  {
+    "id": "crs-006",
+    "slug": "data-science-bootcamp",
+    "name": "Data Science Bootcamp",
+    "institution_id": "inst-coderumbo",
+    "category": "data-science",
+    "subcategory": "Cambio de carrera",
+    "program_type": "bootcamp",
+    "short_description": "16 semanas intensivas para cambiar de carrera a Data Science, con acompañamiento laboral.",
+    "description": "Bootcamp full-time online con clases en vivo, mentorías 1:1 y portafolio de 4 proyectos. Incluye programa de empleabilidad: revisión de CV, simulaciones de entrevista y feria de talento con empresas aliadas.",
+    "price": 2900,
+    "discount_price": 2490,
+    "currency": "USD",
+    "duration_hours": 360,
+    "duration_weeks": 16,
+    "modality": "en-vivo",
+    "schedule": "Lunes a viernes · 9:00 a. m.–1:00 p. m. (hora Perú)",
+    "level": "basico",
+    "start_date": "2026-11-16",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado de finalización del bootcamp y portafolio verificado."
+    },
+    "teachers": [
+      {
+        "name": "Mateo Rivas",
+        "role": "Lead Data Scientist",
+        "company": "Mercado Andino",
+        "experience": "9 años en modelos de recomendación y pricing.",
+        "linkedin": null
+      },
+      {
+        "name": "Camila Torres",
+        "role": "Career Coach",
+        "company": "CodeRumbo",
+        "experience": "Más de 300 personas acompañadas en su transición a tecnología.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Python",
+      "SQL",
+      "pandas",
+      "scikit-learn",
+      "TensorFlow",
+      "Git",
+      "Tableau"
+    ],
+    "skills": [
+      "Machine Learning",
+      "Estadística",
+      "Visualización",
+      "Portafolio profesional",
+      "Entrevistas técnicas"
+    ],
+    "syllabus": [
+      {
+        "title": "Fundamentos de programación y SQL",
+        "hours": 60,
+        "description": "Python, Git y bases de datos.",
+        "topics": [
+          "Python",
+          "Git y GitHub",
+          "SQL"
+        ]
+      },
+      {
+        "title": "Análisis y visualización",
+        "hours": 70,
+        "description": "EDA y storytelling con datos.",
+        "topics": [
+          "pandas",
+          "Tableau",
+          "Storytelling"
+        ]
+      },
+      {
+        "title": "Machine Learning",
+        "hours": 110,
+        "description": "Modelos supervisados y no supervisados.",
+        "topics": [
+          "Regresión",
+          "Clasificación",
+          "Clustering",
+          "Feature engineering"
+        ]
+      },
+      {
+        "title": "Deep Learning e IA Generativa",
+        "hours": 60,
+        "description": "Redes neuronales y uso de LLMs.",
+        "topics": [
+          "TensorFlow",
+          "NLP",
+          "APIs de LLM"
+        ]
+      },
+      {
+        "title": "Proyecto final y empleabilidad",
+        "hours": 60,
+        "description": "Proyecto capstone y preparación laboral.",
+        "topics": [
+          "Capstone",
+          "CV y LinkedIn",
+          "Entrevistas"
+        ]
+      }
+    ],
+    "requirements": [
+      "Dedicación de 20 h semanales",
+      "Prueba de lógica de admisión"
+    ],
+    "featured": true,
+    "rating": 4.8,
+    "reviews_count": 274,
+    "financing": {
+      "installments": 12,
+      "installment_amount": 230,
+      "methods": [
+        "Tarjeta de crédito",
+        "PayPal",
+        "Transferencia internacional"
+      ],
+      "notes": "Financiamiento en 12 cuotas con entidad aliada (sujeto a evaluación)."
+    },
+    "keywords": [
+      "cambio de carrera",
+      "ciencia de datos",
+      "empleabilidad",
+      "full time"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/data-science-bootcamp",
+    "is_demo": true
+  },
+  {
+    "id": "crs-007",
+    "slug": "maestria-en-inteligencia-artificial-aplicada",
+    "name": "Maestría en Inteligencia Artificial Aplicada",
+    "institution_id": "inst-nova",
+    "category": "inteligencia-artificial",
+    "subcategory": "Posgrado",
+    "program_type": "maestria",
+    "short_description": "Posgrado de 24 meses para liderar proyectos de IA en organizaciones.",
+    "description": "Maestría orientada a profesionales con experiencia que quieren diseñar, implementar y gobernar soluciones de inteligencia artificial. Combina fundamentos matemáticos, ingeniería de modelos, IA generativa y ética, con una tesis aplicada a un problema de su organización.",
+    "price": 32000,
+    "discount_price": 29500,
+    "currency": "PEN",
+    "duration_hours": 720,
+    "duration_weeks": 96,
+    "modality": "hibrido",
+    "schedule": "Viernes 7:00–10:00 p. m. (online) y sábados 8:00 a. m.–2:00 p. m. (presencial)",
+    "level": "avanzado",
+    "start_date": "2027-03-13",
+    "certificate": {
+      "type": "incluye",
+      "description": "Grado académico de Maestro (demo). Incluye certificados intermedios por cada semestre."
+    },
+    "teachers": [
+      {
+        "name": "Dra. Valeria Castañeda",
+        "role": "Directora del programa",
+        "company": "Universidad Nova Lima",
+        "experience": "PhD en Ciencias de la Computación, 15 años de investigación en ML.",
+        "linkedin": null
+      },
+      {
+        "name": "Ricardo Huamán",
+        "role": "AI Engineering Manager",
+        "company": "Qori Fintech",
+        "experience": "11 años desplegando modelos en producción.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Python",
+      "PyTorch",
+      "TensorFlow",
+      "Azure",
+      "AWS",
+      "MLflow"
+    ],
+    "skills": [
+      "Machine Learning",
+      "Deep Learning",
+      "IA Generativa",
+      "Gobierno de IA",
+      "Gestión de proyectos de IA"
+    ],
+    "syllabus": [
+      {
+        "title": "Fundamentos matemáticos para IA",
+        "hours": 120,
+        "description": "Álgebra lineal, probabilidad y optimización.",
+        "topics": [
+          "Álgebra lineal",
+          "Probabilidad",
+          "Optimización"
+        ]
+      },
+      {
+        "title": "Machine Learning",
+        "hours": 160,
+        "description": "Modelos supervisados, no supervisados y evaluación.",
+        "topics": [
+          "Modelos clásicos",
+          "Ensambles",
+          "Evaluación"
+        ]
+      },
+      {
+        "title": "Deep Learning",
+        "hours": 140,
+        "description": "Redes neuronales, visión y lenguaje.",
+        "topics": [
+          "CNN",
+          "Transformers",
+          "NLP"
+        ]
+      },
+      {
+        "title": "IA Generativa y LLMs",
+        "hours": 120,
+        "description": "Arquitecturas generativas, RAG y agentes.",
+        "topics": [
+          "LLMs",
+          "RAG",
+          "Agentes"
+        ]
+      },
+      {
+        "title": "Ética, gobierno y estrategia de IA",
+        "hours": 80,
+        "description": "Regulación, riesgos y casos de negocio.",
+        "topics": [
+          "Ética",
+          "Regulación",
+          "Business case"
+        ]
+      },
+      {
+        "title": "Tesis aplicada",
+        "hours": 100,
+        "description": "Proyecto de investigación aplicada.",
+        "topics": [
+          "Metodología",
+          "Sustentación"
+        ]
+      }
+    ],
+    "requirements": [
+      "Grado de bachiller",
+      "2 años de experiencia profesional",
+      "Entrevista de admisión"
+    ],
+    "featured": true,
+    "rating": 4.6,
+    "reviews_count": 88,
+    "financing": {
+      "installments": 24,
+      "installment_amount": 1229,
+      "methods": [
+        "Cuotas mensuales",
+        "Crédito educativo",
+        "Transferencia"
+      ],
+      "notes": "24 cuotas mensuales. Descuento por pago al contado."
+    },
+    "keywords": [
+      "ia",
+      "ai",
+      "posgrado",
+      "master"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/maestria-en-inteligencia-artificial-aplicada",
+    "is_demo": true
+  },
+  {
+    "id": "crs-008",
+    "slug": "diplomado-en-machine-learning",
+    "name": "Diplomado en Machine Learning",
+    "institution_id": "inst-nova",
+    "category": "machine-learning",
+    "subcategory": "Posgrado",
+    "program_type": "diplomado",
+    "short_description": "Modelos de ML de punta a punta, desde la experimentación hasta producción.",
+    "description": "Diplomado de posgrado para analistas y científicos de datos que quieren profundizar en algoritmos de machine learning, validación rigurosa y despliegue de modelos.",
+    "price": 5600,
+    "discount_price": 4900,
+    "currency": "PEN",
+    "duration_hours": 120,
+    "duration_weeks": 20,
+    "modality": "en-vivo",
+    "schedule": "Martes y jueves · 7:00–10:00 p. m. (hora Perú)",
+    "level": "avanzado",
+    "start_date": "2026-11-10",
+    "certificate": {
+      "type": "incluye",
+      "description": "Diploma de posgrado emitido por la Escuela de Posgrado (demo)."
+    },
+    "teachers": [
+      {
+        "name": "Dra. Valeria Castañeda",
+        "role": "Directora del programa",
+        "company": "Universidad Nova Lima",
+        "experience": "PhD en Ciencias de la Computación, 15 años de investigación en ML.",
+        "linkedin": null
+      },
+      {
+        "name": "Andrea Villanueva",
+        "role": "Data Scientist",
+        "company": "Lumen Health",
+        "experience": "7 años construyendo modelos de pronóstico.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Python",
+      "scikit-learn",
+      "XGBoost",
+      "MLflow",
+      "Docker"
+    ],
+    "skills": [
+      "Machine Learning",
+      "Feature engineering",
+      "Validación de modelos",
+      "MLOps"
+    ],
+    "syllabus": [
+      {
+        "title": "Repaso de Python y estadística",
+        "hours": 16,
+        "description": "Nivelación para el diplomado.",
+        "topics": [
+          "NumPy",
+          "Estadística"
+        ]
+      },
+      {
+        "title": "Aprendizaje supervisado",
+        "hours": 36,
+        "description": "Regresión, clasificación y ensambles.",
+        "topics": [
+          "Regresión",
+          "Random Forest",
+          "Gradient Boosting"
+        ]
+      },
+      {
+        "title": "Aprendizaje no supervisado",
+        "hours": 20,
+        "description": "Clustering y reducción de dimensionalidad.",
+        "topics": [
+          "K-means",
+          "PCA"
+        ]
+      },
+      {
+        "title": "Series de tiempo",
+        "hours": 20,
+        "description": "Pronóstico de demanda y finanzas.",
+        "topics": [
+          "ARIMA",
+          "Prophet"
+        ]
+      },
+      {
+        "title": "MLOps y despliegue",
+        "hours": 28,
+        "description": "Versionado, APIs y monitoreo.",
+        "topics": [
+          "MLflow",
+          "Docker",
+          "Monitoreo"
+        ]
+      }
+    ],
+    "requirements": [
+      "Python intermedio",
+      "Estadística básica"
+    ],
+    "featured": false,
+    "rating": 4.5,
+    "reviews_count": 131,
+    "financing": {
+      "installments": 6,
+      "installment_amount": 817,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "6 cuotas mensuales."
+    },
+    "keywords": [
+      "ml",
+      "aprendizaje automatico",
+      "modelos"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/diplomado-en-machine-learning",
+    "is_demo": true
+  },
+  {
+    "id": "crs-009",
+    "slug": "ia-generativa-para-profesionales",
+    "name": "IA Generativa para Profesionales",
+    "institution_id": "inst-altamar",
+    "category": "ia-generativa",
+    "subcategory": "IA para la gestión",
+    "program_type": "programa-ejecutivo",
+    "short_description": "Usa IA generativa para multiplicar tu productividad y liderar su adopción en tu equipo.",
+    "description": "Programa ejecutivo para gerentes y líderes de equipo. Aprenderás a identificar casos de uso, diseñar prompts efectivos, evaluar riesgos y construir un plan de adopción de IA generativa para tu área.",
+    "price": 2600,
+    "discount_price": 2200,
+    "currency": "PEN",
+    "duration_hours": 32,
+    "duration_weeks": 6,
+    "modality": "en-vivo",
+    "schedule": "Miércoles · 7:00–10:00 p. m. + 2 talleres sábado",
+    "level": "basico",
+    "start_date": "2026-10-21",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado de programa ejecutivo de Altamar Business School."
+    },
+    "teachers": [
+      {
+        "name": "Sofía Benavides",
+        "role": "Directora de Transformación Digital",
+        "company": "Kallpa Retail",
+        "experience": "14 años liderando transformación en retail y consumo masivo.",
+        "linkedin": null
+      },
+      {
+        "name": "Ricardo Huamán",
+        "role": "AI Engineering Manager",
+        "company": "Qori Fintech",
+        "experience": "11 años desplegando modelos en producción.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "ChatGPT",
+      "Claude",
+      "Microsoft Copilot",
+      "Gemini",
+      "Notion AI"
+    ],
+    "skills": [
+      "Prompt engineering",
+      "Casos de uso de IA",
+      "Gestión del cambio",
+      "Gobierno de IA"
+    ],
+    "syllabus": [
+      {
+        "title": "Panorama de la IA generativa",
+        "hours": 4,
+        "description": "Qué es, qué no es y cómo funciona un LLM.",
+        "topics": [
+          "LLMs",
+          "Limitaciones"
+        ]
+      },
+      {
+        "title": "Prompting para profesionales",
+        "hours": 8,
+        "description": "Técnicas de prompting aplicadas a tareas reales.",
+        "topics": [
+          "Estructura de prompts",
+          "Iteración",
+          "Plantillas"
+        ]
+      },
+      {
+        "title": "Casos de uso por área",
+        "hours": 8,
+        "description": "Marketing, finanzas, RR. HH. y operaciones.",
+        "topics": [
+          "Mapeo de procesos",
+          "Priorización"
+        ]
+      },
+      {
+        "title": "Riesgos, ética y gobierno",
+        "hours": 4,
+        "description": "Privacidad, sesgos y políticas internas.",
+        "topics": [
+          "Políticas de uso",
+          "Riesgos"
+        ]
+      },
+      {
+        "title": "Plan de adopción",
+        "hours": 8,
+        "description": "Proyecto aplicado a tu organización.",
+        "topics": [
+          "Business case",
+          "Roadmap"
+        ]
+      }
+    ],
+    "requirements": [
+      "Experiencia profesional de 3 años"
+    ],
+    "featured": false,
+    "rating": 4.7,
+    "reviews_count": 196,
+    "financing": {
+      "installments": 3,
+      "installment_amount": 734,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "3 cuotas sin intereses. Facturación empresarial disponible."
+    },
+    "keywords": [
+      "ia",
+      "ai",
+      "genai",
+      "chatgpt",
+      "productividad",
+      "ejecutivo",
+      "gerentes"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/ia-generativa-para-profesionales",
+    "is_demo": true
+  },
+  {
+    "id": "crs-010",
+    "slug": "introduccion-a-la-ia-generativa",
+    "name": "Introducción a la IA Generativa",
+    "institution_id": "inst-nube",
+    "category": "ia-generativa",
+    "subcategory": "Fundamentos",
+    "program_type": "curso",
+    "short_description": "Curso gratuito para entender cómo funcionan los modelos generativos y usarlos con criterio.",
+    "description": "Curso introductorio y gratuito. Explica en lenguaje claro qué son los modelos de lenguaje, cómo escribir buenas instrucciones y qué riesgos considerar al usarlos en el trabajo.",
+    "price": 0,
+    "discount_price": null,
+    "currency": "PEN",
+    "duration_hours": 6,
+    "duration_weeks": 2,
+    "modality": "grabado",
+    "schedule": "A tu ritmo",
+    "level": "basico",
+    "start_date": null,
+    "certificate": {
+      "type": "incluye",
+      "description": "Constancia digital de participación gratuita."
+    },
+    "teachers": [
+      {
+        "name": "Bruno Cárdenas",
+        "role": "Cloud & AI Architect",
+        "company": "NubeSur",
+        "experience": "10 años en arquitectura cloud e IA aplicada.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "ChatGPT",
+      "Gemini",
+      "Claude"
+    ],
+    "skills": [
+      "Prompt engineering",
+      "Uso responsable de IA"
+    ],
+    "syllabus": [
+      {
+        "title": "¿Qué es la IA generativa?",
+        "hours": 2,
+        "description": "Conceptos clave sin tecnicismos.",
+        "topics": [
+          "Modelos de lenguaje",
+          "Tokens"
+        ]
+      },
+      {
+        "title": "Escribir buenas instrucciones",
+        "hours": 2,
+        "description": "Prompts claros y verificables.",
+        "topics": [
+          "Contexto",
+          "Formato de salida"
+        ]
+      },
+      {
+        "title": "Riesgos y buenas prácticas",
+        "hours": 2,
+        "description": "Alucinaciones, privacidad y verificación.",
+        "topics": [
+          "Verificación",
+          "Privacidad"
+        ]
+      }
+    ],
+    "requirements": [
+      "Ninguno"
+    ],
+    "featured": false,
+    "rating": 4.4,
+    "reviews_count": 3480,
+    "financing": {
+      "installments": null,
+      "installment_amount": null,
+      "methods": [],
+      "notes": "Curso gratuito."
+    },
+    "keywords": [
+      "ia",
+      "ai",
+      "gratis",
+      "genai",
+      "chatgpt",
+      "prompt"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/introduccion-a-la-ia-generativa",
+    "is_demo": true
+  },
+  {
+    "id": "crs-011",
+    "slug": "prompt-engineering-y-automatizacion-con-ia",
+    "name": "Prompt Engineering y Automatización con IA",
+    "institution_id": "inst-coderumbo",
+    "category": "ia-generativa",
+    "subcategory": "Automatización con IA",
+    "program_type": "curso",
+    "short_description": "Construye asistentes y flujos automatizados con APIs de LLMs, sin ser experto en programación.",
+    "description": "Curso práctico para crear asistentes, flujos de automatización y prototipos usando APIs de modelos de lenguaje, herramientas no-code y Python básico. Terminarás con 3 automatizaciones funcionando.",
+    "price": 249,
+    "discount_price": 199,
+    "currency": "USD",
+    "duration_hours": 28,
+    "duration_weeks": 5,
+    "modality": "hibrido",
+    "schedule": "Contenido grabado + 1 sesión en vivo semanal (jueves 8:00 p. m.)",
+    "level": "intermedio",
+    "start_date": "2026-10-29",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado digital con enlace a proyectos publicados."
+    },
+    "teachers": [
+      {
+        "name": "Mateo Rivas",
+        "role": "Lead Data Scientist",
+        "company": "Mercado Andino",
+        "experience": "9 años en modelos de recomendación y pricing.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "OpenAI API",
+      "Claude API",
+      "Python",
+      "n8n",
+      "Zapier"
+    ],
+    "skills": [
+      "Prompt engineering",
+      "Automatización",
+      "Integración de APIs",
+      "RAG básico"
+    ],
+    "syllabus": [
+      {
+        "title": "Prompting avanzado",
+        "hours": 6,
+        "description": "Técnicas de razonamiento y formatos estructurados.",
+        "topics": [
+          "Few-shot",
+          "Salidas JSON"
+        ]
+      },
+      {
+        "title": "APIs de LLMs",
+        "hours": 8,
+        "description": "Llamadas, costos y buenas prácticas.",
+        "topics": [
+          "Python básico",
+          "Tokens y costos"
+        ]
+      },
+      {
+        "title": "Automatización sin código",
+        "hours": 8,
+        "description": "Flujos con n8n y Zapier.",
+        "topics": [
+          "Triggers",
+          "Integraciones"
+        ]
+      },
+      {
+        "title": "Asistentes con tus documentos",
+        "hours": 6,
+        "description": "RAG básico y evaluación.",
+        "topics": [
+          "Embeddings",
+          "Evaluación"
+        ]
+      }
+    ],
+    "requirements": [
+      "Uso cotidiano de herramientas de IA"
+    ],
+    "featured": false,
+    "rating": 4.6,
+    "reviews_count": 512,
+    "financing": {
+      "installments": null,
+      "installment_amount": null,
+      "methods": [
+        "Tarjeta de crédito",
+        "PayPal",
+        "Transferencia internacional"
+      ],
+      "notes": "Pago único."
+    },
+    "keywords": [
+      "ia",
+      "ai",
+      "chatbot",
+      "agentes",
+      "llm",
+      "apis"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/prompt-engineering-y-automatizacion-con-ia",
+    "is_demo": true
+  },
+  {
+    "id": "crs-012",
+    "slug": "data-engineering-con-azure",
+    "name": "Data Engineering con Azure",
+    "institution_id": "inst-nube",
+    "category": "data-engineering",
+    "subcategory": "Cloud data platforms",
+    "program_type": "especializacion",
+    "short_description": "Diseña pipelines y un data lakehouse en Azure con Data Factory, Databricks y Synapse.",
+    "description": "Especialización avanzada en ingeniería de datos sobre Azure. Construirás una arquitectura lakehouse completa, con orquestación, calidad de datos y gobierno, sobre una suscripción de laboratorio.",
+    "price": 790,
+    "discount_price": 690,
+    "currency": "USD",
+    "duration_hours": 80,
+    "duration_weeks": 12,
+    "modality": "en-vivo",
+    "schedule": "Martes y jueves · 8:00–10:30 p. m. (hora Perú)",
+    "level": "avanzado",
+    "start_date": "2026-11-03",
+    "certificate": {
+      "type": "preparacion",
+      "description": "Certificado de especialización. Incluye preparación para el examen DP-203 / Fabric Data Engineer de Microsoft (examen no incluido)."
+    },
+    "teachers": [
+      {
+        "name": "Bruno Cárdenas",
+        "role": "Cloud & AI Architect",
+        "company": "NubeSur",
+        "experience": "10 años en arquitectura cloud e IA aplicada.",
+        "linkedin": null
+      },
+      {
+        "name": "Rosa Quispe",
+        "role": "Database Engineer",
+        "company": "NubeSur",
+        "experience": "9 años administrando bases de datos SQL Server y PostgreSQL.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Azure",
+      "Azure Data Factory",
+      "Databricks",
+      "Spark",
+      "SQL",
+      "Python"
+    ],
+    "skills": [
+      "Pipelines de datos",
+      "Arquitectura lakehouse",
+      "Orquestación",
+      "Calidad de datos"
+    ],
+    "syllabus": [
+      {
+        "title": "Fundamentos de Azure para datos",
+        "hours": 10,
+        "description": "Servicios clave y seguridad.",
+        "topics": [
+          "Storage",
+          "Identidad"
+        ]
+      },
+      {
+        "title": "Ingesta con Data Factory",
+        "hours": 18,
+        "description": "Pipelines batch e incrementales.",
+        "topics": [
+          "Copy activity",
+          "Parametrización"
+        ]
+      },
+      {
+        "title": "Procesamiento con Databricks y Spark",
+        "hours": 26,
+        "description": "Transformaciones distribuidas.",
+        "topics": [
+          "PySpark",
+          "Delta Lake"
+        ]
+      },
+      {
+        "title": "Modelado y serving",
+        "hours": 14,
+        "description": "Capas medallion y consumo en BI.",
+        "topics": [
+          "Medallion",
+          "Synapse"
+        ]
+      },
+      {
+        "title": "Gobierno y proyecto final",
+        "hours": 12,
+        "description": "Calidad, linaje y despliegue.",
+        "topics": [
+          "Data quality",
+          "CI/CD de datos"
+        ]
+      }
+    ],
+    "requirements": [
+      "SQL intermedio",
+      "Python básico"
+    ],
+    "featured": false,
+    "rating": 4.7,
+    "reviews_count": 164,
+    "financing": {
+      "installments": 3,
+      "installment_amount": 230,
+      "methods": [
+        "Tarjeta de crédito",
+        "PayPal",
+        "Transferencia internacional"
+      ],
+      "notes": "3 cuotas sin intereses con tarjeta."
+    },
+    "keywords": [
+      "ingenieria de datos",
+      "etl",
+      "big data",
+      "microsoft",
+      "lakehouse"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/data-engineering-con-azure",
+    "is_demo": true
+  },
+  {
+    "id": "crs-013",
+    "slug": "data-engineering-bootcamp",
+    "name": "Data Engineering Bootcamp",
+    "institution_id": "inst-coderumbo",
+    "category": "data-engineering",
+    "subcategory": "Cambio de carrera",
+    "program_type": "bootcamp",
+    "short_description": "Python, SQL, Spark y Airflow para convertirte en data engineer en 14 semanas.",
+    "description": "Bootcamp part-time para analistas y desarrolladores que quieren dar el salto a ingeniería de datos. Construirás pipelines productivos con herramientas open source y desplegarás en la nube.",
+    "price": 2200,
+    "discount_price": 1890,
+    "currency": "USD",
+    "duration_hours": 210,
+    "duration_weeks": 14,
+    "modality": "en-vivo",
+    "schedule": "Lunes, miércoles y viernes · 7:00–10:00 p. m. + sábados de laboratorio",
+    "level": "intermedio",
+    "start_date": "2027-01-11",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado de finalización y portafolio de pipelines en GitHub."
+    },
+    "teachers": [
+      {
+        "name": "Gonzalo Ramírez",
+        "role": "Staff Data Engineer",
+        "company": "Mercado Andino",
+        "experience": "10 años construyendo plataformas de datos.",
+        "linkedin": null
+      },
+      {
+        "name": "Camila Torres",
+        "role": "Career Coach",
+        "company": "CodeRumbo",
+        "experience": "Más de 300 personas acompañadas en su transición a tecnología.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Python",
+      "SQL",
+      "Spark",
+      "Airflow",
+      "dbt",
+      "Docker",
+      "AWS"
+    ],
+    "skills": [
+      "Pipelines de datos",
+      "Modelado dimensional",
+      "Orquestación",
+      "Data warehousing"
+    ],
+    "syllabus": [
+      {
+        "title": "Python y SQL para ingeniería",
+        "hours": 40,
+        "description": "Bases sólidas de programación y SQL.",
+        "topics": [
+          "Python",
+          "SQL avanzado"
+        ]
+      },
+      {
+        "title": "Modelado y data warehousing",
+        "hours": 36,
+        "description": "Kimball, dbt y testing.",
+        "topics": [
+          "Modelo dimensional",
+          "dbt"
+        ]
+      },
+      {
+        "title": "Procesamiento distribuido",
+        "hours": 50,
+        "description": "Spark y formatos columnares.",
+        "topics": [
+          "PySpark",
+          "Parquet"
+        ]
+      },
+      {
+        "title": "Orquestación y cloud",
+        "hours": 48,
+        "description": "Airflow, Docker y AWS.",
+        "topics": [
+          "Airflow",
+          "Docker",
+          "S3 y Glue"
+        ]
+      },
+      {
+        "title": "Capstone y empleabilidad",
+        "hours": 36,
+        "description": "Proyecto final y preparación laboral.",
+        "topics": [
+          "Capstone",
+          "Entrevistas"
+        ]
+      }
+    ],
+    "requirements": [
+      "SQL básico",
+      "Prueba técnica de admisión"
+    ],
+    "featured": false,
+    "rating": 4.7,
+    "reviews_count": 121,
+    "financing": {
+      "installments": 10,
+      "installment_amount": 189,
+      "methods": [
+        "Tarjeta de crédito",
+        "PayPal",
+        "Transferencia internacional"
+      ],
+      "notes": "Financiamiento en 10 cuotas (sujeto a evaluación)."
+    },
+    "keywords": [
+      "ingenieria de datos",
+      "etl",
+      "big data"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/data-engineering-bootcamp",
+    "is_demo": true
+  },
+  {
+    "id": "crs-014",
+    "slug": "aws-cloud-practitioner-preparacion",
+    "name": "AWS Cloud Practitioner: Preparación para la Certificación",
+    "institution_id": "inst-nube",
+    "category": "cloud-computing",
+    "subcategory": "Certificaciones cloud",
+    "program_type": "certificacion",
+    "short_description": "Prepárate para aprobar el examen AWS Certified Cloud Practitioner con simulacros.",
+    "description": "Programa de preparación con clases grabadas, laboratorios guiados y 4 simulacros de examen. Diseñado para profesionales técnicos y de negocio que necesitan fundamentos sólidos de AWS.",
+    "price": 290,
+    "discount_price": 249,
+    "currency": "USD",
+    "duration_hours": 30,
+    "duration_weeks": 6,
+    "modality": "hibrido",
+    "schedule": "Contenido grabado + repasos en vivo cada sábado",
+    "level": "basico",
+    "start_date": "2026-10-24",
+    "certificate": {
+      "type": "preparacion",
+      "description": "Constancia de preparación de Nube Academy. La certificación oficial la emite AWS tras aprobar su examen (no incluido)."
+    },
+    "teachers": [
+      {
+        "name": "Bruno Cárdenas",
+        "role": "Cloud & AI Architect",
+        "company": "NubeSur",
+        "experience": "10 años en arquitectura cloud e IA aplicada.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "AWS",
+      "EC2",
+      "S3",
+      "IAM",
+      "CloudWatch"
+    ],
+    "skills": [
+      "Fundamentos cloud",
+      "Seguridad en la nube",
+      "Modelos de costos"
+    ],
+    "syllabus": [
+      {
+        "title": "Conceptos de nube",
+        "hours": 6,
+        "description": "Modelos de servicio y despliegue.",
+        "topics": [
+          "IaaS, PaaS, SaaS",
+          "Regiones"
+        ]
+      },
+      {
+        "title": "Servicios principales de AWS",
+        "hours": 10,
+        "description": "Cómputo, almacenamiento y bases de datos.",
+        "topics": [
+          "EC2",
+          "S3",
+          "RDS"
+        ]
+      },
+      {
+        "title": "Seguridad y cumplimiento",
+        "hours": 6,
+        "description": "Modelo de responsabilidad compartida.",
+        "topics": [
+          "IAM",
+          "Buenas prácticas"
+        ]
+      },
+      {
+        "title": "Costos y simulacros",
+        "hours": 8,
+        "description": "Facturación y práctica de examen.",
+        "topics": [
+          "Pricing",
+          "4 simulacros"
+        ]
+      }
+    ],
+    "requirements": [
+      "Ninguno"
+    ],
+    "featured": false,
+    "rating": 4.8,
+    "reviews_count": 640,
+    "financing": {
+      "installments": null,
+      "installment_amount": null,
+      "methods": [
+        "Tarjeta de crédito",
+        "PayPal",
+        "Transferencia internacional"
+      ],
+      "notes": "Pago único."
+    },
+    "keywords": [
+      "amazon web services",
+      "cloud",
+      "nube",
+      "certificacion aws"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/aws-cloud-practitioner-preparacion",
+    "is_demo": true
+  },
+  {
+    "id": "crs-015",
+    "slug": "devops-y-kubernetes",
+    "name": "DevOps y Kubernetes",
+    "institution_id": "inst-nube",
+    "category": "devops",
+    "subcategory": "Plataformas",
+    "program_type": "bootcamp",
+    "short_description": "CI/CD, contenedores, Kubernetes e infraestructura como código en un bootcamp práctico.",
+    "description": "Bootcamp avanzado para desarrolladores y administradores de sistemas. Implementarás una plataforma completa con pipelines CI/CD, clúster de Kubernetes, observabilidad e infraestructura como código.",
+    "price": 1690,
+    "discount_price": 1490,
+    "currency": "USD",
+    "duration_hours": 140,
+    "duration_weeks": 12,
+    "modality": "en-vivo",
+    "schedule": "Lunes, miércoles y viernes · 8:00–10:30 p. m. (hora Perú)",
+    "level": "avanzado",
+    "start_date": "2026-11-23",
+    "certificate": {
+      "type": "preparacion",
+      "description": "Certificado del bootcamp. Incluye preparación para el examen CKA (examen no incluido)."
+    },
+    "teachers": [
+      {
+        "name": "Fernando Aguilar",
+        "role": "Site Reliability Engineer",
+        "company": "NubeSur",
+        "experience": "12 años operando plataformas de alta disponibilidad.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Docker",
+      "Kubernetes",
+      "Terraform",
+      "GitHub Actions",
+      "AWS",
+      "Prometheus",
+      "Grafana"
+    ],
+    "skills": [
+      "CI/CD",
+      "Contenedores",
+      "Infraestructura como código",
+      "Observabilidad"
+    ],
+    "syllabus": [
+      {
+        "title": "Linux, redes y Git",
+        "hours": 16,
+        "description": "Base operativa para DevOps.",
+        "topics": [
+          "Linux",
+          "Redes",
+          "Git"
+        ]
+      },
+      {
+        "title": "Contenedores con Docker",
+        "hours": 20,
+        "description": "Imágenes, redes y volúmenes.",
+        "topics": [
+          "Dockerfile",
+          "Compose"
+        ]
+      },
+      {
+        "title": "CI/CD",
+        "hours": 24,
+        "description": "Pipelines automatizados.",
+        "topics": [
+          "GitHub Actions",
+          "Estrategias de despliegue"
+        ]
+      },
+      {
+        "title": "Kubernetes",
+        "hours": 44,
+        "description": "Orquestación en producción.",
+        "topics": [
+          "Pods y Deployments",
+          "Helm",
+          "Seguridad"
+        ]
+      },
+      {
+        "title": "IaC y observabilidad",
+        "hours": 36,
+        "description": "Terraform, métricas y alertas.",
+        "topics": [
+          "Terraform",
+          "Prometheus",
+          "Grafana"
+        ]
+      }
+    ],
+    "requirements": [
+      "Experiencia en desarrollo o sistemas",
+      "Linux básico"
+    ],
+    "featured": false,
+    "rating": 4.6,
+    "reviews_count": 97,
+    "financing": {
+      "installments": 6,
+      "installment_amount": 249,
+      "methods": [
+        "Tarjeta de crédito",
+        "PayPal",
+        "Transferencia internacional"
+      ],
+      "notes": "6 cuotas con tarjeta."
+    },
+    "keywords": [
+      "kubernetes",
+      "docker",
+      "ci/cd",
+      "sre",
+      "k8s"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/devops-y-kubernetes",
+    "is_demo": true
+  },
+  {
+    "id": "crs-016",
+    "slug": "desarrollo-web-full-stack-bootcamp",
+    "name": "Desarrollo Web Full Stack Bootcamp",
+    "institution_id": "inst-coderumbo",
+    "category": "desarrollo-de-software",
+    "subcategory": "Desarrollo web",
+    "program_type": "bootcamp",
+    "short_description": "De cero a desarrollador full stack con JavaScript, React y Node.js en 24 semanas.",
+    "description": "Bootcamp part-time para personas que quieren conseguir su primer empleo como desarrolladores. Programación desde cero, frontend con React, backend con Node.js y bases de datos, con 5 proyectos para tu portafolio.",
+    "price": 3400,
+    "discount_price": 2990,
+    "currency": "USD",
+    "duration_hours": 480,
+    "duration_weeks": 24,
+    "modality": "en-vivo",
+    "schedule": "Lunes a jueves · 7:00–10:00 p. m. + sábados de proyecto",
+    "level": "basico",
+    "start_date": "2026-11-02",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado de finalización y portafolio verificado por mentores."
+    },
+    "teachers": [
+      {
+        "name": "Daniela Rojas",
+        "role": "Senior Frontend Engineer",
+        "company": "Qori Fintech",
+        "experience": "9 años construyendo productos web.",
+        "linkedin": null
+      },
+      {
+        "name": "Pablo Linares",
+        "role": "Backend Tech Lead",
+        "company": "Mercado Andino",
+        "experience": "11 años en arquitectura de APIs.",
+        "linkedin": null
+      },
+      {
+        "name": "Camila Torres",
+        "role": "Career Coach",
+        "company": "CodeRumbo",
+        "experience": "Más de 300 personas acompañadas en su transición a tecnología.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "JavaScript",
+      "TypeScript",
+      "React",
+      "Node.js",
+      "PostgreSQL",
+      "Git",
+      "Docker"
+    ],
+    "skills": [
+      "Desarrollo frontend",
+      "Desarrollo backend",
+      "APIs REST",
+      "Trabajo en equipo ágil"
+    ],
+    "syllabus": [
+      {
+        "title": "Fundamentos de programación",
+        "hours": 80,
+        "description": "Lógica, JavaScript y Git.",
+        "topics": [
+          "JavaScript",
+          "Algoritmos",
+          "Git"
+        ]
+      },
+      {
+        "title": "Frontend",
+        "hours": 140,
+        "description": "HTML, CSS y React.",
+        "topics": [
+          "HTML y CSS",
+          "React",
+          "TypeScript"
+        ]
+      },
+      {
+        "title": "Backend",
+        "hours": 120,
+        "description": "Node.js, APIs y bases de datos.",
+        "topics": [
+          "Node.js",
+          "Express",
+          "PostgreSQL"
+        ]
+      },
+      {
+        "title": "Proyecto en equipo",
+        "hours": 80,
+        "description": "Producto real con metodología ágil.",
+        "topics": [
+          "Scrum",
+          "Code review"
+        ]
+      },
+      {
+        "title": "Empleabilidad",
+        "hours": 60,
+        "description": "Portafolio, CV y entrevistas técnicas.",
+        "topics": [
+          "Portafolio",
+          "Entrevistas"
+        ]
+      }
+    ],
+    "requirements": [
+      "Dedicación de 15 h semanales",
+      "Prueba de lógica de admisión"
+    ],
+    "featured": true,
+    "rating": 4.7,
+    "reviews_count": 538,
+    "financing": {
+      "installments": 12,
+      "installment_amount": 275,
+      "methods": [
+        "Tarjeta de crédito",
+        "PayPal",
+        "Transferencia internacional"
+      ],
+      "notes": "Financiamiento en 12 cuotas (sujeto a evaluación)."
+    },
+    "keywords": [
+      "programacion",
+      "desarrollo web",
+      "frontend",
+      "backend",
+      "javascript",
+      "full stack",
+      "primer empleo"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/desarrollo-web-full-stack-bootcamp",
+    "is_demo": true
+  },
+  {
+    "id": "crs-017",
+    "slug": "javascript-y-react-desde-cero",
+    "name": "JavaScript y React desde Cero",
+    "institution_id": "inst-coderumbo",
+    "category": "desarrollo-de-software",
+    "subcategory": "Desarrollo web",
+    "program_type": "curso",
+    "short_description": "Aprende JavaScript moderno y crea tus primeras aplicaciones con React a tu ritmo.",
+    "description": "Curso grabado con proyectos guiados para aprender JavaScript moderno y React. Incluye comunidad de alumnos y revisión de proyecto final.",
+    "price": 290,
+    "discount_price": 239,
+    "currency": "PEN",
+    "duration_hours": 40,
+    "duration_weeks": 8,
+    "modality": "grabado",
+    "schedule": "A tu ritmo · acceso por 18 meses",
+    "level": "basico",
+    "start_date": null,
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado digital al aprobar el proyecto final."
+    },
+    "teachers": [
+      {
+        "name": "Daniela Rojas",
+        "role": "Senior Frontend Engineer",
+        "company": "Qori Fintech",
+        "experience": "9 años construyendo productos web.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "JavaScript",
+      "React",
+      "Vite",
+      "Git"
+    ],
+    "skills": [
+      "Desarrollo frontend",
+      "Componentes",
+      "Consumo de APIs"
+    ],
+    "syllabus": [
+      {
+        "title": "JavaScript moderno",
+        "hours": 16,
+        "description": "Sintaxis ES6+, asincronía y DOM.",
+        "topics": [
+          "Funciones",
+          "Promesas",
+          "DOM"
+        ]
+      },
+      {
+        "title": "React",
+        "hours": 18,
+        "description": "Componentes, estado y hooks.",
+        "topics": [
+          "JSX",
+          "useState",
+          "useEffect"
+        ]
+      },
+      {
+        "title": "Proyecto final",
+        "hours": 6,
+        "description": "App consumiendo una API pública.",
+        "topics": [
+          "Despliegue"
+        ]
+      }
+    ],
+    "requirements": [
+      "HTML básico"
+    ],
+    "featured": false,
+    "rating": 4.6,
+    "reviews_count": 1104,
+    "financing": {
+      "installments": null,
+      "installment_amount": null,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "Pago único."
+    },
+    "keywords": [
+      "programacion",
+      "frontend",
+      "desarrollo web",
+      "js"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/javascript-y-react-desde-cero",
+    "is_demo": true
+  },
+  {
+    "id": "crs-018",
+    "slug": "fundamentos-de-python",
+    "name": "Fundamentos de Python",
+    "institution_id": "inst-misti",
+    "category": "desarrollo-de-software",
+    "subcategory": "Programación",
+    "program_type": "curso",
+    "short_description": "Curso gratuito para dar tus primeros pasos en programación con Python.",
+    "description": "Curso introductorio gratuito con ejercicios en el navegador. Ideal para validar si la programación es para ti antes de invertir en un programa más largo.",
+    "price": 0,
+    "discount_price": null,
+    "currency": "PEN",
+    "duration_hours": 8,
+    "duration_weeks": 2,
+    "modality": "grabado",
+    "schedule": "A tu ritmo",
+    "level": "basico",
+    "start_date": null,
+    "certificate": {
+      "type": "incluye",
+      "description": "Constancia digital gratuita."
+    },
+    "teachers": [
+      {
+        "name": "Rosa Quispe",
+        "role": "Database Engineer",
+        "company": "NubeSur",
+        "experience": "9 años administrando bases de datos SQL Server y PostgreSQL.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Python",
+      "Google Colab"
+    ],
+    "skills": [
+      "Lógica de programación",
+      "Programación en Python"
+    ],
+    "syllabus": [
+      {
+        "title": "Variables y tipos de datos",
+        "hours": 2,
+        "description": "Primer programa en Python.",
+        "topics": [
+          "print",
+          "tipos"
+        ]
+      },
+      {
+        "title": "Condicionales y bucles",
+        "hours": 3,
+        "description": "Control de flujo.",
+        "topics": [
+          "if",
+          "for",
+          "while"
+        ]
+      },
+      {
+        "title": "Funciones y listas",
+        "hours": 3,
+        "description": "Organizar tu código.",
+        "topics": [
+          "def",
+          "listas"
+        ]
+      }
+    ],
+    "requirements": [
+      "Ninguno"
+    ],
+    "featured": false,
+    "rating": 4.5,
+    "reviews_count": 4210,
+    "financing": {
+      "installments": null,
+      "installment_amount": null,
+      "methods": [],
+      "notes": "Curso gratuito."
+    },
+    "keywords": [
+      "programacion",
+      "gratis",
+      "principiantes"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/fundamentos-de-python",
+    "is_demo": true
+  },
+  {
+    "id": "crs-019",
+    "slug": "ethical-hacking-y-ciberseguridad-ofensiva",
+    "name": "Ethical Hacking y Ciberseguridad Ofensiva",
+    "institution_id": "inst-condor",
+    "category": "ciberseguridad",
+    "subcategory": "Seguridad ofensiva",
+    "program_type": "especializacion",
+    "short_description": "Pentesting web, de redes y de Active Directory en un cyber range real.",
+    "description": "Especialización práctica en pruebas de penetración autorizadas. Cada sesión incluye laboratorios en el cyber range de Cóndor y un informe profesional de hallazgos como entregable final.",
+    "price": 3290,
+    "discount_price": 2890,
+    "currency": "PEN",
+    "duration_hours": 90,
+    "duration_weeks": 12,
+    "modality": "en-vivo",
+    "schedule": "Martes y jueves · 7:00–10:00 p. m. + laboratorios libres",
+    "level": "intermedio",
+    "start_date": "2026-11-05",
+    "certificate": {
+      "type": "preparacion",
+      "description": "Certificado de especialización. Orientado a la preparación de certificaciones prácticas de pentesting (examen no incluido)."
+    },
+    "teachers": [
+      {
+        "name": "Iván Torres",
+        "role": "Red Team Lead",
+        "company": "Andes Bank (demo)",
+        "experience": "13 años en pruebas de intrusión para banca.",
+        "linkedin": null
+      },
+      {
+        "name": "Natalia Chávez",
+        "role": "Security Consultant",
+        "company": "Cóndor Cyber Lab",
+        "experience": "8 años en auditorías de aplicaciones web.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Kali Linux",
+      "Burp Suite",
+      "Nmap",
+      "Metasploit",
+      "Wireshark"
+    ],
+    "skills": [
+      "Pentesting",
+      "Seguridad web",
+      "Explotación de vulnerabilidades",
+      "Reportes de seguridad"
+    ],
+    "syllabus": [
+      {
+        "title": "Metodología y marco legal",
+        "hours": 8,
+        "description": "Ética, alcance y metodologías.",
+        "topics": [
+          "OSSTMM",
+          "Reglas de compromiso"
+        ]
+      },
+      {
+        "title": "Reconocimiento y escaneo",
+        "hours": 16,
+        "description": "OSINT y enumeración.",
+        "topics": [
+          "OSINT",
+          "Nmap"
+        ]
+      },
+      {
+        "title": "Pentesting web",
+        "hours": 26,
+        "description": "OWASP Top 10 en la práctica.",
+        "topics": [
+          "Inyecciones",
+          "XSS",
+          "Autenticación"
+        ]
+      },
+      {
+        "title": "Redes y Active Directory",
+        "hours": 28,
+        "description": "Escalamiento de privilegios y movimiento lateral.",
+        "topics": [
+          "Windows",
+          "Active Directory"
+        ]
+      },
+      {
+        "title": "Informe profesional",
+        "hours": 12,
+        "description": "Redacción y presentación de hallazgos.",
+        "topics": [
+          "Reporte ejecutivo",
+          "Remediación"
+        ]
+      }
+    ],
+    "requirements": [
+      "Redes básicas",
+      "Linux básico"
+    ],
+    "featured": false,
+    "rating": 4.8,
+    "reviews_count": 203,
+    "financing": {
+      "installments": 4,
+      "installment_amount": 723,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "4 cuotas sin intereses."
+    },
+    "keywords": [
+      "hacking",
+      "pentesting",
+      "seguridad informatica",
+      "cybersecurity",
+      "hacker etico"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/ethical-hacking-y-ciberseguridad-ofensiva",
+    "is_demo": true
+  },
+  {
+    "id": "crs-020",
+    "slug": "fundamentos-de-ciberseguridad-security-plus",
+    "name": "Fundamentos de Ciberseguridad (preparación Security+)",
+    "institution_id": "inst-condor",
+    "category": "ciberseguridad",
+    "subcategory": "Certificaciones",
+    "program_type": "certificacion",
+    "short_description": "Bases de ciberseguridad y preparación para la certificación CompTIA Security+.",
+    "description": "Programa de certificación que cubre los dominios del examen Security+ con clases grabadas, sesiones en vivo de repaso y simulacros. Pensado para profesionales de TI que quieren entrar al área de seguridad.",
+    "price": 690,
+    "discount_price": 590,
+    "currency": "USD",
+    "duration_hours": 45,
+    "duration_weeks": 8,
+    "modality": "hibrido",
+    "schedule": "Contenido grabado + repaso en vivo los sábados 10:00 a. m.",
+    "level": "basico",
+    "start_date": "2026-10-31",
+    "certificate": {
+      "type": "internacional",
+      "description": "Incluye voucher para el examen internacional CompTIA Security+ (demo). La certificación la emite el organismo certificador."
+    },
+    "teachers": [
+      {
+        "name": "Natalia Chávez",
+        "role": "Security Consultant",
+        "company": "Cóndor Cyber Lab",
+        "experience": "8 años en auditorías de aplicaciones web.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Wireshark",
+      "Nmap",
+      "SIEM",
+      "Firewalls"
+    ],
+    "skills": [
+      "Gestión de amenazas",
+      "Criptografía",
+      "Seguridad de redes",
+      "Respuesta a incidentes"
+    ],
+    "syllabus": [
+      {
+        "title": "Amenazas y vulnerabilidades",
+        "hours": 10,
+        "description": "Tipos de ataques y actores.",
+        "topics": [
+          "Malware",
+          "Ingeniería social"
+        ]
+      },
+      {
+        "title": "Arquitectura segura",
+        "hours": 10,
+        "description": "Diseño de redes y controles.",
+        "topics": [
+          "Segmentación",
+          "Zero Trust"
+        ]
+      },
+      {
+        "title": "Operaciones de seguridad",
+        "hours": 15,
+        "description": "Monitoreo y respuesta.",
+        "topics": [
+          "SIEM",
+          "Respuesta a incidentes"
+        ]
+      },
+      {
+        "title": "Gobierno y simulacros",
+        "hours": 10,
+        "description": "Riesgo, cumplimiento y práctica.",
+        "topics": [
+          "Gestión de riesgos",
+          "Simulacros"
+        ]
+      }
+    ],
+    "requirements": [
+      "Conocimientos básicos de redes"
+    ],
+    "featured": false,
+    "rating": 4.7,
+    "reviews_count": 318,
+    "financing": {
+      "installments": 3,
+      "installment_amount": 197,
+      "methods": [
+        "Tarjeta de crédito",
+        "PayPal",
+        "Transferencia internacional"
+      ],
+      "notes": "3 cuotas con tarjeta."
+    },
+    "keywords": [
+      "seguridad informatica",
+      "cybersecurity",
+      "comptia",
+      "certificacion internacional"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/fundamentos-de-ciberseguridad-security-plus",
+    "is_demo": true
+  },
+  {
+    "id": "crs-021",
+    "slug": "diplomado-en-ciberseguridad-y-gestion-de-riesgos",
+    "name": "Diplomado en Ciberseguridad y Gestión de Riesgos",
+    "institution_id": "inst-nova",
+    "category": "ciberseguridad",
+    "subcategory": "Gestión de la seguridad",
+    "program_type": "diplomado",
+    "short_description": "Gobierno de la seguridad, ISO 27001 y gestión de riesgos tecnológicos para líderes.",
+    "description": "Diplomado de posgrado orientado a jefaturas de TI, riesgos y auditoría. Aborda marcos de gobierno, normativa, continuidad del negocio y gestión de incidentes desde una perspectiva de negocio.",
+    "price": 6500,
+    "discount_price": null,
+    "currency": "PEN",
+    "duration_hours": 128,
+    "duration_weeks": 24,
+    "modality": "hibrido",
+    "schedule": "Viernes 7:00–10:00 p. m. (online) y sábados alternos presenciales",
+    "level": "intermedio",
+    "start_date": "2027-01-15",
+    "certificate": {
+      "type": "incluye",
+      "description": "Diploma de posgrado emitido por la Escuela de Posgrado (demo)."
+    },
+    "teachers": [
+      {
+        "name": "Iván Torres",
+        "role": "Red Team Lead",
+        "company": "Andes Bank (demo)",
+        "experience": "13 años en pruebas de intrusión para banca.",
+        "linkedin": null
+      },
+      {
+        "name": "Dra. Valeria Castañeda",
+        "role": "Directora académica",
+        "company": "Universidad Nova Lima",
+        "experience": "PhD en Ciencias de la Computación, 15 años de investigación en ML.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "ISO 27001",
+      "NIST CSF",
+      "SIEM",
+      "Matrices de riesgo"
+    ],
+    "skills": [
+      "Gestión de riesgos",
+      "Gobierno de seguridad",
+      "Continuidad del negocio",
+      "Cumplimiento normativo"
+    ],
+    "syllabus": [
+      {
+        "title": "Gobierno de la seguridad",
+        "hours": 24,
+        "description": "Roles, políticas y marcos.",
+        "topics": [
+          "ISO 27001",
+          "NIST CSF"
+        ]
+      },
+      {
+        "title": "Gestión de riesgos tecnológicos",
+        "hours": 28,
+        "description": "Identificación, evaluación y tratamiento.",
+        "topics": [
+          "ISO 31000",
+          "Matrices de riesgo"
+        ]
+      },
+      {
+        "title": "Seguridad operativa",
+        "hours": 28,
+        "description": "SOC, monitoreo e incidentes.",
+        "topics": [
+          "SOC",
+          "Gestión de incidentes"
+        ]
+      },
+      {
+        "title": "Continuidad y resiliencia",
+        "hours": 24,
+        "description": "BCP y DRP.",
+        "topics": [
+          "BIA",
+          "Planes de continuidad"
+        ]
+      },
+      {
+        "title": "Proyecto aplicado",
+        "hours": 24,
+        "description": "Plan de seguridad para tu organización.",
+        "topics": [
+          "Diagnóstico",
+          "Roadmap"
+        ]
+      }
+    ],
+    "requirements": [
+      "Bachiller",
+      "Experiencia en TI, riesgos o auditoría"
+    ],
+    "featured": false,
+    "rating": 4.4,
+    "reviews_count": 76,
+    "financing": {
+      "installments": 6,
+      "installment_amount": 1083,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "6 cuotas mensuales."
+    },
+    "keywords": [
+      "seguridad informatica",
+      "iso 27001",
+      "riesgos",
+      "cybersecurity"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/diplomado-en-ciberseguridad-y-gestion-de-riesgos",
+    "is_demo": true
+  },
+  {
+    "id": "crs-022",
+    "slug": "product-management-professional",
+    "name": "Product Management Professional",
+    "institution_id": "inst-altamar",
+    "category": "product-management",
+    "subcategory": "Producto digital",
+    "program_type": "especializacion",
+    "short_description": "Discovery, priorización, métricas y roadmap para gestionar productos digitales.",
+    "description": "Especialización para profesionales que lideran o quieren liderar productos digitales. Aprenderás frameworks de discovery, priorización basada en evidencia y gestión de métricas de producto con casos latinoamericanos.",
+    "price": 3600,
+    "discount_price": 3200,
+    "currency": "PEN",
+    "duration_hours": 48,
+    "duration_weeks": 8,
+    "modality": "en-vivo",
+    "schedule": "Lunes y miércoles · 7:00–10:00 p. m. (hora Perú)",
+    "level": "intermedio",
+    "start_date": "2026-11-09",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado de especialización de Altamar Business School."
+    },
+    "teachers": [
+      {
+        "name": "Martín Gálvez",
+        "role": "Head of Product",
+        "company": "Qori Fintech",
+        "experience": "10 años liderando productos fintech.",
+        "linkedin": null
+      },
+      {
+        "name": "Sofía Benavides",
+        "role": "Directora de Transformación Digital",
+        "company": "Kallpa Retail",
+        "experience": "14 años liderando transformación en retail y consumo masivo.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Jira",
+      "Figma",
+      "Amplitude",
+      "Notion",
+      "Miro"
+    ],
+    "skills": [
+      "Product discovery",
+      "Priorización",
+      "Métricas de producto",
+      "Roadmapping",
+      "Liderazgo"
+    ],
+    "syllabus": [
+      {
+        "title": "Rol del Product Manager",
+        "hours": 6,
+        "description": "Responsabilidades y estructura de equipos.",
+        "topics": [
+          "Product trio",
+          "Stakeholders"
+        ]
+      },
+      {
+        "title": "Discovery",
+        "hours": 12,
+        "description": "Investigación y validación de problemas.",
+        "topics": [
+          "Entrevistas",
+          "Experimentos"
+        ]
+      },
+      {
+        "title": "Estrategia y roadmap",
+        "hours": 10,
+        "description": "Visión, OKRs y roadmaps por resultados.",
+        "topics": [
+          "OKRs",
+          "Roadmap"
+        ]
+      },
+      {
+        "title": "Delivery ágil",
+        "hours": 8,
+        "description": "Trabajo con equipos de desarrollo.",
+        "topics": [
+          "Scrum",
+          "Kanban"
+        ]
+      },
+      {
+        "title": "Métricas y crecimiento",
+        "hours": 12,
+        "description": "North Star, funnels y experimentación.",
+        "topics": [
+          "North Star",
+          "A/B testing"
+        ]
+      }
+    ],
+    "requirements": [
+      "2 años de experiencia profesional"
+    ],
+    "featured": true,
+    "rating": 4.8,
+    "reviews_count": 229,
+    "financing": {
+      "installments": 4,
+      "installment_amount": 800,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "4 cuotas sin intereses. Facturación empresarial."
+    },
+    "keywords": [
+      "producto",
+      "product manager",
+      "product owner",
+      "agile",
+      "pm"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/product-management-professional",
+    "is_demo": true
+  },
+  {
+    "id": "crs-023",
+    "slug": "ux-ui-design-bootcamp",
+    "name": "UX/UI Design Bootcamp",
+    "institution_id": "inst-prisma",
+    "category": "ux-ui",
+    "subcategory": "Diseño de producto",
+    "program_type": "bootcamp",
+    "short_description": "Diseña productos digitales de principio a fin y construye un portafolio profesional.",
+    "description": "Bootcamp en vivo de 20 semanas para diseñar productos digitales: investigación de usuarios, arquitectura de información, prototipado y diseño de interfaces. Terminas con 3 casos de estudio en tu portafolio.",
+    "price": 5200,
+    "discount_price": 4500,
+    "currency": "PEN",
+    "duration_hours": 200,
+    "duration_weeks": 20,
+    "modality": "en-vivo",
+    "schedule": "Martes y jueves · 7:00–10:00 p. m. + sábados de taller",
+    "level": "basico",
+    "start_date": "2026-11-17",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado de bootcamp y revisión de portafolio 1:1."
+    },
+    "teachers": [
+      {
+        "name": "Mariana Ortiz",
+        "role": "Lead Product Designer",
+        "company": "Qori Fintech",
+        "experience": "9 años diseñando productos financieros.",
+        "linkedin": null
+      },
+      {
+        "name": "Alonso Pinto",
+        "role": "UX Researcher",
+        "company": "Lumen Health",
+        "experience": "7 años en investigación de usuarios.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Figma",
+      "FigJam",
+      "Maze",
+      "Notion"
+    ],
+    "skills": [
+      "UX research",
+      "Diseño de interfaces",
+      "Prototipado",
+      "Design systems",
+      "Portafolio"
+    ],
+    "syllabus": [
+      {
+        "title": "Fundamentos de UX",
+        "hours": 30,
+        "description": "Procesos de diseño centrado en el usuario.",
+        "topics": [
+          "Design thinking",
+          "Heurísticas"
+        ]
+      },
+      {
+        "title": "Investigación de usuarios",
+        "hours": 40,
+        "description": "Entrevistas, encuestas y síntesis.",
+        "topics": [
+          "Entrevistas",
+          "Journey maps"
+        ]
+      },
+      {
+        "title": "Arquitectura y prototipado",
+        "hours": 40,
+        "description": "Flujos, wireframes y prototipos.",
+        "topics": [
+          "Wireframes",
+          "Prototipos"
+        ]
+      },
+      {
+        "title": "Diseño UI y design systems",
+        "hours": 50,
+        "description": "Tipografía, color y componentes.",
+        "topics": [
+          "Figma avanzado",
+          "Componentes"
+        ]
+      },
+      {
+        "title": "Portafolio",
+        "hours": 40,
+        "description": "Casos de estudio y presentación.",
+        "topics": [
+          "Caso de estudio",
+          "Presentación"
+        ]
+      }
+    ],
+    "requirements": [
+      "Ninguno"
+    ],
+    "featured": false,
+    "rating": 4.7,
+    "reviews_count": 187,
+    "financing": {
+      "installments": 6,
+      "installment_amount": 750,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "6 cuotas sin intereses."
+    },
+    "keywords": [
+      "diseno",
+      "ux",
+      "ui",
+      "figma",
+      "diseno de producto"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/ux-ui-design-bootcamp",
+    "is_demo": true
+  },
+  {
+    "id": "crs-024",
+    "slug": "ux-research-aplicado",
+    "name": "UX Research Aplicado",
+    "institution_id": "inst-prisma",
+    "category": "ux-ui",
+    "subcategory": "Investigación",
+    "program_type": "curso",
+    "short_description": "Métodos de investigación de usuarios para tomar mejores decisiones de producto.",
+    "description": "Curso grabado con plantillas listas para usar: guías de entrevista, tests de usabilidad y síntesis de hallazgos. Para diseñadores, PMs y analistas.",
+    "price": 390,
+    "discount_price": 350,
+    "currency": "PEN",
+    "duration_hours": 16,
+    "duration_weeks": 4,
+    "modality": "grabado",
+    "schedule": "A tu ritmo · acceso por 12 meses",
+    "level": "intermedio",
+    "start_date": null,
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado digital de Prisma UX School."
+    },
+    "teachers": [
+      {
+        "name": "Alonso Pinto",
+        "role": "UX Researcher",
+        "company": "Lumen Health",
+        "experience": "7 años en investigación de usuarios.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Maze",
+      "FigJam",
+      "Dovetail",
+      "Google Forms"
+    ],
+    "skills": [
+      "Entrevistas de usuario",
+      "Tests de usabilidad",
+      "Síntesis",
+      "Investigación cuantitativa"
+    ],
+    "syllabus": [
+      {
+        "title": "Planificar una investigación",
+        "hours": 4,
+        "description": "Preguntas, métodos y reclutamiento.",
+        "topics": [
+          "Plan de research"
+        ]
+      },
+      {
+        "title": "Métodos cualitativos",
+        "hours": 6,
+        "description": "Entrevistas y tests de usabilidad.",
+        "topics": [
+          "Entrevistas",
+          "Usabilidad"
+        ]
+      },
+      {
+        "title": "Métodos cuantitativos",
+        "hours": 3,
+        "description": "Encuestas y métricas.",
+        "topics": [
+          "Encuestas",
+          "SUS"
+        ]
+      },
+      {
+        "title": "Síntesis y comunicación",
+        "hours": 3,
+        "description": "De hallazgos a decisiones.",
+        "topics": [
+          "Affinity mapping",
+          "Reportes"
+        ]
+      }
+    ],
+    "requirements": [
+      "Conocimientos básicos de UX"
+    ],
+    "featured": false,
+    "rating": 4.6,
+    "reviews_count": 302,
+    "financing": {
+      "installments": null,
+      "installment_amount": null,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "Pago único."
+    },
+    "keywords": [
+      "ux",
+      "investigacion",
+      "usabilidad",
+      "diseno"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/ux-research-aplicado",
+    "is_demo": true
+  },
+  {
+    "id": "crs-025",
+    "slug": "diplomado-en-business-analytics",
+    "name": "Diplomado en Business Analytics",
+    "institution_id": "inst-altamar",
+    "category": "business-analytics",
+    "subcategory": "Analítica para la gestión",
+    "program_type": "diplomado",
+    "short_description": "Analítica aplicada a finanzas, marketing y operaciones para decidir con datos.",
+    "description": "Diplomado para mandos medios y gerentes que necesitan liderar con datos. Integra estadística, visualización, modelos de pronóstico y analítica de clientes con casos de empresas latinoamericanas.",
+    "price": 5800,
+    "discount_price": 5200,
+    "currency": "PEN",
+    "duration_hours": 100,
+    "duration_weeks": 18,
+    "modality": "hibrido",
+    "schedule": "Jueves 7:00–10:00 p. m. (online) y sábados alternos presenciales",
+    "level": "intermedio",
+    "start_date": "2027-01-21",
+    "certificate": {
+      "type": "incluye",
+      "description": "Diploma de Altamar Business School."
+    },
+    "teachers": [
+      {
+        "name": "Javier Mendoza",
+        "role": "Financial Planning Analyst",
+        "company": "Inti Energy",
+        "experience": "10 años automatizando reportes financieros.",
+        "linkedin": null
+      },
+      {
+        "name": "Lucía Paredes",
+        "role": "Head of Analytics",
+        "company": "Kallpa Retail",
+        "experience": "12 años liderando equipos de BI y analítica comercial.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Excel",
+      "Power BI",
+      "Python",
+      "Google Analytics"
+    ],
+    "skills": [
+      "KPIs",
+      "Pronósticos",
+      "Analítica de clientes",
+      "Toma de decisiones"
+    ],
+    "syllabus": [
+      {
+        "title": "Decidir con datos",
+        "hours": 16,
+        "description": "Cultura data-driven y KPIs.",
+        "topics": [
+          "KPIs",
+          "Cuadro de mando"
+        ]
+      },
+      {
+        "title": "Analítica financiera",
+        "hours": 20,
+        "description": "Rentabilidad, presupuestos y escenarios.",
+        "topics": [
+          "Escenarios",
+          "Sensibilidad"
+        ]
+      },
+      {
+        "title": "Analítica comercial y de clientes",
+        "hours": 24,
+        "description": "Segmentación, CLV y churn.",
+        "topics": [
+          "RFM",
+          "CLV",
+          "Churn"
+        ]
+      },
+      {
+        "title": "Pronósticos",
+        "hours": 20,
+        "description": "Modelos de pronóstico de demanda.",
+        "topics": [
+          "Series de tiempo"
+        ]
+      },
+      {
+        "title": "Proyecto aplicado",
+        "hours": 20,
+        "description": "Caso de tu empresa.",
+        "topics": [
+          "Business case"
+        ]
+      }
+    ],
+    "requirements": [
+      "Bachiller o experiencia equivalente"
+    ],
+    "featured": false,
+    "rating": 4.5,
+    "reviews_count": 142,
+    "financing": {
+      "installments": 6,
+      "installment_amount": 867,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "6 cuotas mensuales sin intereses."
+    },
+    "keywords": [
+      "inteligencia de negocios",
+      "kpis",
+      "gestion",
+      "gerentes"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/diplomado-en-business-analytics",
+    "is_demo": true
+  },
+  {
+    "id": "crs-026",
+    "slug": "transformacion-y-negocios-digitales",
+    "name": "Transformación y Negocios Digitales",
+    "institution_id": "inst-altamar",
+    "category": "negocios-digitales",
+    "subcategory": "Estrategia",
+    "program_type": "programa-ejecutivo",
+    "short_description": "Lidera la transformación digital de tu organización con modelos de negocio y tecnología.",
+    "description": "Programa ejecutivo para gerentes y directores. Revisa modelos de negocio digitales, plataformas, datos, IA y gestión del cambio, con un plan de transformación como entregable.",
+    "price": 1400,
+    "discount_price": 1200,
+    "currency": "USD",
+    "duration_hours": 40,
+    "duration_weeks": 8,
+    "modality": "en-vivo",
+    "schedule": "Miércoles · 7:00–10:00 p. m. + 2 sesiones ejecutivas sábado",
+    "level": "avanzado",
+    "start_date": "2026-11-11",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado de programa ejecutivo de Altamar Business School."
+    },
+    "teachers": [
+      {
+        "name": "Sofía Benavides",
+        "role": "Directora de Transformación Digital",
+        "company": "Kallpa Retail",
+        "experience": "14 años liderando transformación en retail y consumo masivo.",
+        "linkedin": null
+      },
+      {
+        "name": "Martín Gálvez",
+        "role": "Head of Product",
+        "company": "Qori Fintech",
+        "experience": "10 años liderando productos fintech.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Business Model Canvas",
+      "OKRs",
+      "Power BI"
+    ],
+    "skills": [
+      "Estrategia digital",
+      "Modelos de negocio",
+      "Gestión del cambio",
+      "Liderazgo"
+    ],
+    "syllabus": [
+      {
+        "title": "Estrategia digital",
+        "hours": 8,
+        "description": "Disrupción y ventaja competitiva.",
+        "topics": [
+          "Plataformas",
+          "Ecosistemas"
+        ]
+      },
+      {
+        "title": "Modelos de negocio digitales",
+        "hours": 8,
+        "description": "Monetización y escalabilidad.",
+        "topics": [
+          "Suscripción",
+          "Marketplaces"
+        ]
+      },
+      {
+        "title": "Datos e IA en la estrategia",
+        "hours": 8,
+        "description": "Casos de uso de alto impacto.",
+        "topics": [
+          "Data strategy",
+          "IA aplicada"
+        ]
+      },
+      {
+        "title": "Organización y cambio",
+        "hours": 8,
+        "description": "Equipos ágiles y cultura.",
+        "topics": [
+          "Agile at scale",
+          "Cultura"
+        ]
+      },
+      {
+        "title": "Plan de transformación",
+        "hours": 8,
+        "description": "Roadmap para tu empresa.",
+        "topics": [
+          "Roadmap",
+          "Business case"
+        ]
+      }
+    ],
+    "requirements": [
+      "5 años de experiencia profesional"
+    ],
+    "featured": false,
+    "rating": 4.5,
+    "reviews_count": 64,
+    "financing": {
+      "installments": 3,
+      "installment_amount": 400,
+      "methods": [
+        "Tarjeta de crédito",
+        "PayPal",
+        "Transferencia internacional"
+      ],
+      "notes": "3 cuotas. Facturación empresarial disponible."
+    },
+    "keywords": [
+      "transformacion digital",
+      "digital business",
+      "estrategia",
+      "ejecutivo",
+      "gerentes"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/transformacion-y-negocios-digitales",
+    "is_demo": true
+  },
+  {
+    "id": "crs-027",
+    "slug": "automatizacion-con-power-automate-y-rpa",
+    "name": "Automatización de Procesos con Power Automate y RPA",
+    "institution_id": "inst-misti",
+    "category": "automatizacion",
+    "subcategory": "RPA",
+    "program_type": "curso",
+    "short_description": "Automatiza tareas repetitivas con Power Automate, RPA y conectores de IA.",
+    "description": "Curso en vivo para analistas y personal administrativo. Automatizarás aprobaciones, reportes y extracción de datos de correos y PDFs usando Power Automate Cloud y Desktop.",
+    "price": 790,
+    "discount_price": 690,
+    "currency": "PEN",
+    "duration_hours": 30,
+    "duration_weeks": 6,
+    "modality": "en-vivo",
+    "schedule": "Lunes y miércoles · 7:00–9:30 p. m. (hora Perú)",
+    "level": "intermedio",
+    "start_date": "2026-10-26",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado digital de Misti Tech."
+    },
+    "teachers": [
+      {
+        "name": "Javier Mendoza",
+        "role": "Financial Planning Analyst",
+        "company": "Inti Energy",
+        "experience": "10 años automatizando reportes financieros.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Power Automate",
+      "Excel",
+      "SharePoint",
+      "AI Builder"
+    ],
+    "skills": [
+      "Automatización de procesos",
+      "RPA",
+      "Integraciones"
+    ],
+    "syllabus": [
+      {
+        "title": "Mapeo de procesos",
+        "hours": 4,
+        "description": "Identificar qué automatizar.",
+        "topics": [
+          "Priorización",
+          "Diagramas"
+        ]
+      },
+      {
+        "title": "Power Automate Cloud",
+        "hours": 10,
+        "description": "Flujos y conectores.",
+        "topics": [
+          "Aprobaciones",
+          "Conectores"
+        ]
+      },
+      {
+        "title": "RPA con Power Automate Desktop",
+        "hours": 10,
+        "description": "Automatizar aplicaciones de escritorio.",
+        "topics": [
+          "Grabadora",
+          "Variables"
+        ]
+      },
+      {
+        "title": "IA en la automatización",
+        "hours": 6,
+        "description": "Extracción de documentos con IA.",
+        "topics": [
+          "AI Builder",
+          "OCR"
+        ]
+      }
+    ],
+    "requirements": [
+      "Excel intermedio",
+      "Cuenta Microsoft 365 (recomendado)"
+    ],
+    "featured": false,
+    "rating": 4.6,
+    "reviews_count": 233,
+    "financing": {
+      "installments": 2,
+      "installment_amount": 345,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "2 cuotas sin intereses."
+    },
+    "keywords": [
+      "rpa",
+      "automatizar",
+      "microsoft",
+      "procesos",
+      "productividad"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/automatizacion-con-power-automate-y-rpa",
+    "is_demo": true
+  },
+  {
+    "id": "crs-028",
+    "slug": "no-code-crea-apps-sin-programar",
+    "name": "No-Code: Crea Apps sin Programar",
+    "institution_id": "inst-misti",
+    "category": "no-code-low-code",
+    "subcategory": "Apps no-code",
+    "program_type": "curso",
+    "short_description": "Construye una app web funcional con herramientas no-code en 20 horas.",
+    "description": "Curso grabado para emprendedores y profesionales que quieren validar ideas sin programar. Construirás una app con base de datos, usuarios y automatizaciones.",
+    "price": 250,
+    "discount_price": null,
+    "currency": "PEN",
+    "duration_hours": 20,
+    "duration_weeks": 4,
+    "modality": "grabado",
+    "schedule": "A tu ritmo · acceso por 12 meses",
+    "level": "basico",
+    "start_date": null,
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado digital de Misti Tech."
+    },
+    "teachers": [
+      {
+        "name": "Paula Medina",
+        "role": "No-Code Builder",
+        "company": "Estudio independiente",
+        "experience": "6 años construyendo MVPs para startups.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Bubble",
+      "Airtable",
+      "Glide",
+      "Zapier"
+    ],
+    "skills": [
+      "Prototipado rápido",
+      "Bases de datos no-code",
+      "Automatización"
+    ],
+    "syllabus": [
+      {
+        "title": "Panorama no-code",
+        "hours": 3,
+        "description": "Herramientas y cuándo usarlas.",
+        "topics": [
+          "Comparativa de herramientas"
+        ]
+      },
+      {
+        "title": "Datos con Airtable",
+        "hours": 5,
+        "description": "Estructurar información.",
+        "topics": [
+          "Tablas",
+          "Relaciones"
+        ]
+      },
+      {
+        "title": "Tu app en Bubble",
+        "hours": 9,
+        "description": "Interfaz, lógica y usuarios.",
+        "topics": [
+          "Workflows",
+          "Usuarios"
+        ]
+      },
+      {
+        "title": "Automatizaciones",
+        "hours": 3,
+        "description": "Conectar servicios.",
+        "topics": [
+          "Zapier"
+        ]
+      }
+    ],
+    "requirements": [
+      "Ninguno"
+    ],
+    "featured": false,
+    "rating": 4.4,
+    "reviews_count": 417,
+    "financing": {
+      "installments": null,
+      "installment_amount": null,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "Pago único."
+    },
+    "keywords": [
+      "no code",
+      "nocode",
+      "sin programar",
+      "emprender",
+      "mvp"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/no-code-crea-apps-sin-programar",
+    "is_demo": true
+  },
+  {
+    "id": "crs-029",
+    "slug": "maestria-en-ciencia-de-datos",
+    "name": "Maestría en Ciencia de Datos",
+    "institution_id": "inst-nova",
+    "category": "data-science",
+    "subcategory": "Posgrado",
+    "program_type": "maestria",
+    "short_description": "Maestría 100% online en vivo para liderar equipos y proyectos de ciencia de datos.",
+    "description": "Programa de posgrado online en vivo que combina estadística, machine learning, ingeniería de datos y gestión de proyectos analíticos. Incluye tesis aplicada y doble certificación intermedia.",
+    "price": 28500,
+    "discount_price": 26000,
+    "currency": "PEN",
+    "duration_hours": 640,
+    "duration_weeks": 88,
+    "modality": "en-vivo",
+    "schedule": "Martes y jueves · 7:00–10:30 p. m. (hora Perú)",
+    "level": "avanzado",
+    "start_date": "2027-04-06",
+    "certificate": {
+      "type": "incluye",
+      "description": "Grado académico de Maestro (demo) y certificados intermedios."
+    },
+    "teachers": [
+      {
+        "name": "Dra. Valeria Castañeda",
+        "role": "Directora del programa",
+        "company": "Universidad Nova Lima",
+        "experience": "PhD en Ciencias de la Computación, 15 años de investigación en ML.",
+        "linkedin": null
+      },
+      {
+        "name": "Gonzalo Ramírez",
+        "role": "Staff Data Engineer",
+        "company": "Mercado Andino",
+        "experience": "10 años construyendo plataformas de datos.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Python",
+      "R",
+      "SQL",
+      "Spark",
+      "TensorFlow",
+      "AWS"
+    ],
+    "skills": [
+      "Estadística avanzada",
+      "Machine Learning",
+      "Ingeniería de datos",
+      "Liderazgo de equipos de datos"
+    ],
+    "syllabus": [
+      {
+        "title": "Estadística y probabilidad",
+        "hours": 110,
+        "description": "Fundamentos para la inferencia.",
+        "topics": [
+          "Inferencia",
+          "Modelos lineales"
+        ]
+      },
+      {
+        "title": "Programación y datos",
+        "hours": 110,
+        "description": "Python, R, SQL y Spark.",
+        "topics": [
+          "Python",
+          "R",
+          "Spark"
+        ]
+      },
+      {
+        "title": "Machine Learning",
+        "hours": 140,
+        "description": "Modelos y evaluación.",
+        "topics": [
+          "Supervisado",
+          "No supervisado"
+        ]
+      },
+      {
+        "title": "Deep Learning",
+        "hours": 100,
+        "description": "Redes neuronales aplicadas.",
+        "topics": [
+          "Visión",
+          "NLP"
+        ]
+      },
+      {
+        "title": "Gestión de proyectos de datos",
+        "hours": 80,
+        "description": "Estrategia y liderazgo.",
+        "topics": [
+          "CRISP-DM",
+          "Equipos"
+        ]
+      },
+      {
+        "title": "Tesis",
+        "hours": 100,
+        "description": "Investigación aplicada.",
+        "topics": [
+          "Sustentación"
+        ]
+      }
+    ],
+    "requirements": [
+      "Grado de bachiller",
+      "Conocimientos de estadística",
+      "Entrevista de admisión"
+    ],
+    "featured": false,
+    "rating": 4.5,
+    "reviews_count": 59,
+    "financing": {
+      "installments": 20,
+      "installment_amount": 1300,
+      "methods": [
+        "Cuotas mensuales",
+        "Crédito educativo",
+        "Transferencia"
+      ],
+      "notes": "20 cuotas mensuales."
+    },
+    "keywords": [
+      "ciencia de datos",
+      "posgrado",
+      "master",
+      "online"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/maestria-en-ciencia-de-datos",
+    "is_demo": true
+  },
+  {
+    "id": "crs-030",
+    "slug": "adi-pass-membresia-anual-de-datos",
+    "name": "ADI Pass: Membresía Anual de Datos",
+    "institution_id": "inst-adi",
+    "category": "data-analytics",
+    "subcategory": "Membresía",
+    "program_type": "membresia",
+    "short_description": "Acceso ilimitado por 12 meses a más de 30 cursos grabados de datos y BI.",
+    "description": "Membresía anual con acceso a toda la biblioteca de cursos grabados de Andes Data Institute: Excel, SQL, Power BI, Python, estadística y storytelling. Incluye rutas de aprendizaje y sesiones mensuales de preguntas en vivo.",
+    "price": 1190,
+    "discount_price": 890,
+    "currency": "PEN",
+    "duration_hours": 300,
+    "duration_weeks": 52,
+    "modality": "grabado",
+    "schedule": "A tu ritmo · 12 meses + 1 sesión en vivo mensual",
+    "level": "basico",
+    "start_date": null,
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado por cada curso completado dentro de la membresía."
+    },
+    "teachers": [
+      {
+        "name": "Lucía Paredes",
+        "role": "Head of Analytics",
+        "company": "Kallpa Retail",
+        "experience": "12 años liderando equipos de BI y analítica comercial.",
+        "linkedin": null
+      },
+      {
+        "name": "Andrea Villanueva",
+        "role": "Data Scientist",
+        "company": "Lumen Health",
+        "experience": "7 años construyendo modelos de pronóstico.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Excel",
+      "SQL",
+      "Power BI",
+      "Python",
+      "Tableau"
+    ],
+    "skills": [
+      "Análisis de datos",
+      "Visualización",
+      "Aprendizaje continuo"
+    ],
+    "syllabus": [
+      {
+        "title": "Ruta Excel y Power BI",
+        "hours": 90,
+        "description": "10 cursos de ofimática y BI.",
+        "topics": [
+          "Excel",
+          "Power BI"
+        ]
+      },
+      {
+        "title": "Ruta SQL",
+        "hours": 60,
+        "description": "6 cursos de bases de datos.",
+        "topics": [
+          "SQL"
+        ]
+      },
+      {
+        "title": "Ruta Python y estadística",
+        "hours": 100,
+        "description": "9 cursos de programación y estadística.",
+        "topics": [
+          "Python",
+          "Estadística"
+        ]
+      },
+      {
+        "title": "Ruta storytelling",
+        "hours": 50,
+        "description": "5 cursos de comunicación con datos.",
+        "topics": [
+          "Storytelling"
+        ]
+      }
+    ],
+    "requirements": [
+      "Ninguno"
+    ],
+    "featured": false,
+    "rating": 4.6,
+    "reviews_count": 689,
+    "financing": {
+      "installments": 12,
+      "installment_amount": 75,
+      "methods": [
+        "Tarjeta de crédito",
+        "Transferencia",
+        "Yape / Plin"
+      ],
+      "notes": "Pago anual o 12 cargos mensuales de S/ 75."
+    },
+    "keywords": [
+      "suscripcion",
+      "membresia",
+      "biblioteca",
+      "aprendizaje continuo"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/adi-pass-membresia-anual-de-datos",
+    "is_demo": true
+  },
+  {
+    "id": "crs-031",
+    "slug": "mlops-machine-learning-engineering",
+    "name": "MLOps: Machine Learning Engineering",
+    "institution_id": "inst-nube",
+    "category": "machine-learning",
+    "subcategory": "MLOps",
+    "program_type": "especializacion",
+    "short_description": "Lleva modelos de machine learning a producción con pipelines, monitoreo y buenas prácticas.",
+    "description": "Especialización avanzada para científicos de datos e ingenieros. Implementarás pipelines de entrenamiento, registro de modelos, despliegue como servicio y monitoreo de drift en la nube.",
+    "price": 990,
+    "discount_price": 890,
+    "currency": "USD",
+    "duration_hours": 64,
+    "duration_weeks": 10,
+    "modality": "en-vivo",
+    "schedule": "Martes y jueves · 8:00–10:30 p. m. (hora Perú)",
+    "level": "avanzado",
+    "start_date": "2026-12-01",
+    "certificate": {
+      "type": "incluye",
+      "description": "Certificado de especialización de Nube Academy."
+    },
+    "teachers": [
+      {
+        "name": "Fernando Aguilar",
+        "role": "Site Reliability Engineer",
+        "company": "NubeSur",
+        "experience": "12 años operando plataformas de alta disponibilidad.",
+        "linkedin": null
+      },
+      {
+        "name": "Mateo Rivas",
+        "role": "Lead Data Scientist",
+        "company": "Mercado Andino",
+        "experience": "9 años en modelos de recomendación y pricing.",
+        "linkedin": null
+      }
+    ],
+    "tools": [
+      "Python",
+      "MLflow",
+      "Docker",
+      "Kubernetes",
+      "AWS SageMaker",
+      "GitHub Actions"
+    ],
+    "skills": [
+      "MLOps",
+      "Despliegue de modelos",
+      "Monitoreo",
+      "CI/CD para ML"
+    ],
+    "syllabus": [
+      {
+        "title": "Ciclo de vida de ML",
+        "hours": 8,
+        "description": "De notebook a producto.",
+        "topics": [
+          "Arquitecturas MLOps"
+        ]
+      },
+      {
+        "title": "Experimentación y registro",
+        "hours": 12,
+        "description": "Tracking y versionado.",
+        "topics": [
+          "MLflow",
+          "DVC"
+        ]
+      },
+      {
+        "title": "Despliegue",
+        "hours": 18,
+        "description": "APIs, batch y streaming.",
+        "topics": [
+          "FastAPI",
+          "Docker",
+          "SageMaker"
+        ]
+      },
+      {
+        "title": "Orquestación y CI/CD",
+        "hours": 14,
+        "description": "Pipelines automatizados.",
+        "topics": [
+          "GitHub Actions",
+          "Kubernetes"
+        ]
+      },
+      {
+        "title": "Monitoreo",
+        "hours": 12,
+        "description": "Drift, alertas y reentrenamiento.",
+        "topics": [
+          "Data drift",
+          "Alertas"
+        ]
+      }
+    ],
+    "requirements": [
+      "Python intermedio",
+      "Experiencia entrenando modelos"
+    ],
+    "featured": false,
+    "rating": 4.7,
+    "reviews_count": 83,
+    "financing": {
+      "installments": 3,
+      "installment_amount": 297,
+      "methods": [
+        "Tarjeta de crédito",
+        "PayPal",
+        "Transferencia internacional"
+      ],
+      "notes": "3 cuotas con tarjeta."
+    },
+    "keywords": [
+      "ml",
+      "mlops",
+      "despliegue",
+      "produccion",
+      "modelos"
+    ],
+    "language": "Español",
+    "image": null,
+    "url": "https://example.com/programas/mlops-machine-learning-engineering",
+    "is_demo": true
+  }
+]
