@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Link } from 'react-router-dom';
 import { CourseEditor, emptyCourse, STATUS_LABELS } from '../components/admin/CourseEditor';
 import { emptyInstitution, InstitutionEditor } from '../components/admin/InstitutionEditor';
+import { ImportPanel } from '../components/admin/ImportPanel';
 import { InstitutionLogo } from '../components/institution/InstitutionLogo';
 import { Icon } from '../components/ui/Icon';
 import { Logo } from '../components/ui/Logo';
@@ -16,7 +17,7 @@ import { effectivePrice, formatDate, formatMoney } from '../utils/format';
 import { PROGRAM_TYPE_LABELS } from '../utils/labels';
 import { normalize } from '../utils/text';
 
-type Tab = 'programas' | 'instituciones' | 'versiones';
+type Tab = 'programas' | 'instituciones' | 'importar' | 'versiones';
 type Editing = { kind: 'course'; course: Course; isNew: boolean } | { kind: 'institution'; institution: Institution; isNew: boolean } | null;
 type Notice = { tone: 'ok' | 'error' | 'info'; text: string; details?: string[] } | null;
 
@@ -135,7 +136,7 @@ export default function AdminPage() {
           <Link to="/" aria-label="Ir al sitio"><Logo size={18} /></Link>
           <span className="rounded-full border border-violet/40 px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.14em] text-violet-soft">Admin</span>
           <nav className="ml-2 flex gap-1" aria-label="Secciones del administrador">
-            {(['programas', 'instituciones', 'versiones'] as Tab[]).map((t) => (
+            {(['programas', 'instituciones', 'importar', 'versiones'] as Tab[]).map((t) => (
               <button key={t} onClick={() => { setTab(t); setEditing(null); }} aria-current={tab === t ? 'page' : undefined} className={`rounded-full px-3 py-1.5 text-sm capitalize ${tab === t ? 'bg-raise text-white' : 'text-gray hover:text-white'}`}>
                 {t}
               </button>
@@ -222,6 +223,8 @@ export default function AdminPage() {
             onBulkStatus={(ids, status) => void persist({ ...catalog, courses: catalog.courses.map((c) => (ids.has(c.id) ? { ...c, status } : c)) }, `estado ${status} ${ids.size}`, `${ids.size} programas marcados como ${STATUS_LABELS[status].toLowerCase()}.`)}
             saving={saving}
           />
+        ) : tab === 'importar' ? (
+          <ImportPanel catalog={catalog} saving={saving} onImport={(next, note, message) => persist(next, note, message)} />
         ) : tab === 'instituciones' ? (
           <InstitutionList institutions={catalog.institutions} counts={counts} onEdit={(institution) => setEditing({ kind: 'institution', institution, isNew: false })} onNew={() => setEditing({ kind: 'institution', institution: emptyInstitution(), isNew: true })} />
         ) : (
@@ -508,7 +511,7 @@ function VersionsPanel({ current, onRestore, onResetToBundle, onExport, disabled
         </div>
         <div className="card p-4">
           <h2 className="text-base text-white">Restablecer desde el build</h2>
-          <p className="mt-1 text-sm text-gray">Reemplaza el catálogo por el que se generó desde el Excel en el último despliegue (<code className="text-xs">npm run data:import</code>).</p>
+          <p className="mt-1 text-sm text-gray">Reemplaza todo el catálogo por el incluido en el código del sitio (la importación inicial). Para agregar programas usa mejor «Importar».</p>
           <button className="btn btn-ghost btn-sm mt-3 text-warn" disabled={disabled} onClick={onResetToBundle}>Restablecer</button>
         </div>
       </aside>

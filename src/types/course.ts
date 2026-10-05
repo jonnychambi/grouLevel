@@ -116,6 +116,8 @@ export interface Course {
   completeness: number;
   /** Fecha (ISO) de la última verificación/actualización de la información. */
   updated_at: string;
+  /** Fecha (ISO) de la última edición manual en /admin. Las importaciones no la pisan por defecto. */
+  manual_edit_at?: string | null;
   /** true = contenido de demostración, no es un programa real. */
   is_demo: boolean;
 }
@@ -134,6 +136,8 @@ export interface Institution {
   website: string;
   accreditations: string[];
   programs_url?: string | null;
+  /** Nombres con los que aparece en fuentes externas (ej. el Excel), para el importador. */
+  aliases?: string[];
   logo?: string | null;
   is_demo: boolean;
 }

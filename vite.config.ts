@@ -19,8 +19,10 @@ export default defineConfig({
     chunkSizeWarningLimit: 1100,
     rollupOptions: {
       output: {
+        // Solo React y el router van al chunk compartido; el resto (p. ej. el lector de Excel
+        // del administrador) queda en el chunk de la página que lo usa.
         manualChunks(id) {
-          if (id.includes('node_modules')) return 'vendor';
+          if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'vendor';
         }
       }
     }

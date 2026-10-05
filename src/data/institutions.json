@@ -13,7 +13,10 @@
   "website": "https://www.datapath.ai",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Datapath"
+  ]
  },
  {
   "id": "inst-coderhouse",
@@ -29,7 +32,10 @@
   "website": "https://www.coderhouse.com",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Coderhouse"
+  ]
  },
  {
   "id": "inst-utec-posgrado",
@@ -45,7 +51,10 @@
   "website": "https://posgrado.utec.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "UTEC Posgrado (Universidad de Ingeniería y Tecnología)"
+  ]
  },
  {
   "id": "inst-we-educacion-ejecutiva",
@@ -61,7 +70,10 @@
   "website": "https://www.we-educacion.com",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "WE Educación Ejecutiva"
+  ]
  },
  {
   "id": "inst-digital-house",
@@ -77,7 +89,10 @@
   "website": "https://www.digitalhouse.com",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Digital House"
+  ]
  },
  {
   "id": "inst-cibertec",
@@ -93,7 +108,10 @@
   "website": "https://educacioncontinua.cibertec.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Cibertec (Educación Continua)"
+  ]
  },
  {
   "id": "inst-idat",
@@ -109,7 +127,10 @@
   "website": "https://www.idat.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "IDAT (Instituto Idat)"
+  ]
  },
  {
   "id": "inst-new-horizons-peru",
@@ -125,7 +146,10 @@
   "website": "https://www.newhorizons.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "New Horizons Perú"
+  ]
  },
  {
   "id": "inst-educacionit",
@@ -141,7 +165,10 @@
   "website": "https://www.educacionit.com",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "EducaciónIT"
+  ]
  },
  {
   "id": "inst-colectivo23",
@@ -157,7 +184,10 @@
   "website": "https://www.colectivo23.com",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Colectivo23"
+  ]
  },
  {
   "id": "inst-pacifico-business-school",
@@ -173,7 +203,10 @@
   "website": "https://pbs.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Pacífico Business School (Universidad del Pacífico)"
+  ]
  },
  {
   "id": "inst-upc-postgrado",
@@ -189,7 +222,10 @@
   "website": "https://postgrado.upc.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "UPC - Escuela de Postgrado (Universidad Peruana de Ciencias Aplicadas)"
+  ]
  },
  {
   "id": "inst-utp-postgrado",
@@ -205,7 +241,10 @@
   "website": "https://www.postgradoutp.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Escuela de Postgrado UTP (Universidad Tecnológica del Perú)"
+  ]
  },
  {
   "id": "inst-henry",
@@ -221,7 +260,10 @@
   "website": "https://www.soyhenry.com",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Henry"
+  ]
  },
  {
   "id": "inst-le-wagon",
@@ -237,7 +279,10 @@
   "website": "https://www.lewagon.com",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Le Wagon"
+  ]
  },
  {
   "id": "inst-uni-fieecs",
@@ -253,7 +298,10 @@
   "website": "https://fieecs.uni.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Universidad Nacional de Ingeniería - FIEECS"
+  ]
  },
  {
   "id": "inst-usil-posgrado",
@@ -269,7 +317,10 @@
   "website": "https://usil.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "USIL - Escuela de Posgrado (Universidad San Ignacio de Loyola)"
+  ]
  },
  {
   "id": "inst-tripleten",
@@ -285,7 +336,10 @@
   "website": "https://tripleten.ec",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "TripleTen"
+  ]
  },
  {
   "id": "inst-ucal",
@@ -301,7 +355,10 @@
   "website": "https://ucal.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "UCAL - Universidad de Ciencias y Artes de América Latina"
+  ]
  },
  {
   "id": "inst-certus",
@@ -317,6 +374,9 @@
   "website": "https://www.certus.edu.pe",
   "accreditations": [],
   "logo": null,
-  "is_demo": false
+  "is_demo": false,
+  "aliases": [
+   "Escuela Certus"
+  ]
  }
 ]

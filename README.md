@@ -57,20 +57,22 @@ src/
 
 ## Datos: importación desde Excel
 
-`scripts/import_xlsx.py` convierte la hoja **CURSOS** al modelo de Groulevel (`src/data/*.json`):
+Los programas se importan desde **`/admin` → Importar**, subiendo un `.xlsx` con la plantilla (`public/plantilla-programas-groulevel.xlsx`, descargable desde el panel) o con el formato completo del relevamiento (hoja `CURSOS`).
 
-```bash
-pip install openpyxl
-npm run data:import -- ruta/compara_learning_cursos.xlsx
-```
-
-Criterios: solo registros con extracción *Completo/Parcial* (se descartan URLs caídas), sin duplicados, dentro del foco tecnológico (se excluyen finanzas, energía, derecho, MBA…), y solo las columnas necesarias (las de control de la extracción no se publican). “No especificado” se guarda como `null`. Los IDs son estables (`crs-<ID_ORIGEN>`), así que re-importar no rompe URLs, favoritos ni leads. Se añadieron las categorías *Marketing Digital*, *Gestión de Proyectos y Agilidad* y *Gestión y Gobierno de TI*.
+- **Vista previa antes de guardar:** nuevos, actualizaciones (con el detalle de cada campo que cambia), sin cambios, protegidos y descartados (con el motivo). Se puede elegir fila por fila.
+- **Programas existentes:** se reconocen por la URL oficial (o institución + nombre). Una celda vacía o «No especificado» nunca borra información existente.
+- **Ediciones manuales protegidas:** los programas editados en el panel no se actualizan salvo que se marque la opción.
+- **Instituciones nuevas:** se crean automáticamente (y se reconocen por sus nombres alternativos en futuras importaciones).
+- **Reglas** (las mismas de la importación inicial): solo extracciones Completo/Parcial, sin duplicados, solo áreas tecnológicas (configurable), «No especificado» = `null`.
+- Lógica en `src/utils/excelImport.ts` (pura y testeada). `excelImport.parity.test.ts` comprueba que re-importar el Excel original no cambia nada (`XLSX_PATH=archivo.xlsx npm test`).
+- Regenerar la plantilla: `npm run data:template` (requiere `pip install openpyxl`).
 
 ## Módulo de administración (`/admin`)
 
 - **Acceso:** contraseña única (`ADMIN_PASSWORD`, variable sensible en Vercel). Sesión firmada con HMAC (`ADMIN_SESSION_SECRET`), válida 12 h, guardada solo en la pestaña.
 - **Programas:** búsqueda y filtros (institución, categoría, estado, datos incompletos, sin precio, sin inicio), indicador de completitud, edición de todos los campos (precio y cuotas, duración, modalidad, inicio, certificación, temario por módulos, docentes, herramientas, “incluye”…), crear, duplicar, eliminar y cambiar estado en lote (**Publicado / Borrador / Oculto**).
 - **Instituciones:** crear y editar (nombre, tipo, país, web, descripción, color o logo).
+- **Importar:** carga masiva desde Excel con vista previa (ver arriba).
 - **Versiones:** cada guardado crea una versión inmutable; se conservan 50 y se puede restaurar cualquiera. Exportar a JSON y restablecer desde el catálogo del build.
 - **Arquitectura:** Vercel Functions (`api/admin.ts`, `api/catalog.ts`) + **Vercel Blob privado** (`catalog/versions/*.json`). El servidor valida el catálogo (`api/_lib/validate.ts`) y evita pisar cambios de otra sesión (409).
 - **Publicación:** el sitio lee `/api/catalog` (caché de 60 s en el CDN), así que los cambios se ven en ~1 minuto sin redeploy. El pre-render SEO (títulos, sitemap) usa la última versión publicada en cada despliegue. Si la API no está disponible (GitHub Pages, desarrollo local) el sitio usa los JSON del build.

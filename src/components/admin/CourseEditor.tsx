@@ -55,7 +55,8 @@ function normalize(c: Course): Course {
     teachers: c.teachers.filter((t) => t.name.trim()).map((t) => ({ ...t, name: t.name.trim(), profile: t.profile.trim(), linkedin: t.linkedin?.trim() || null })),
     financing: { ...c.financing, methods: lines(c.financing.methods), notes: c.financing.notes.trim() },
     discount_price: c.price == null ? null : c.discount_price,
-    updated_at: new Date().toISOString().slice(0, 10)
+    updated_at: new Date().toISOString().slice(0, 10),
+    manual_edit_at: new Date().toISOString()
   };
   return { ...out, completeness: completeness(out) };
 }
