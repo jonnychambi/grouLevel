@@ -1,26 +1,13 @@
-/** Flujo completo del API con Vercel Blob simulado en memoria. */
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+/** Flujo completo del API de administración del catálogo sobre PostgreSQL (PGlite). */
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { startTestDb } from './testDb';
 import courses from '../../../src/data/courses.json';
 import institutions from '../../../src/data/institutions.json';
 import categories from '../../../src/data/categories.json';
 
-const blobs = new Map<string, { body: string; uploadedAt: Date }>();
-vi.mock('@vercel/blob', () => ({
-  list: async ({ prefix }: { prefix: string }) => ({
-    blobs: [...blobs.entries()].filter(([k]) => k.startsWith(prefix)).map(([pathname, v]) => ({ pathname, uploadedAt: v.uploadedAt, size: v.body.length })),
-    hasMore: false
-  }),
-  put: async (pathname: string, body: string) => {
-    blobs.set(pathname, { body, uploadedAt: new Date() });
-    return { pathname };
-  },
-  get: async (pathname: string) => {
-    const b = blobs.get(pathname);
-    return b ? { statusCode: 200, stream: new Response(b.body).body } : null;
-  },
-  del: async (paths: string[]) => paths.forEach((p) => blobs.delete(p))
-}));
 
+const db = await startTestDb();
+afterAll(() => db.stop());
 const admin = await import('../../admin');
 const pub = await import('../../catalog');
 const catalog = () => JSON.parse(JSON.stringify({ courses, institutions, categories }));
@@ -32,7 +19,6 @@ const authed = (method: string, action: string, body?: unknown) =>
 beforeAll(() => {
   process.env.ADMIN_PASSWORD = 'pw-test';
   process.env.ADMIN_SESSION_SECRET = 'secret-test';
-  process.env.BLOB_READ_WRITE_TOKEN = 'fake';
 });
 beforeEach(() => vi.useRealTimers());
 

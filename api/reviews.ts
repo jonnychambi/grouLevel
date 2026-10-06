@@ -11,14 +11,12 @@
 import { findCourse, rateLimited } from './_lib/guard.js';
 import { json, readJson } from './_lib/http.js';
 import { publicReviews, publicSummary, submitReview } from './_lib/reviews.js';
-import { mirror } from './_lib/db.js';
-import { upsertReview } from './_lib/dbSync.js';
-import { isStoreConfigured } from './_lib/store.js';
+import { isDbConfigured } from './_lib/db.js';
 
 const CACHE = { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=600' };
 
 export async function GET(request: Request): Promise<Response> {
-  if (!isStoreConfigured()) return json(503, { error: 'store_not_configured' });
+  if (!isDbConfigured()) return json(503, { error: 'store_not_configured' });
   const params = new URL(request.url).searchParams;
   if (params.get('summary')) return json(200, await publicSummary(), CACHE);
   const course = params.get('course');
@@ -27,7 +25,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (!isStoreConfigured()) return json(503, { error: 'store_not_configured', message: 'Las reseñas no están disponibles en este momento.' });
+  if (!isDbConfigured()) return json(503, { error: 'store_not_configured', message: 'Las reseñas no están disponibles en este momento.' });
   if (rateLimited(request, 'reviews', 5)) return json(429, { error: 'rate_limited', message: 'Demasiados envíos. Inténtalo más tarde.' });
   const body = await readJson<Record<string, unknown>>(request);
   if (!body) return json(400, { error: 'bad_request', message: 'Solicitud inválida.' });
@@ -35,7 +33,5 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = await submitReview(body, await findCourse(String(body.course_id ?? '')));
   if (!result.ok) return json(result.status, { error: 'invalid', message: result.message, errors: result.errors });
-  const { review, pathname } = result;
-  await mirror('review', (sql) => upsertReview(sql, review, pathname));
-  return json(201, { ok: true, id: review.id, status: review.status });
+  return json(201, { ok: true, id: result.review.id, status: result.review.status });
 }

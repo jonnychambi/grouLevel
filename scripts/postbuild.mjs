@@ -15,25 +15,35 @@ const read = (p) => JSON.parse(readFileSync(join(root, p), 'utf8'));
 
 const SITE_URL = (process.env.VITE_SITE_URL ?? 'https://www.groulevel.com').replace(/\/$/, '');
 /**
- * Fuente del catálogo para el pre-render: la última versión publicada desde /admin (Vercel Blob)
- * si hay token disponible en el build; si no, los JSON del repositorio.
+ * Fuente del catálogo para el pre-render: el catálogo vigente en la base (Supabase) si el build
+ * tiene POSTGRES_URL; si no, los JSON del repositorio.
  */
 async function loadCatalog() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
+  const url = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
+  if (url) {
+    const { connect } = await import('./migrate.mjs');
+    const sql = connect(url);
     try {
-      const { list, get } = await import('@vercel/blob');
-      const { blobs } = await list({ prefix: 'catalog/versions/', limit: 1000 });
-      const latest = blobs.sort((a, b) => (a.pathname < b.pathname ? 1 : -1))[0];
-      if (latest) {
-        const res = await get(latest.pathname, { access: 'private', useCache: false });
-        if (res?.statusCode === 200) {
-          const data = JSON.parse(await new Response(res.stream).text());
-          console.log(`postbuild: catálogo desde el administrador (${latest.pathname})`);
+      const [current] = await sql`select pathname, data from catalog_versions where is_current limit 1`;
+      if (current) {
+        let data = current.data;
+        if (!data) {
+          const [courses, institutions, categories] = await Promise.all([
+            sql`select raw from courses order by position, id`,
+            sql`select raw from institutions order by position, id`,
+            sql`select id, slug, name, "group", description, keywords from categories order by position, id`
+          ]);
+          data = { courses: courses.map((r) => r.raw), institutions: institutions.map((r) => r.raw), categories: categories.map((r) => ({ ...r })) };
+        }
+        if (data.courses?.length) {
+          console.log(`postbuild: catálogo desde la base de datos (${current.pathname})`);
           return data;
         }
       }
     } catch (e) {
-      console.warn('postbuild: no se pudo leer el catálogo publicado, se usan los JSON del repo:', e.message);
+      console.warn('postbuild: no se pudo leer el catálogo de la base, se usan los JSON del repo:', e.message);
+    } finally {
+      await sql.end({ timeout: 5 });
     }
   }
   return { courses: read('src/data/courses.json'), institutions: read('src/data/institutions.json'), categories: read('src/data/categories.json') };

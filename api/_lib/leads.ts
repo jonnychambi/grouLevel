@@ -1,13 +1,12 @@
 /**
- * Almacenamiento de leads en Vercel Blob (privado).
- * Un archivo por lead: leads/<AAAA-MM>/<timestamp>_<id>.json → sin conflictos de escritura
- * y ordenable por fecha desde el nombre. El estado/notas se actualizan sobrescribiendo el archivo.
+ * Leads en la base (tabla `leads`). `raw` guarda el registro completo; las columnas permiten filtrar y reportar.
+ * Para el administrador, `pathname` es el id del lead (se mantiene el nombre por compatibilidad con el cliente).
  */
-import { del, get, list, put } from '@vercel/blob';
+import { getSql } from './db.js';
+import { upsertLead } from './dbSync.js';
 import { DEFAULT_SCORING_CONFIG, scoreLead } from '../../src/utils/leadScoring.js';
 import type { Lead, LeadObjective, LeadSource, LeadStatus, StartTimeline } from '../../src/types/lead.js';
 
-const PREFIX = 'leads/';
 export const LEAD_STATUSES: LeadStatus[] = ['nuevo', 'contactado', 'enviado', 'matriculado', 'descartado'];
 const TIMELINES = Object.keys(DEFAULT_SCORING_CONFIG.timeline) as StartTimeline[];
 const OBJECTIVES = Object.keys(DEFAULT_SCORING_CONFIG.objective) as LeadObjective[];
@@ -81,55 +80,43 @@ export function buildLeadFromRequest(body: Body, course: { id: string; name: str
 }
 
 export async function saveLead(lead: Lead): Promise<string> {
-  const month = lead.created_at.slice(0, 7);
-  const pathname = `${PREFIX}${month}/${lead.created_at.replace(/[:.]/g, '-')}_${lead.id}.json`;
-  await put(pathname, JSON.stringify(lead), { access: 'private', contentType: 'application/json', addRandomSuffix: false });
-  return pathname;
+  await upsertLead(getSql(), lead);
+  return lead.id;
 }
 
-async function readLead(pathname: string): Promise<StoredLead | null> {
-  const res = await get(pathname, { access: 'private', useCache: false });
-  if (!res || res.statusCode !== 200) return null;
-  return { ...(JSON.parse(await new Response(res.stream).text()) as Lead), pathname };
+const ID = /^lead_[a-z0-9]{4,40}$/;
+
+async function readLead(id: string): Promise<Lead | null> {
+  if (!ID.test(id)) return null;
+  const [row] = await getSql()`select raw from leads where id = ${id}`;
+  return row ? (row.raw as Lead) : null;
 }
 
-/** Lista los leads más recientes (por defecto 500), leyendo en paralelo con concurrencia limitada. */
+/** Leads más recientes primero (por defecto 500). */
 export async function listLeads(limit = 500): Promise<{ leads: StoredLead[]; total: number }> {
-  const paths: string[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await list({ prefix: PREFIX, limit: 1000, cursor });
-    paths.push(...page.blobs.map((b) => b.pathname));
-    cursor = page.hasMore ? page.cursor : undefined;
-  } while (cursor);
-  paths.sort((a, b) => (a < b ? 1 : -1));
-  const selected = paths.slice(0, limit);
-  const out: StoredLead[] = [];
-  for (let i = 0; i < selected.length; i += 20) {
-    const batch = await Promise.all(selected.slice(i, i + 20).map(readLead));
-    out.push(...batch.filter((l): l is StoredLead => !!l));
-  }
-  return { leads: out, total: paths.length };
+  const sql = getSql();
+  const [rows, [count]] = await Promise.all([
+    sql`select raw from leads order by created_at desc limit ${limit}`,
+    sql`select count(*)::int as n from leads`
+  ]);
+  return { leads: rows.map((r) => ({ ...(r.raw as Lead), pathname: (r.raw as Lead).id })), total: count.n };
 }
 
-export async function updateLead(pathname: string, patch: { status?: unknown; notes?: unknown }): Promise<StoredLead | null> {
-  if (!pathname.startsWith(PREFIX) || pathname.includes('..')) return null;
-  const current = await readLead(pathname);
-  if (!current) return null;
-  const { pathname: _p, ...lead } = current;
-  void _p;
+export async function updateLead(id: string, patch: { status?: unknown; notes?: unknown }): Promise<StoredLead | null> {
+  const lead = await readLead(id);
+  if (!lead) return null;
   const next: Lead = {
     ...lead,
     status: LEAD_STATUSES.includes(patch.status as LeadStatus) ? (patch.status as LeadStatus) : lead.status,
     notes: typeof patch.notes === 'string' ? patch.notes.slice(0, 2000) : lead.notes,
     updated_at: new Date().toISOString()
   };
-  await put(pathname, JSON.stringify(next), { access: 'private', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true });
-  return { ...next, pathname };
+  await upsertLead(getSql(), next);
+  return { ...next, pathname: next.id };
 }
 
-export async function deleteLead(pathname: string): Promise<boolean> {
-  if (!pathname.startsWith(PREFIX) || pathname.includes('..')) return false;
-  await del(pathname);
-  return true;
+export async function deleteLead(id: string): Promise<boolean> {
+  if (!ID.test(id)) return false;
+  const res = await getSql()`delete from leads where id = ${id}`;
+  return res.count > 0;
 }

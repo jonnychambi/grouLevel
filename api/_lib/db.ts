@@ -1,9 +1,9 @@
 /**
  * Conexión a la base de datos (Supabase / PostgreSQL) desde las Vercel Functions.
  *
+ * La base es la fuente principal de los datos (catálogo, leads, reseñas, diagnósticos).
  * Usa POSTGRES_URL (pooler de Supabase en modo transacción): sin sentencias preparadas y con
- * pocas conexiones por instancia. Mientras Vercel Blob siga siendo la fuente principal, las
- * escrituras a la base son un espejo "best effort" (mirror): si la base falla, el sitio sigue funcionando.
+ * pocas conexiones por instancia.
  */
 import postgres from 'postgres';
 
@@ -42,25 +42,4 @@ export function getSql(): Sql {
 /** Solo para pruebas: inyecta una conexión. */
 export function setSqlForTests(sql: Sql | null) {
   client = sql;
-}
-
-/**
- * Replica una escritura en la base sin afectar la respuesta: si no hay base configurada no hace nada,
- * y si falla (o tarda más de `timeoutMs`) solo deja registro en los logs de Vercel.
- */
-export async function mirror(label: string, fn: (sql: Sql) => Promise<unknown>, timeoutMs = 5000): Promise<boolean> {
-  if (!isDbConfigured()) return false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    await Promise.race([
-      fn(getSql()),
-      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), timeoutMs); })
-    ]);
-    return true;
-  } catch (err) {
-    console.error(`db_mirror_failed:${label}`, err instanceof Error ? err.message : err);
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
 }

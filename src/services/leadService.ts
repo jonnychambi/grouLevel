@@ -2,7 +2,7 @@
  * LeadService — abstracción del envío de leads.
  *
  * Los componentes llaman a `getLeadService().submit(...)`. Por defecto se usa `ApiLeadService`,
- * que guarda el lead en el servidor (/api/leads → Vercel Blob privado, visible en /admin → Leads).
+ * que guarda el lead en el servidor (/api/leads → base de datos Supabase, visible en /admin → Leads).
  * Si el API no existe en el entorno (GitHub Pages, desarrollo local) se usa `LocalLeadService`.
  * `HttpLeadService` permite apuntar a otro backend con VITE_LEAD_API_URL, sin tocar la UI.
  */

@@ -1,8 +1,8 @@
-/** Flujo "Mi ruta": envío con CV (PDF/DOCX) o descripción, análisis, almacenamiento y administración. */
+/** Flujo "Mi ruta": envío con CV (PDF/DOCX) o descripción, análisis, almacenamiento (PostgreSQL + CV en Blob) y administración. */
 import { readFileSync } from 'node:fs';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { startTestDb } from './testDb';
 import courses from '../../../src/data/courses.json';
-import institutions from '../../../src/data/institutions.json';
 import categories from '../../../src/data/categories.json';
 
 const blobs = new Map<string, { body: string | Buffer; uploadedAt: Date }>();
@@ -36,6 +36,8 @@ vi.mock('@anthropic-ai/sdk', () => ({
   }
 }));
 
+const db = await startTestDb({ seedCatalog: true });
+afterAll(() => db.stop());
 const api = await import('../../profile');
 const admin = await import('../../admin');
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url));
@@ -55,7 +57,6 @@ beforeAll(async () => {
   process.env.ADMIN_SESSION_SECRET = 's';
   process.env.BLOB_READ_WRITE_TOKEN = 'fake';
   delete process.env.ANTHROPIC_API_KEY;
-  blobs.set('catalog/versions/2026-10-05T00-00-00-000Z__init.json', { body: JSON.stringify({ courses, institutions, categories }), uploadedAt: new Date() });
   token = ((await (await admin.POST(new Request('https://x/api/admin?action=login', { method: 'POST', body: JSON.stringify({ password: 'pw' }) }))).json()) as { token: string }).token;
 });
 
@@ -70,7 +71,7 @@ describe('Mi ruta — API', () => {
     expect(profile.extract.tools).toEqual(expect.arrayContaining(['React', 'JavaScript']));
     expect(profile.evaluation.areas.find((a) => a.area_id === 'desarrollo-de-software')!.score).toBeGreaterThan(0);
     expect(profile.route.stages.length).toBeGreaterThan(0);
-    expect(blobs.has(`profiles/${profile.id}.json`)).toBe(true);
+    expect((await db.sql`select first_name, email from profiles where id = ${profile.id}`)[0]).toEqual({ first_name: 'Carlos Alberto', email: 'carlos.mendoza@correo.co' });
     expect(blobs.has(`profiles-files/${profile.id}.docx`)).toBe(true);
     // El enlace privado devuelve el mismo resultado, sin datos internos.
     const again = (await (await api.GET(new Request(`https://x/api/profile?id=${profile.id}`))).json()) as { profile: Record<string, unknown> };
@@ -132,6 +133,7 @@ describe('Mi ruta — API', () => {
     expect(upd.profile).toMatchObject({ status: 'contactado', notes: 'Llamar el lunes' });
     expect((await admin.GET(new Request(`https://x/api/admin?action=profiles`))).status).toBe(401);
     expect((await admin.POST(authed('POST', 'profile-delete', { id: withFile.id }))).status).toBe(200);
-    expect([...blobs.keys()].some((k) => k.includes(withFile.id))).toBe(false);
+    expect([...blobs.keys()].some((k) => k.includes(withFile.id))).toBe(false); // CV borrado de Blob
+    expect((await db.sql`select count(*)::int as n from profiles where id = ${withFile.id}`)[0].n).toBe(0);
   });
 });

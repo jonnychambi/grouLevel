@@ -1,29 +1,37 @@
 /**
- * Espejo de los datos de Vercel Blob en la base (Supabase/PostgreSQL).
+ * Filas de la base (Supabase/PostgreSQL): mapeo de los registros del sitio a columnas y escrituras.
  *
- *  · Las funciones upsert y delete se llaman en cada escritura de la API (vía mirror) para mantener la base al día.
- *  · syncAll: copia completa e idempotente (catálogo, versiones, leads, reseñas, diagnósticos);
- *    también elimina de la base lo que ya no existe en Blob. Se ejecuta desde /admin → Base de datos.
+ *  · writeCatalogTables / upsertLead / upsertReview / upsertProfile: usadas por los repositorios
+ *    (catalogRepo, leads, reviews, profiles), que son la fuente principal de datos.
+ *  · importFromBlob: importación NO destructiva de los datos antiguos guardados en Vercel Blob
+ *    (solo agrega o actualiza; nunca borra lo que ya está en la base).
  */
 import type { Lead } from '../../src/types/lead.js';
 import type { Review } from '../../src/types/review.js';
 import type { ProfileAnalysis } from '../../src/types/profile.js';
 import type { Sql } from './db.js';
 import type { CatalogPayload } from './validate.js';
-import type { VersionInfo } from './store.js';
 
 type Rec = Record<string, unknown>;
 type Row = Record<string, unknown>;
+
+export interface VersionInfo { pathname: string; uploaded_at: string; size: number; note: string }
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const int = (v: unknown): number | null => (num(v) === null ? null : Math.round(v as number));
 const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
 const date = (v: unknown): string | null => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v : null);
-const stable = (v: unknown) => JSON.stringify(v, Object.keys((v ?? {}) as object).sort());
+
+/** JSON con claves ordenadas en todos los niveles (para comparar registros). */
+function stable(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`;
+  if (v && typeof v === 'object') return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${stable((v as Rec)[k])}`).join(',')}}`;
+  return JSON.stringify(v ?? null);
+}
 
 /** INSERT … ON CONFLICT (pk) DO UPDATE para varias filas (columnas fijas definidas en este archivo). */
-async function upsertRows(sql: Sql, table: string, rows: Row[], conflict = 'id', chunk = 150) {
+export async function upsertRows(sql: Sql, table: string, rows: Row[], conflict = 'id', chunk = 150) {
   if (!rows.length) return;
   const cols = Object.keys(rows[0]);
   const keys = conflict.split(',').map((k) => k.trim());
@@ -40,15 +48,15 @@ function categoryRow(c: Rec, position: number): Row {
   return { id: String(c.id), slug: String(c.slug), name: String(c.name), group: str(c.group), description: str(c.description), keywords: strs(c.keywords), position };
 }
 
-function institutionRow(i: Rec, sql: Sql): Row {
+function institutionRow(i: Rec, position: number, sql: Sql): Row {
   return {
     id: String(i.id), slug: String(i.slug), name: String(i.name), short_name: str(i.short_name), type: str(i.type), country: str(i.country), city: str(i.city),
     founded: int(i.founded), brand_color: str(i.brand_color), description: str(i.description), website: str(i.website), programs_url: str(i.programs_url),
-    logo_url: str(i.logo), accreditations: strs(i.accreditations), aliases: strs(i.aliases), is_demo: i.is_demo === true, raw: sql.json(i as never)
+    logo_url: str(i.logo), accreditations: strs(i.accreditations), aliases: strs(i.aliases), is_demo: i.is_demo === true, position, raw: sql.json(i as never)
   };
 }
 
-function courseRow(c: Rec, sql: Sql): Row {
+function courseRow(c: Rec, position: number, sql: Sql): Row {
   const json = (v: unknown, fallback: unknown) => sql.json((v ?? fallback) as never);
   return {
     id: String(c.id), slug: String(c.slug), institution_id: String(c.institution_id), category_id: str(c.category), subcategory: str(c.subcategory),
@@ -62,68 +70,53 @@ function courseRow(c: Rec, sql: Sql): Row {
     objectives: strs(c.objectives), tools: strs(c.tools), skills: strs(c.skills), keywords: strs(c.keywords), requirements: strs(c.requirements),
     teachers: json(c.teachers, []), syllabus: json(c.syllabus, []), financing: c.financing ? json(c.financing, null) : null,
     certificate: c.certificate ? json(c.certificate, null) : null, features: c.features ? json(c.features, null) : null,
-    completeness: num(c.completeness), is_demo: c.is_demo === true, updated_at: str(c.updated_at), manual_edit_at: str(c.manual_edit_at), raw: sql.json(c as never)
+    completeness: num(c.completeness), is_demo: c.is_demo === true, updated_at: str(c.updated_at), manual_edit_at: str(c.manual_edit_at),
+    position, raw: sql.json(c as never)
   };
 }
 
-/** Reemplaza el catálogo de la base por el indicado (y registra el historial de cambios por registro). */
-export async function upsertCatalog(sql: Sql, catalog: CatalogPayload, version?: VersionInfo | null): Promise<{ courses: number; institutions: number; categories: number; changes: number }> {
-  let changes = 0;
-  await sql.begin(async (tx) => {
-    const t = tx as unknown as Sql;
-    const prevCourses = new Map((await t`select id, raw from courses`).map((r) => [r.id as string, r.raw as Rec]));
-    const prevInst = new Map((await t`select id, raw from institutions`).map((r) => [r.id as string, r.raw as Rec]));
-    const versionLabel = version?.pathname ?? null;
+/**
+ * Reemplaza las tablas del catálogo por el indicado y registra el historial de cambios por registro.
+ * Debe llamarse dentro de una transacción (la abre el repositorio del catálogo).
+ */
+export async function writeCatalogTables(t: Sql, catalog: CatalogPayload, versionLabel: string | null): Promise<number> {
+  const prevCourses = new Map((await t`select id, raw from courses`).map((r) => [r.id as string, r.raw as Rec]));
+  const prevInst = new Map((await t`select id, raw from institutions`).map((r) => [r.id as string, r.raw as Rec]));
 
-    await upsertRows(t, 'categories', catalog.categories.map((c, i) => categoryRow(c, i)));
-    await upsertRows(t, 'institutions', catalog.institutions.map((i) => institutionRow(i, t)));
-    await upsertRows(t, 'courses', catalog.courses.map((c) => courseRow(c, t)));
+  await upsertRows(t, 'categories', catalog.categories.map((c, i) => categoryRow(c, i)));
+  await upsertRows(t, 'institutions', catalog.institutions.map((i, n) => institutionRow(i, n, t)));
+  await upsertRows(t, 'courses', catalog.courses.map((c, n) => courseRow(c, n, t)));
 
-    const courseIds = catalog.courses.map((c) => String(c.id));
-    const instIds = catalog.institutions.map((i) => String(i.id));
-    const catIds = catalog.categories.map((c) => String(c.id));
-    await t`delete from courses where not (id = any(${courseIds}::text[]))`;
-    await t`delete from institutions where not (id = any(${instIds}::text[]))`;
-    await t`delete from categories where not (id = any(${catIds}::text[]))`;
+  const courseIds = catalog.courses.map((c) => String(c.id));
+  const instIds = catalog.institutions.map((i) => String(i.id));
+  const catIds = catalog.categories.map((c) => String(c.id));
+  await t`delete from courses where not (id = any(${courseIds}::text[]))`;
+  await t`delete from institutions where not (id = any(${instIds}::text[]))`;
+  await t`delete from categories where not (id = any(${catIds}::text[]))`;
 
-    // Historial: solo si ya había un catálogo (la primera carga no genera 300 "altas").
-    const log: Row[] = [];
-    const diff = (entity: string, prev: Map<string, Rec>, next: Rec[]) => {
-      if (!prev.size) return;
-      const seen = new Set<string>();
-      for (const item of next) {
-        const id = String(item.id);
-        seen.add(id);
-        const before = prev.get(id);
-        if (!before) log.push({ entity, entity_id: id, action: 'insert', before: null, after: t.json(item as never), version: versionLabel });
-        else if (stable(before) !== stable(item)) log.push({ entity, entity_id: id, action: 'update', before: t.json(before as never), after: t.json(item as never), version: versionLabel });
-      }
-      for (const [id, before] of prev) if (!seen.has(id)) log.push({ entity, entity_id: id, action: 'delete', before: t.json(before as never), after: null, version: versionLabel });
-    };
-    diff('course', prevCourses, catalog.courses);
-    diff('institution', prevInst, catalog.institutions);
-    for (let i = 0; i < log.length; i += 200) await t`insert into catalog_changes ${t(log.slice(i, i + 200) as Rec[], 'entity', 'entity_id', 'action', 'before', 'after', 'version')}`;
-    changes = log.length;
-
-    if (version) {
-      await t`update catalog_versions set is_current = false where is_current`;
-      await upsertRows(t, 'catalog_versions', [{ pathname: version.pathname, note: version.note || null, uploaded_at: version.uploaded_at, courses_count: catalog.courses.length, is_current: true }], 'pathname');
+  // Historial: solo si ya había un catálogo (la primera carga no genera cientos de "altas").
+  const log: Row[] = [];
+  const diff = (entity: string, prev: Map<string, Rec>, next: Rec[]) => {
+    if (!prev.size) return;
+    const seen = new Set<string>();
+    for (const item of next) {
+      const id = String(item.id);
+      seen.add(id);
+      const before = prev.get(id);
+      if (!before) log.push({ entity, entity_id: id, action: 'insert', before: null, after: t.json(item as never), version: versionLabel });
+      else if (stable(before) !== stable(item)) log.push({ entity, entity_id: id, action: 'update', before: t.json(before as never), after: t.json(item as never), version: versionLabel });
     }
-  });
-  return { courses: catalog.courses.length, institutions: catalog.institutions.length, categories: catalog.categories.length, changes };
-}
-
-export async function upsertVersions(sql: Sql, versions: VersionInfo[]) {
-  const current = versions[0]?.pathname;
-  await upsertRows(sql, 'catalog_versions', versions.map((v) => ({ pathname: v.pathname, note: v.note || null, uploaded_at: v.uploaded_at, is_current: v.pathname === current })), 'pathname');
-  const paths = versions.map((v) => v.pathname);
-  await sql`delete from catalog_versions where not (pathname = any(${paths}::text[]))`;
+    for (const [id, before] of prev) if (!seen.has(id)) log.push({ entity, entity_id: id, action: 'delete', before: t.json(before as never), after: null, version: versionLabel });
+  };
+  diff('course', prevCourses, catalog.courses);
+  diff('institution', prevInst, catalog.institutions);
+  for (let i = 0; i < log.length; i += 200) await t`insert into catalog_changes ${t(log.slice(i, i + 200) as Rec[], 'entity', 'entity_id', 'action', 'before', 'after', 'version')}`;
+  return log.length;
 }
 
 /* ─────────────────────────────── Leads ─────────────────────────────── */
 
-function leadRow(l: Lead & { pathname?: string }, sql: Sql): Row {
-  const { pathname, ...lead } = l;
+export function leadRow(lead: Lead, sql: Sql): Row {
   return {
     id: lead.id, created_at: lead.created_at, updated_at: lead.updated_at ?? null, course_id: str(lead.course_id), course_name: lead.course_name,
     institution_id: str(lead.institution_id), institution_name: str(lead.institution_name), first_name: lead.first_name, last_name: lead.last_name,
@@ -131,27 +124,24 @@ function leadRow(l: Lead & { pathname?: string }, sql: Sql): Row {
     consent: lead.consent === true, source: str(lead.source), page_url: str(lead.page_url), campaign: str(lead.campaign),
     utm_source: str(lead.utm_source), utm_medium: str(lead.utm_medium), utm_campaign: str(lead.utm_campaign), utm_term: str(lead.utm_term),
     utm_content: str(lead.utm_content), referrer: str(lead.referrer), lead_score: int(lead.lead_score), lead_tier: str(lead.lead_tier),
-    lead_segment: str(lead.lead_segment), status: lead.status ?? 'nuevo', notes: lead.notes ?? '', blob_path: pathname ?? null, raw: sql.json(lead as never)
+    lead_segment: str(lead.lead_segment), status: lead.status ?? 'nuevo', notes: lead.notes ?? '', raw: sql.json(lead as never)
   };
 }
 
-export const upsertLead = (sql: Sql, lead: Lead, pathname: string) => upsertRows(sql, 'leads', [leadRow({ ...lead, pathname }, sql)]);
-export const deleteLeadRow = (sql: Sql, pathname: string) => sql`delete from leads where blob_path = ${pathname}`;
+export const upsertLead = (sql: Sql, lead: Lead) => upsertRows(sql, 'leads', [leadRow(lead, sql)]);
 
 /* ────────────────────────────── Reseñas ────────────────────────────── */
 
-function reviewRow(r: Review & { pathname?: string }, sql: Sql): Row {
-  const { pathname, ...review } = r;
+export function reviewRow(review: Review, sql: Sql): Row {
   return {
     id: review.id, created_at: review.created_at, course_id: review.course_id, course_name: str(review.course_name), institution_id: str(review.institution_id),
     institution_name: str(review.institution_name), rating: review.rating, title: str(review.title), comment: review.comment, relationship: str(review.relationship),
     author_name: str(review.author_name), author_email: str(review.author_email), status: review.status, reply: str(review.reply),
-    rejection_reason: str(review.rejection_reason), moderated_at: str(review.moderated_at), page_url: str(review.page_url), blob_path: pathname ?? null, raw: sql.json(review as never)
+    rejection_reason: str(review.rejection_reason), moderated_at: str(review.moderated_at), page_url: str(review.page_url), raw: sql.json(review as never)
   };
 }
 
-export const upsertReview = (sql: Sql, review: Review, pathname: string) => upsertRows(sql, 'reviews', [reviewRow({ ...review, pathname }, sql)]);
-export const deleteReviewRow = (sql: Sql, pathname: string) => sql`delete from reviews where blob_path = ${pathname}`;
+export const upsertReview = (sql: Sql, review: Review) => upsertRows(sql, 'reviews', [reviewRow(review, sql)]);
 
 /* ─────────────────────── Diagnósticos (Mi ruta) ─────────────────────── */
 
@@ -188,50 +178,56 @@ export async function upsertProfile(sql: Sql, p: ProfileAnalysis): Promise<void>
   });
 }
 
-export const deleteProfileRow = (sql: Sql, id: string) => sql`delete from profiles where id = ${id}`;
+/* ────────────────── Importación de datos antiguos (Blob) ────────────────── */
 
-/* ─────────────────────────── Sincronización ─────────────────────────── */
-
-export interface SyncSources {
-  catalog: () => Promise<{ data: CatalogPayload; version: VersionInfo } | null>;
+export interface BlobSources {
   versions: () => Promise<VersionInfo[]>;
-  leads: () => Promise<(Lead & { pathname: string })[]>;
-  reviews: () => Promise<(Review & { pathname: string })[]>;
+  leads: () => Promise<Lead[]>;
+  reviews: () => Promise<Review[]>;
   profileIds: () => Promise<string[]>;
   profile: (id: string) => Promise<ProfileAnalysis | null>;
 }
 
-export interface SyncStats { catalog: { courses: number; institutions: number; categories: number; changes: number } | null; versions: number; leads: number; reviews: number; profiles: number; removed: { leads: number; reviews: number; profiles: number }; ms: number }
+export interface ImportStats { versions: number; leads: number; reviews: number; profiles: number; skipped: { leads: number; reviews: number; profiles: number }; ms: number }
 
-export async function syncAll(sql: Sql, src: SyncSources, trigger = 'admin'): Promise<SyncStats> {
+/**
+ * Trae a la base lo que exista en Blob y todavía no esté en ella. No sobrescribe ni borra registros
+ * de la base (la base es la fuente principal: lo que se editó aquí manda).
+ */
+export async function importFromBlob(sql: Sql, src: BlobSources, trigger = 'admin'): Promise<ImportStats> {
   const started = Date.now();
   const [run] = await sql`insert into sync_runs (trigger) values (${trigger}) returning id`;
   try {
-    const latest = await src.catalog();
-    const catalog = latest ? await upsertCatalog(sql, latest.data, latest.version) : null;
     const versions = await src.versions();
-    await upsertVersions(sql, versions);
+    const vRows = versions.map((v) => ({ pathname: v.pathname, note: v.note || null, uploaded_at: v.uploaded_at, is_current: false }));
+    for (let i = 0; i < vRows.length; i += 200) await sql`insert into catalog_versions ${sql(vRows.slice(i, i + 200))} on conflict (pathname) do nothing`;
+
+    const existing = async (table: string, ids: string[]) => new Set((await sql`select id from ${sql(table)} where id = any(${ids}::text[])`).map((r) => r.id as string));
 
     const leads = await src.leads();
-    await upsertRows(sql, 'leads', leads.map((l) => leadRow(l, sql)));
-    const leadIds = leads.map((l) => l.id);
-    const rl = await sql`delete from leads where not (id = any(${leadIds}::text[]))`;
+    const haveLeads = await existing('leads', leads.map((l) => l.id));
+    const newLeads = leads.filter((l) => !haveLeads.has(l.id));
+    for (let i = 0; i < newLeads.length; i += 150) await sql`insert into leads ${sql(newLeads.slice(i, i + 150).map((l) => leadRow(l, sql)) as Rec[])} on conflict (id) do nothing`;
 
     const reviews = await src.reviews();
-    await upsertRows(sql, 'reviews', reviews.map((r) => reviewRow(r, sql)));
-    const reviewIds = reviews.map((r) => r.id);
-    const rr = await sql`delete from reviews where not (id = any(${reviewIds}::text[]))`;
+    const haveReviews = await existing('reviews', reviews.map((r) => r.id));
+    const newReviews = reviews.filter((r) => !haveReviews.has(r.id));
+    for (const r of newReviews) await sql`insert into reviews ${sql(reviewRow(r, sql) as Rec)} on conflict do nothing`;
 
     const ids = await src.profileIds();
+    const haveProfiles = await existing('profiles', ids);
+    const missing = ids.filter((id) => !haveProfiles.has(id));
     let profiles = 0;
-    for (let i = 0; i < ids.length; i += 10) {
-      const batch = (await Promise.all(ids.slice(i, i + 10).map(src.profile))).filter((p): p is ProfileAnalysis => !!p);
+    for (let i = 0; i < missing.length; i += 10) {
+      const batch = (await Promise.all(missing.slice(i, i + 10).map(src.profile))).filter((p): p is ProfileAnalysis => !!p);
       for (const p of batch) await upsertProfile(sql, p);
       profiles += batch.length;
     }
-    const rp = await sql`delete from profiles where not (id = any(${ids}::text[]))`;
 
-    const stats: SyncStats = { catalog, versions: versions.length, leads: leads.length, reviews: reviews.length, profiles, removed: { leads: rl.count, reviews: rr.count, profiles: rp.count }, ms: Date.now() - started };
+    const stats: ImportStats = {
+      versions: versions.length, leads: newLeads.length, reviews: newReviews.length, profiles,
+      skipped: { leads: haveLeads.size, reviews: haveReviews.size, profiles: haveProfiles.size }, ms: Date.now() - started
+    };
     await sql`update sync_runs set finished_at = now(), stats = ${sql.json(stats as never)} where id = ${run.id}`;
     return stats;
   } catch (err) {
@@ -240,18 +236,7 @@ export async function syncAll(sql: Sql, src: SyncSources, trigger = 'admin'): Pr
   }
 }
 
-/**
- * Primera sincronización: si la base nunca se sincronizó, copia todo una vez (idempotente).
- * Devuelve 'ran' si la ejecutó, 'done' si ya existía una sincronización previa.
- */
-export async function ensureInitialSync(sql: Sql, src: SyncSources): Promise<'ran' | 'done'> {
-  const [row] = await sql`select count(*)::int as n from sync_runs where error is null`;
-  if (row.n > 0) return 'done';
-  await syncAll(sql, src, 'inicial');
-  return 'ran';
-}
-
-/** Estado de la base para /admin: migraciones, conteos y última sincronización. */
+/** Estado de la base para /admin: migraciones, conteos y última importación. */
 export async function dbStatus(sql: Sql) {
   const migrations = await sql`select version, applied_at from schema_migrations order by version`;
   const [counts] = await sql`

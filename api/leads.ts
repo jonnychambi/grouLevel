@@ -9,10 +9,8 @@
  */
 import { json, readJson } from './_lib/http.js';
 import { buildLeadFromRequest, saveLead } from './_lib/leads.js';
-import { isStoreConfigured } from './_lib/store.js';
 import { findCourse, rateLimited } from './_lib/guard.js';
-import { mirror } from './_lib/db.js';
-import { upsertLead } from './_lib/dbSync.js';
+import { isDbConfigured } from './_lib/db.js';
 
 async function forwardWebhook(lead: unknown) {
   const url = process.env.LEAD_WEBHOOK_URL;
@@ -25,7 +23,7 @@ async function forwardWebhook(lead: unknown) {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (!isStoreConfigured()) return json(503, { error: 'store_not_configured', message: 'El registro de solicitudes no está disponible.' });
+  if (!isDbConfigured()) return json(503, { error: 'store_not_configured', message: 'El registro de solicitudes no está disponible.' });
   if (rateLimited(request, 'leads', 8)) return json(429, { error: 'rate_limited', message: 'Demasiadas solicitudes. Inténtalo en unos minutos.' });
 
   const body = await readJson<Record<string, unknown>>(request);
@@ -37,8 +35,7 @@ export async function POST(request: Request): Promise<Response> {
   const result = buildLeadFromRequest(body, course);
   if (!result.ok) return json(422, { error: 'invalid', message: 'Revisa los datos del formulario.', errors: result.errors });
 
-  const pathname = await saveLead(result.lead);
-  await mirror('lead', (sql) => upsertLead(sql, result.lead, pathname));
+  await saveLead(result.lead);
   await forwardWebhook(result.lead);
   const { id, lead_score, lead_tier, lead_segment, created_at, course_id, course_name, institution_id, institution_name, source } = result.lead;
   return json(201, { id, lead_score, lead_tier, lead_segment, created_at, course_id, course_name, institution_id, institution_name, source });

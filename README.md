@@ -74,10 +74,10 @@ Los programas se importan desde **`/admin` → Importar**, subiendo un `.xlsx` c
 - **Instituciones:** crear y editar (nombre, tipo, país, web, descripción, color o logo).
 - **Importar:** carga masiva desde Excel con vista previa (ver arriba).
 - **Versiones:** cada guardado crea una versión inmutable; se conservan 50 y se puede restaurar cualquiera. Exportar a JSON y restablecer desde el catálogo del build.
-- **Arquitectura:** Vercel Functions (`api/admin.ts`, `api/catalog.ts`) + **Vercel Blob privado** (`catalog/versions/*.json`). El servidor valida el catálogo (`api/_lib/validate.ts`) y evita pisar cambios de otra sesión (409).
+- **Arquitectura:** Vercel Functions (`api/admin.ts`, `api/catalog.ts`) + **Supabase** (tablas del catálogo y `catalog_versions`). El servidor valida el catálogo (`api/_lib/validate.ts`) y evita pisar cambios de otra sesión (409).
 - **Publicación:** el sitio lee `/api/catalog` (caché de 60 s en el CDN), así que los cambios se ven en ~1 minuto sin redeploy. El pre-render SEO (títulos, sitemap) usa la última versión publicada en cada despliegue. Si la API no está disponible (GitHub Pages, desarrollo local) el sitio usa los JSON del build.
 
-Variables en Vercel: `BLOB_READ_WRITE_TOKEN` (la crea el Blob store), `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`.
+Variables en Vercel: `POSTGRES_URL` y demás de Supabase (las crea la integración), `BLOB_READ_WRITE_TOKEN` (CV; la crea el Blob store), `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`.
 
 ### Migrar de JSON a un backend
 - **Catálogo:** define `VITE_DATA_API_URL` (usa `RestDataSource`) o crea otra implementación de `DataSource` (p. ej. Supabase) y devuélvela en `getDataSource()`.
@@ -94,29 +94,31 @@ Interpreta lenguaje natural (`"maestría de inteligencia artificial"`, `"curso d
 ## Reseñas y valoraciones (1–5 ★)
 
 - Cualquier visitante puede valorar un programa desde `/programa/<slug>#resenas` (estrellas, relación con el programa, título, comentario, nombre y email privado). Validación en cliente y servidor (`src/utils/reviews.ts`), honeypot y límite de 5 envíos/10 min por IP; un email solo puede reseñar una vez cada programa.
-- Las reseñas se guardan como **pendientes** en Vercel Blob (`reviews/<courseId>/…`). En `/admin` → **Reseñas** se aprueban, rechazan (con motivo), responden públicamente o eliminan.
-- Solo las **aprobadas** se publican (`reviews-public/<courseId>.json`) y cuentan en el resumen `reviews-public/summary.json`, que agrega la valoración por programa y por institución.
+- Las reseñas se guardan como **pendientes** en la tabla `reviews`. En `/admin` → **Reseñas** se aprueban, rechazan (con motivo), responden públicamente o eliminan.
+- Solo las **aprobadas** se publican y cuentan en los promedios por programa e institución (calculados con SQL; vistas `course_ratings` / `institution_ratings`).
 - El sitio lee `GET /api/reviews?summary=1` (caché CDN ~1 min) y muestra la valoración en cada tarjeta de programa, en la ficha (sección "Valoraciones") y en las tarjetas/fichas de institución.
 - Evento GA: `review_submitted`.
 
 ## Mi ruta — diagnóstico de perfil y ruta de formación (`/mi-ruta`)
 
 - La persona **sube su CV** (PDF, Word .docx o TXT, máx. 4 MB) **o describe** su posición y formación, y escribe su **objetivo** (más preferencias opcionales: modalidad, presupuesto, horas por semana).
-- `POST /api/profile` guarda el **CV original** (`profiles-files/<id>.<ext>`) y el **análisis** (`profiles/<id>.json`) en Blob privado. Se extraen: nombres, apellidos, email, teléfono, país, ciudad, LinkedIn, posición y empresa actual, seniority, años de experiencia, grado más alto, formación actual, estudios (grado, universidad, estado), experiencia, certificaciones, idiomas y herramientas.
+- `POST /api/profile` guarda el **CV original** en Blob privado (`profiles-files/<id>.<ext>`) y el **análisis** en la base (`profiles` y tablas hijas). Se extraen: nombres, apellidos, email, teléfono, país, ciudad, LinkedIn, posición y empresa actual, seniority, años de experiencia, grado más alto, formación actual, estudios (grado, universidad, estado), experiencia, certificaciones, idiomas y herramientas.
 - **Evaluación**: puntaje 0–100 y nivel (básico/intermedio/avanzado/experto) en cada materia del catálogo (las categorías), habilidades técnicas y 10 habilidades blandas, con evidencia, fortalezas y brechas frente al objetivo.
 - **Ruta**: 2–4 etapas (fundamentos → especialización → dominio) desde el nivel actual, con programas reales del catálogo que respetan modalidad y presupuesto, y se pueden comparar.
 - **Motor**: con `ANTHROPIC_API_KEY` configurada, el análisis lo hace Claude (`claude-opus-5-5`, salida JSON estructurada; el PDF se le envía como documento). Sin clave, o si la IA falla, se usa el motor por reglas (`src/utils/profileAnalysis.ts`). El resultado siempre se sanea en el servidor (niveles coherentes, solo programas existentes).
 - El resultado vive en `/mi-ruta/<id>` (enlace privado, no indexado). En `/admin` → **Perfiles** se ven los diagnósticos, se descarga el CV, se exporta CSV, se marcan como contactados/descartados y se eliminan (borra también el CV). Solo se contacta a quien marcó que quiere ser contactado.
 - Límite: 6 diagnósticos por hora por IP. Evento GA: `generate_route`.
 
-## Base de datos (Supabase / PostgreSQL)
+## Base de datos (Supabase / PostgreSQL) — fuente principal
 
-- Proyecto Supabase **supabase-groulevel**, conectado a Vercel desde el Marketplace (variables `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, `SUPABASE_*`).
-- **Esquema**: `db/migrations/*.sql` (catálogo: `categories`, `institutions`, `courses`, `catalog_versions`, `catalog_changes`; comercial: `leads`; `reviews` + vistas `course_ratings` / `institution_ratings`; Mi ruta: `profiles`, `profile_education`, `profile_experience`, `profile_scores`, `profile_route_courses`; operación: `sync_runs`, `schema_migrations`). Cada tabla principal guarda además el registro original en `raw` (jsonb).
-- **Migraciones**: `npm run db:migrate` (o `db:status`). En Vercel se aplican solas en cada build de **producción** (en preview solo con `MIGRATE=1`); cada archivo se aplica una vez, en una transacción. Para agregar cambios: crear `db/migrations/002_<nombre>.sql`.
-- **Seguridad**: RLS activado sin políticas en todas las tablas → las claves públicas de Supabase (anon/publishable) no pueden leer nada; solo el servidor (conexión `postgres`) accede.
-- **Sincronización**: Vercel Blob sigue siendo la fuente principal. Cada escritura de la API (leads, reseñas, diagnósticos, catálogo, moderación, cambios de estado y borrados) se replica en la base (best effort: si la base falla, el sitio sigue funcionando). La primera vez que responde `/api/health` con la base conectada se copia todo lo existente; desde `/admin` → **Base de datos** se ve el estado y se puede forzar una sincronización completa (idempotente, reconcilia borrados).
-- `GET /api/health` → `{ ok, blob, db, migrations, initial_sync }` (sin datos sensibles).
+- Proyecto Supabase **supabase-groulevel** (región São Paulo, `gru1`), conectado a Vercel desde el Marketplace (`POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, `SUPABASE_*`). Las funciones de Vercel corren en la misma región (`regions: ["gru1"]` en `vercel.json`) para que cada consulta tarde milisegundos.
+- **Todo dato vive en la base**: catálogo vigente (`categories`, `institutions`, `courses`), versiones publicadas con su contenido (`catalog_versions.data`) y el historial por registro (`catalog_changes`); `leads`; `reviews` (+ vistas `course_ratings` / `institution_ratings`); diagnósticos de Mi ruta (`profiles` + `profile_education`, `profile_experience`, `profile_scores`, `profile_route_courses`). Cada tabla principal guarda además el registro original en `raw` (jsonb).
+- **Vercel Blob** solo guarda los CV originales (`profiles-files/`) y conserva, en solo lectura, los datos de antes de la migración (las versiones antiguas del catálogo se pueden restaurar desde /admin).
+- **Migraciones**: `db/migrations/*.sql`, aplicadas por `npm run db:migrate` y automáticamente en cada build de **producción** (en preview, con `MIGRATE=1`). Para cambios de esquema, agregar `db/migrations/00N_<nombre>.sql`.
+- **Seguridad**: RLS activado sin políticas en todas las tablas → las claves públicas de Supabase no pueden leer nada; solo el servidor (conexión `postgres`) accede.
+- **/admin → Base de datos**: estado, conteos e **importación de datos antiguos de Blob** (no destructiva: solo agrega lo que falte).
+- `GET /api/health` → `{ ok, db, blob, migrations }`.
+- Pruebas del API contra PostgreSQL real embebido (PGlite).
 
 ## Lead scoring — Signal Score™ (0–100)
 `utils/leadScoring.ts`, configuración desacoplada (`DEFAULT_SCORING_CONFIG`):
@@ -151,7 +153,7 @@ Cada lead registra programa, institución, URL, fecha, fuente, campaña y UTMs (
 
 ## Leads
 
-- El formulario “Solicitar información” envía a **`POST /api/leads`**, que valida los datos, verifica que el programa exista, **recalcula el Signal Score en el servidor** y guarda el lead en Vercel Blob privado (`leads/AAAA-MM/…json`, un archivo por lead). No se guarda la IP.
+- El formulario “Solicitar información” envía a **`POST /api/leads`**, que valida los datos, verifica que el programa exista, **recalcula el Signal Score en el servidor** y guarda el lead en la tabla `leads`. No se guarda la IP.
 - Anti-spam: campo trampa invisible y límite de envíos por IP.
 - **`/admin` → Leads:** totales, filtros (estado, intención, institución, periodo, búsqueda), detalle con enlaces directos a WhatsApp y email, estado de seguimiento (*Nuevo, Contactado, Enviado a la institución, Matriculado, Descartado*), notas internas, **exportación a CSV** (abre directo en Excel) y eliminación (p. ej. si alguien pide borrar sus datos).
 - Opcional: **`LEAD_WEBHOOK_URL`** reenvía cada lead a un webhook (Zapier/Make → Google Sheets, HubSpot, email…).

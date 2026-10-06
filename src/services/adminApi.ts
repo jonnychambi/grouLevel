@@ -146,4 +146,4 @@ export interface DbStatus {
 
 export const fetchDbStatus = () => call<DbStatus>('db-status');
 
-export const runDbSync = () => call<{ stats: { versions: number; leads: number; reviews: number; profiles: number; ms: number; catalog: { courses: number; changes: number } | null; removed: Record<string, number> } }>('db-sync', { method: 'POST' });
+export const runDbImport = () => call<{ stats: { versions: number; leads: number; reviews: number; profiles: number; ms: number; skipped: Record<string, number> } }>('db-import', { method: 'POST' });

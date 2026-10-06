@@ -1,6 +1,5 @@
 /** Utilidades compartidas por los endpoints públicos: límite por IP y búsqueda de programas. */
-import { readLatest } from './store.js';
-import type { CatalogPayload } from './validate.js';
+import { getSql } from './db.js';
 
 const buckets = new Map<string, number[]>();
 
@@ -22,16 +21,14 @@ let cache: { at: number; courses: Map<string, CourseRef> } | null = null;
 /** Busca un programa publicado en el catálogo vigente (caché de 60 s). */
 export async function findCourse(id: string): Promise<CourseRef | null> {
   if (!cache || Date.now() - cache.at > 60_000) {
-    const latest = await readLatest<CatalogPayload>();
-    const inst = new Map((latest?.data.institutions ?? []).map((i) => [String(i.id), String(i.name)]));
-    cache = {
-      at: Date.now(),
-      courses: new Map(
-        (latest?.data.courses ?? [])
-          .filter((c) => c.status === 'publicado')
-          .map((c) => [String(c.id), { id: String(c.id), name: String(c.name), institution_id: String(c.institution_id), institution_name: inst.get(String(c.institution_id)) ?? String(c.institution_id) }])
-      )
-    };
+    const rows = await getSql()`select c.id, c.name, c.institution_id, i.name as institution_name
+      from courses c join institutions i on i.id = c.institution_id where c.status = 'publicado'`;
+    cache = { at: Date.now(), courses: new Map(rows.map((r) => [r.id as string, { id: r.id, name: r.name, institution_id: r.institution_id, institution_name: r.institution_name }])) };
   }
   return cache.courses.get(id) ?? null;
+}
+
+/** Solo para pruebas: invalida la caché. */
+export function resetCourseCache() {
+  cache = null;
 }

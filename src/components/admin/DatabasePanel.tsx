@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchDbStatus, runDbSync, type DbStatus } from '../../services/adminApi';
+import { fetchDbStatus, runDbImport, type DbStatus } from '../../services/adminApi';
 import { Icon } from '../ui/Icon';
 
 const LABELS: Record<string, string> = {
@@ -8,7 +8,7 @@ const LABELS: Record<string, string> = {
 };
 const when = (iso: string) => new Date(iso).toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-/** Estado de la base de datos (Supabase) y sincronización completa desde Vercel Blob. */
+/** Estado de la base de datos (Supabase) e importación de los datos antiguos guardados en Vercel Blob. */
 export function DatabasePanel({ onError, onNotice }: { onError: (e: unknown) => void; onNotice: (text: string) => void }) {
   const [status, setStatus] = useState<DbStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -25,8 +25,9 @@ export function DatabasePanel({ onError, onNotice }: { onError: (e: unknown) => 
   const sync = async () => {
     setSyncing(true);
     try {
-      const { stats } = await runDbSync();
-      onNotice(`Sincronizado en ${(stats.ms / 1000).toFixed(1)} s: ${stats.catalog?.courses ?? 0} programas, ${stats.leads} leads, ${stats.reviews} reseñas, ${stats.profiles} diagnósticos.`);
+      const { stats } = await runDbImport();
+      const added = stats.leads + stats.reviews + stats.profiles;
+      onNotice(added ? `Importados de Blob: ${stats.leads} leads, ${stats.reviews} reseñas y ${stats.profiles} diagnósticos que faltaban.` : 'No había datos antiguos pendientes: la base ya tiene todo.');
       await load();
     } catch (e) {
       onError(e);
@@ -43,11 +44,11 @@ export function DatabasePanel({ onError, onNotice }: { onError: (e: unknown) => 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl text-white">Base de datos</h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray">Supabase (PostgreSQL). Cada alta o cambio de programas, leads, reseñas y diagnósticos se replica automáticamente. La sincronización completa copia todo lo guardado en Vercel Blob y elimina de la base lo que ya no existe.</p>
+          <p className="mt-1 max-w-2xl text-sm text-gray">Supabase (PostgreSQL) es la fuente principal: programas, versiones del catálogo, leads, reseñas y diagnósticos se leen y guardan aquí. Vercel Blob solo almacena los CV. La importación trae datos antiguos de Blob que falten, sin modificar ni borrar lo que ya está en la base.</p>
         </div>
         <div className="flex gap-2">
           <button className="btn btn-accent btn-sm" onClick={() => void sync()} disabled={syncing || !status?.connected}>
-            <Icon name="history" size={15} /> {syncing ? 'Sincronizando…' : 'Sincronizar ahora'}
+            <Icon name="history" size={15} /> {syncing ? 'Importando…' : 'Importar datos antiguos de Blob'}
           </button>
           <button className="btn btn-quiet btn-sm" onClick={() => void load()}>Actualizar</button>
         </div>
@@ -75,13 +76,13 @@ export function DatabasePanel({ onError, onNotice }: { onError: (e: unknown) => 
               ))}
             </dl>
           ) : <p className="mt-3 text-sm text-gray">—</p>}
-          <p className="label-mono mt-6">Última sincronización completa</p>
+          <p className="label-mono mt-6">Última importación desde Blob</p>
           <p className="mt-2 text-sm text-gray">
             {status?.last_sync
               ? status.last_sync.error
                 ? <span className="text-neg">Falló el {when(status.last_sync.started_at)}: {status.last_sync.error}</span>
                 : <>{when(status.last_sync.started_at)} · {status.last_sync.finished_at ? 'completada' : 'en curso'}</>
-              : 'Nunca. Pulsa "Sincronizar ahora" para copiar los datos existentes.'}
+              : 'Nunca.'}
           </p>
         </div>
       </div>

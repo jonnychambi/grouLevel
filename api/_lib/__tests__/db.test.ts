@@ -1,171 +1,116 @@
-/** Base de datos: migraciones, espejo de escrituras y sincronización completa, contra un PostgreSQL real (PGlite). */
+/** Base de datos como fuente principal: migraciones, catálogo versionado, historial, importación desde Blob y estado. */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { PGlite } from '@electric-sql/pglite';
-import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 import courses from '../../../src/data/courses.json';
-import institutions from '../../../src/data/institutions.json';
 import categories from '../../../src/data/categories.json';
-import { connect, migrate } from '../../../scripts/migrate.mjs';
-import type { Sql } from '../db';
+import { migrate } from '../../../scripts/migrate.mjs';
+import { bundledCatalog, startTestDb } from './testDb';
 
-const blobs = new Map<string, { body: string | Buffer; uploadedAt: Date }>();
+// Vercel Blob simulado: solo contiene datos "antiguos" (antes de Supabase).
+const blobs = new Map<string, { body: string; uploadedAt: Date }>();
 vi.mock('@vercel/blob', () => ({
   list: async ({ prefix }: { prefix: string }) => ({
     blobs: [...blobs.entries()].filter(([k]) => k.startsWith(prefix)).map(([pathname, v]) => ({ pathname, uploadedAt: v.uploadedAt, size: v.body.length })),
     hasMore: false
   }),
-  put: async (pathname: string, body: string | Buffer) => { blobs.set(pathname, { body, uploadedAt: new Date() }); return { pathname }; },
-  get: async (pathname: string) => { const b = blobs.get(pathname); return b ? { statusCode: 200, stream: new Response(typeof b.body === 'string' ? b.body : new Uint8Array(b.body)).body } : null; },
-  del: async (p: string | string[]) => [p].flat().forEach((x) => blobs.delete(x))
+  put: async () => ({}),
+  get: async (pathname: string) => { const b = blobs.get(pathname); return b ? { statusCode: 200, stream: new Response(b.body).body } : null; },
+  del: async () => undefined
 }));
 
-const PORT = 55433;
-let pg: PGlite;
-let server: PGLiteSocketServer;
-let sql: Sql;
-let admin: typeof import('../../admin');
+const db = await startTestDb();
+afterAll(() => db.stop());
+const sql = db.sql;
+const admin = await import('../../admin');
 let token = '';
 const authed = (method: string, action: string, b?: unknown) => new Request(`https://x/api/admin?action=${action}`, { method, headers: { authorization: `Bearer ${token}` }, body: b ? JSON.stringify(b) : undefined });
-const catalog = { courses, institutions, categories };
+const save = async (cat: unknown, baseVersion: string | null, note: string) => {
+  const res = await admin.PUT(authed('PUT', 'catalog', { catalog: cat, baseVersion, note }));
+  expect(res.status).toBe(200);
+  return ((await res.json()) as { version: { pathname: string } }).version.pathname;
+};
 
 beforeAll(async () => {
-  pg = await PGlite.create();
-  server = new PGLiteSocketServer({ db: pg, port: PORT, host: '127.0.0.1' });
-  await server.start();
-  sql = connect(`postgres://postgres:postgres@127.0.0.1:${PORT}/postgres`) as unknown as Sql;
-  Object.assign(process.env, { ADMIN_PASSWORD: 'pw', ADMIN_SESSION_SECRET: 's', BLOB_READ_WRITE_TOKEN: 'fake', POSTGRES_URL: `postgres://postgres:postgres@127.0.0.1:${PORT}/postgres` });
-  const db = await import('../db');
-  db.setSqlForTests(sql);
-  admin = await import('../../admin');
+  Object.assign(process.env, { ADMIN_PASSWORD: 'pw', ADMIN_SESSION_SECRET: 's', BLOB_READ_WRITE_TOKEN: 'fake' });
   token = ((await (await admin.POST(new Request('https://x/api/admin?action=login', { method: 'POST', body: JSON.stringify({ password: 'pw' }) }))).json()) as { token: string }).token;
-});
-
-afterAll(async () => {
-  await sql?.end({ timeout: 1 });
-  await server?.stop();
-  await pg?.close();
-  delete process.env.POSTGRES_URL;
 });
 
 describe('base de datos', () => {
   it('aplica las migraciones una sola vez, con RLS en todas las tablas', async () => {
-    const first = await migrate(sql, { log: () => {} });
-    expect(first.pending).toEqual([]);
-    expect(first.applied).toContain('001_init.sql');
     const again = await migrate(sql, { log: () => {} });
-    expect(again.applied).toEqual(['001_init.sql']);
+    expect(again.pending).toEqual([]);
+    expect(again.applied).toEqual(['001_init.sql', '002_supabase_primary.sql']);
     const noRls = await sql`select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity`;
     expect(noRls.map((r) => r.relname)).toEqual([]);
   });
 
-  it('guardar el catálogo en /admin lo replica en la base y registra el historial de cambios', async () => {
-    const save = async (cat: unknown, baseVersion: string | null, note: string) => {
-      const res = await admin.PUT(authed('PUT', 'catalog', { catalog: cat, baseVersion, note }));
-      expect(res.status).toBe(200);
-      return ((await res.json()) as { version: { pathname: string } }).version.pathname;
-    };
-    const v1 = await save(catalog, null, 'inicial');
-    const [counts] = await sql`select (select count(*) from courses)::int c, (select count(*) from institutions)::int i, (select count(*) from categories)::int k, (select count(*) from catalog_changes)::int ch`;
-    expect(counts).toEqual({ c: courses.length, i: institutions.length, k: categories.length, ch: 0 });
-    const [c1] = await sql`select name, tools, teachers, price, raw->>'slug' as slug from courses where id = ${courses[0].id}`;
-    expect(c1.name).toBe(courses[0].name);
-    expect(c1.tools).toEqual(courses[0].tools);
-    expect(c1.slug).toBe(courses[0].slug);
-
-    // Edición: cambia un precio y elimina un programa → 2 cambios en el historial.
-    const edited = structuredClone(catalog) as typeof catalog;
-    edited.courses[0].price = (courses[0].price ?? 0) + 100; // sube el precio (sigue siendo mayor que el promocional)
-    const removed = edited.courses.pop()!;
-    await save(edited, v1, 'precio');
-    const changes = await sql`select entity_id, action from catalog_changes order by id`;
-    expect(changes).toEqual(expect.arrayContaining([{ entity_id: courses[0].id, action: 'update' }, { entity_id: removed.id, action: 'delete' }]));
-    expect(changes).toHaveLength(2);
-    const [cur] = await sql`select count(*)::int n from catalog_versions where is_current`;
-    expect(cur.n).toBe(1);
+  let v1 = '';
+  it('publicar el catálogo llena las tablas y guarda la versión completa', async () => {
+    v1 = await save(bundledCatalog(), null, 'inicial');
+    const [counts] = await sql`select (select count(*) from courses)::int c, (select count(*) from categories)::int k, (select count(*) from catalog_changes)::int ch,
+      (select count(*) from catalog_versions where is_current and data is not null)::int cur`;
+    expect(counts).toEqual({ c: courses.length, k: categories.length, ch: 0, cur: 1 });
+    const [c1] = await sql`select name, tools, position from courses where id = ${courses[3].id}`;
+    expect(c1).toEqual({ name: courses[3].name, tools: courses[3].tools, position: 3 });
   });
 
-  it('leads, reseñas y diagnósticos nuevos se guardan también en la base', async () => {
-    const leadsApi = await import('../../leads');
-    const reviewsApi = await import('../../reviews');
-    const c = courses[1];
-    const leadRes = await leadsApi.POST(new Request('https://x/api/leads', { method: 'POST', headers: { 'x-forwarded-for': '1.1.1.1' }, body: JSON.stringify({
-      course_id: c.id, input: { first_name: 'Ana', last_name: 'Torres', email: 'ana@empresa.com', whatsapp: '+51 999 888 777', country: 'Perú', start_timeline: 'inmediato', objective: 'cambiar-trabajo', consent: true },
-      signals: { source: 'detalle', compared_programs: 2, viewed_programs: 4 }
-    }) }));
-    expect(leadRes.status).toBe(201);
-    const [lead] = await sql`select first_name, course_id, lead_score, blob_path from leads`;
-    expect(lead).toMatchObject({ first_name: 'Ana', course_id: c.id });
-    expect(lead.blob_path).toMatch(/^leads\//);
-
-    const revRes = await reviewsApi.POST(new Request('https://x/api/reviews', { method: 'POST', headers: { 'x-forwarded-for': '2.2.2.2' }, body: JSON.stringify({
-      course_id: c.id, rating: 4, title: 'Bueno', comment: 'Buen contenido práctico y docentes con experiencia real.', author_name: 'Luis Pérez', author_email: 'luis@mail.com', relationship: 'egresado', consent: true, website: ''
-    }) }));
-    expect(revRes.status).toBe(201);
-    const [rev] = await sql`select id, status, rating, blob_path from reviews`;
-    expect(rev).toMatchObject({ status: 'pendiente', rating: 4 });
-
-    // Moderación en /admin → la vista de valoraciones solo cuenta las aprobadas.
-    expect((await sql`select * from course_ratings`)).toHaveLength(0);
-    await admin.POST(authed('POST', 'review', { pathname: rev.blob_path, status: 'aprobada' }));
-    const [rating] = await sql`select avg_rating::float as avg, reviews_count from course_ratings where course_id = ${c.id}`;
-    expect(rating).toEqual({ avg: 4, reviews_count: 1 });
-
-    // Lead: cambio de estado y borrado.
-    await admin.POST(authed('POST', 'lead', { pathname: lead.blob_path, status: 'contactado', notes: 'Llamar' }));
-    expect((await sql`select status, notes from leads`)[0]).toEqual({ status: 'contactado', notes: 'Llamar' });
-    await admin.POST(authed('POST', 'lead-delete', { pathname: lead.blob_path }));
-    expect((await sql`select count(*)::int n from leads`)[0].n).toBe(0);
+  it('registra el historial de cambios, incluidos campos anidados (temario)', async () => {
+    const edited = bundledCatalog();
+    edited.courses[0].syllabus = [{ title: 'Módulo nuevo', hours: 4, description: '', topics: ['x'] }];
+    const removed = edited.courses.pop();
+    const v2 = await save(edited, v1, 'temario');
+    const changes = await sql`select entity_id, action, version from catalog_changes order by id`;
+    expect(changes).toEqual([
+      { entity_id: courses[0].id, action: 'update', version: v2 },
+      { entity_id: removed.id, action: 'delete', version: v2 }
+    ]);
+    // El catálogo vigente se lee de la base con el orden original.
+    const res = (await (await admin.GET(authed('GET', 'catalog'))).json()) as { catalog: { courses: { id: string }[] }; version: { pathname: string } };
+    expect(res.version.pathname).toBe(v2);
+    expect(res.catalog.courses.map((c) => c.id)).toEqual(edited.courses.map((c: { id: string }) => c.id));
+    // Otra sesión con la versión anterior → conflicto.
+    expect((await admin.PUT(authed('PUT', 'catalog', { catalog: bundledCatalog(), baseVersion: v1 }))).status).toBe(409);
   });
 
-  it('diagnóstico de Mi ruta: perfil, estudios, experiencia, puntajes y ruta en tablas', async () => {
-    const profileApi = await import('../../profile');
-    const fd = new FormData();
-    fd.set('description', 'Me llamo Jorge Ramírez. Trabajo como analista de datos en Retail SAC desde 2020, manejo Excel, Power BI y SQL. Bachiller en Economía en la Universidad de Lima (2019). Lidero un equipo de 2 personas.');
-    fd.set('objective', 'Quiero convertirme en científico de datos y aprender machine learning con Python');
-    fd.set('consent', 'true');
-    fd.set('contact_ok', 'true');
-    const res = await profileApi.POST(new Request('https://x/api/profile', { method: 'POST', headers: { 'x-forwarded-for': '3.3.3.3' }, body: fd }));
-    expect(res.status).toBe(201);
-    const { profile } = (await res.json()) as { profile: { id: string } };
-    const [p] = await sql`select first_name, current_position, years_experience, highest_degree, contact_ok, analysis->'route'->'stages' is not null as has_route from profiles where id = ${profile.id}`;
-    expect(p).toMatchObject({ first_name: 'Jorge', contact_ok: true, has_route: true, highest_degree: 'bachiller' });
-    expect(p.current_position).toMatch(/analista de datos/i);
-    const [n] = await sql`select (select count(*) from profile_education where profile_id = ${profile.id})::int edu,
-      (select count(*) from profile_experience where profile_id = ${profile.id})::int exp,
-      (select count(*) from profile_scores where profile_id = ${profile.id} and kind = 'area')::int areas,
-      (select count(*) from profile_scores where profile_id = ${profile.id} and kind = 'blanda')::int soft,
-      (select count(*) from profile_route_courses where profile_id = ${profile.id})::int route`;
-    expect(n.edu).toBeGreaterThan(0);
-    expect(n.areas).toBe(categories.length);
-    expect(n.soft).toBe(10);
-    expect(n.route).toBeGreaterThan(0);
+  it('importa datos antiguos de Blob sin pisar ni borrar lo que ya está en la base', async () => {
+    const now = new Date().toISOString();
+    const lead = (id: string, status: string) => ({ id, created_at: now, course_id: courses[0].id, course_name: 'x', institution_id: courses[0].institution_id, institution_name: 'x', first_name: 'Ana', last_name: 'T', email: `${id}@x.com`, whatsapp: '999888777', country: 'Perú', start_timeline: 'inmediato', objective: 'cambiar-trabajo', consent: true, page_url: '', source: 'detalle', campaign: null, utm_source: null, utm_medium: null, utm_campaign: null, utm_term: null, utm_content: null, referrer: null, lead_score: 80, lead_tier: 'HIGH_INTENT', lead_segment: 'hot', status, notes: '' });
+    // En la base ya existe lead_existente (contactado); en Blob figura como "nuevo" (dato viejo).
+    await sql`insert into leads (id, created_at, course_name, first_name, last_name, email, status, raw) values ('lead_existente', now(), 'x', 'Ana', 'T', 'a@x.com', 'contactado', ${sql.json(lead('lead_existente', 'contactado'))})`;
+    await sql`insert into leads (id, created_at, course_name, first_name, last_name, email, raw) values ('lead_solo_en_base', now(), 'x', 'B', 'C', 'b@x.com', '{}')`;
+    blobs.set('leads/2026-10/a_lead_existente.json', { body: JSON.stringify(lead('lead_existente', 'nuevo')), uploadedAt: new Date() });
+    blobs.set('leads/2026-10/b_lead_antiguo.json', { body: JSON.stringify(lead('lead_antiguo', 'nuevo')), uploadedAt: new Date() });
+    blobs.set('reviews/crs-0001/x_rev_antigua.json', { body: JSON.stringify({ id: 'rev_antigua1', course_id: courses[0].id, course_name: 'x', institution_id: courses[0].institution_id, institution_name: 'x', rating: 4, title: 't', comment: 'Comentario suficientemente largo para la prueba.', author_name: 'Ana T.', author_email: 'ana@x.com', relationship: 'egresado', created_at: now, status: 'aprobada', rejection_reason: null, moderated_at: now, reply: null, page_url: '' }), uploadedAt: new Date() });
+    blobs.set('catalog/versions/2026-09-01T00-00-00-000Z__excel.json', { body: JSON.stringify(bundledCatalog()), uploadedAt: new Date('2026-09-01') });
 
-    await admin.POST(authed('POST', 'profile', { id: profile.id, status: 'contactado' }));
-    expect((await sql`select status from profiles where id = ${profile.id}`)[0].status).toBe('contactado');
-    await admin.POST(authed('POST', 'profile-delete', { id: profile.id }));
-    expect((await sql`select count(*)::int n from profile_scores`)[0].n).toBe(0); // cascada
+    const res = await admin.POST(authed('POST', 'db-import'));
+    expect(res.status).toBe(200);
+    const { stats } = (await res.json()) as { stats: { leads: number; reviews: number; versions: number; skipped: { leads: number } } };
+    expect(stats).toMatchObject({ leads: 1, reviews: 1, versions: 1, skipped: { leads: 1 } });
+    expect((await sql`select status from leads where id = 'lead_existente'`)[0].status).toBe('contactado'); // no se pisó
+    expect((await sql`select count(*)::int n from leads where id = 'lead_solo_en_base'`)[0].n).toBe(1); // no se borró
+    expect((await sql`select avg_rating::float avg from course_ratings where course_id = ${courses[0].id}`)[0].avg).toBe(4);
+
+    // Repetir la importación no duplica nada.
+    const again = (await (await admin.POST(authed('POST', 'db-import'))).json()) as { stats: { leads: number; reviews: number } };
+    expect(again.stats).toMatchObject({ leads: 0, reviews: 0 });
   });
 
-  it('sincronización completa desde Blob: idempotente y reconcilia borrados', async () => {
-    await sql`insert into leads (id, created_at, course_name, first_name, last_name, email, raw) values ('lead_huerfano', now(), 'x', 'x', 'x', 'x@x.com', '{}')`;
-    const sync = async () => {
-      const res = await admin.POST(authed('POST', 'db-sync'));
-      expect(res.status).toBe(200);
-      return ((await res.json()) as { stats: { leads: number; reviews: number; profiles: number; removed: { leads: number }; catalog: { courses: number } } }).stats;
-    };
-    const s1 = await sync();
-    expect(s1.catalog.courses).toBe(courses.length - 1);
-    expect(s1.removed.leads).toBe(1);
-    const s2 = await sync();
-    expect(s2.removed).toEqual({ leads: 0, reviews: 0, profiles: 0 });
+  it('restaura una versión antigua guardada en Blob', async () => {
+    const versions = ((await (await admin.GET(authed('GET', 'versions'))).json()) as { versions: { pathname: string }[] }).versions;
+    expect(versions.map((v) => v.pathname)).toContain('catalog/versions/2026-09-01T00-00-00-000Z__excel.json');
+    expect((await admin.POST(authed('POST', 'restore', { pathname: 'catalog/versions/2026-09-01T00-00-00-000Z__excel.json' }))).status).toBe(200);
+    expect((await sql`select count(*)::int n from courses`)[0].n).toBe(courses.length);
+    const [cur] = await sql`select note from catalog_versions where is_current`;
+    expect(cur.note).toBe('restaurado');
+  });
 
+  it('estado de la base y health', async () => {
     const status = (await (await admin.GET(authed('GET', 'db-status'))).json()) as { connected: boolean; counts: Record<string, number>; last_sync: { error: string | null } };
     expect(status.connected).toBe(true);
-    expect(status.counts.courses).toBe(courses.length - 1);
-    expect(status.counts.reviews).toBe(1);
+    expect(status.counts.courses).toBe(courses.length);
     expect(status.last_sync.error).toBeNull();
-
+    expect((await admin.GET(new Request('https://x/api/admin?action=db-status'))).status).toBe(401);
     const health = await (await import('../../health')).GET();
-    expect(await health.json()).toEqual({ ok: true, blob: true, db: 'connected', migrations: ['001_init.sql'], initial_sync: 'done' });
+    expect(await health.json()).toEqual({ ok: true, db: 'connected', blob: true, migrations: ['001_init.sql', '002_supabase_primary.sql'] });
   });
 });

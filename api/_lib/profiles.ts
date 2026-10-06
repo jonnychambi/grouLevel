@@ -1,20 +1,18 @@
 /**
  * Diagnósticos de perfil ("Mi ruta"): validación del envío, análisis (IA o reglas) y almacenamiento.
  *
- * Blob privado:
- *   profiles/<id>.json            → análisis completo + datos extraídos del CV
- *   profiles-files/<id>.<ext>     → CV original (solo accesible desde /admin)
+ *   Base de datos: tabla `profiles` (+ estudios, experiencia, puntajes y ruta en tablas hijas).
+ *   Vercel Blob:   profiles-files/<id>.<ext> → CV original (privado, solo se descarga desde /admin).
  * El id es aleatorio y no adivinable: funciona como enlace privado para volver a ver la ruta.
  */
 import { randomBytes } from 'node:crypto';
-import { del, get, list, put } from '@vercel/blob';
+import { del, get, put } from '@vercel/blob';
 import type { ProfileAnalysis, ProfilePreferences, ProfileStatus, PublicProfileAnalysis } from '../../src/types/profile.js';
 import { analyzeWithRules, PROFILE_LIMITS, sanitizeAnalysis, type RouteCategory, type RouteCourse } from '../../src/utils/profileAnalysis.js';
-import { readLatest } from './store.js';
-import type { CatalogPayload } from './validate.js';
 import { analyzeWithAI, isAiConfigured } from './profileAI.js';
+import { getSql } from './db.js';
+import { upsertProfile } from './dbSync.js';
 
-const PREFIX = 'profiles/';
 const FILES = 'profiles-files/';
 const RATES: Record<string, number> = { PEN: 1, USD: 3.75 };
 export const PROFILE_STATUSES: ProfileStatus[] = ['nuevo', 'contactado', 'descartado'];
@@ -25,31 +23,23 @@ let cache: { at: number; courses: RouteCourse[]; categories: RouteCategory[] } |
 /** Programas publicados y materias del catálogo vigente (caché de 60 s). */
 export async function loadRouteCatalog(): Promise<{ courses: RouteCourse[]; categories: RouteCategory[] }> {
   if (cache && Date.now() - cache.at < 60_000) return cache;
-  const latest = await readLatest<CatalogPayload>();
-  const data = latest?.data;
-  const inst = new Map((data?.institutions ?? []).map((i) => [String(i.id), String(i.name)]));
-  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-  const strs = (v: unknown) => (Array.isArray(v) ? v.map(String) : []);
-  const courses: RouteCourse[] = (data?.courses ?? [])
-    .filter((c) => c.status === 'publicado')
-    .map((c) => {
-      const price = num(c.discount_price) ?? num(c.price);
-      return {
-        id: String(c.id),
-        name: String(c.name),
-        category: String(c.category),
-        level: (['basico', 'intermedio', 'avanzado'].includes(c.level as string) ? c.level : null) as RouteCourse['level'],
-        program_type: String(c.program_type ?? 'curso'),
-        modality: typeof c.modality === 'string' ? c.modality : null,
-        price_pen: price === null ? null : Math.round(price * (RATES[String(c.currency)] ?? 1)),
-        duration_hours: num(c.duration_hours),
-        tools: strs(c.tools),
-        keywords: strs(c.keywords),
-        institution_name: inst.get(String(c.institution_id)) ?? String(c.institution_id),
-        featured: c.featured === true
-      };
-    });
-  const categories: RouteCategory[] = (data?.categories ?? []).map((c) => ({ id: String(c.id), name: String(c.name), keywords: strs(c.keywords) }));
+  const sql = getSql();
+  const [rows, cats] = await Promise.all([
+    sql`select c.id, c.name, c.category_id, c.level, c.program_type, c.modality, c.price, c.discount_price, c.currency, c.duration_hours,
+               c.tools, c.keywords, c.featured, i.name as institution_name
+        from courses c join institutions i on i.id = c.institution_id where c.status = 'publicado' order by c.position, c.id`,
+    sql`select id, name, keywords from categories order by position, id`
+  ]);
+  const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+  const courses: RouteCourse[] = rows.map((c) => {
+    const price = n(c.discount_price) ?? n(c.price);
+    return {
+      id: c.id, name: c.name, category: c.category_id ?? '', level: c.level ?? null, program_type: c.program_type, modality: c.modality ?? null,
+      price_pen: price === null ? null : Math.round(price * (RATES[c.currency] ?? 1)), duration_hours: n(c.duration_hours),
+      tools: c.tools ?? [], keywords: c.keywords ?? [], institution_name: c.institution_name, featured: c.featured === true
+    };
+  });
+  const categories: RouteCategory[] = cats.map((c) => ({ id: c.id, name: c.name, keywords: c.keywords ?? [] }));
   cache = { at: Date.now(), courses, categories };
   return cache;
 }
@@ -132,7 +122,7 @@ export async function saveProfile(id: string, analysis: Omit<ProfileAnalysis, 'i
     stored = { pathname, name: file.name.replace(/[^\p{L}\p{N} ._-]/gu, '_').slice(0, 120), type: MIME[file.type], size: file.bytes.byteLength };
   }
   const record: ProfileAnalysis = { id, created_at: now, updated_at: now, ...analysis, file: stored, status: 'nuevo', notes: '' };
-  await put(`${PREFIX}${id}.json`, JSON.stringify(record), { access: 'private', contentType: 'application/json', addRandomSuffix: false });
+  await upsertProfile(getSql(), record);
   return record;
 }
 
@@ -142,15 +132,10 @@ export function toPublic(p: ProfileAnalysis): PublicProfileAnalysis {
   return { ...rest, has_file: !!file };
 }
 
-async function readJsonBlob<T>(pathname: string): Promise<T | null> {
-  const res = await get(pathname, { access: 'private', useCache: false });
-  if (!res || res.statusCode !== 200) return null;
-  return JSON.parse(await new Response(res.stream).text()) as T;
-}
-
 export async function readProfile(id: string): Promise<ProfileAnalysis | null> {
   if (!ID_RE.test(id)) return null;
-  return readJsonBlob<ProfileAnalysis>(`${PREFIX}${id}.json`);
+  const [row] = await getSql()`select raw from profiles where id = ${id}`;
+  return row ? (row.raw as ProfileAnalysis) : null;
 }
 
 /** Resumen para el listado del administrador (sin la evaluación completa). */
@@ -159,29 +144,24 @@ export type ProfileListItem = Pick<ProfileAnalysis, 'id' | 'created_at' | 'updat
 };
 
 export async function listProfiles(limit = 300): Promise<{ profiles: ProfileListItem[]; total: number }> {
-  const blobs: { pathname: string; uploadedAt: Date }[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await list({ prefix: PREFIX, limit: 1000, cursor });
-    blobs.push(...page.blobs);
-    cursor = page.hasMore ? page.cursor : undefined;
-  } while (cursor);
-  blobs.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
-  const out: ProfileListItem[] = [];
-  const selected = blobs.slice(0, limit);
-  for (let i = 0; i < selected.length; i += 20) {
-    const batch = await Promise.all(selected.slice(i, i + 20).map((b) => readJsonBlob<ProfileAnalysis>(b.pathname)));
-    for (const p of batch) {
-      if (!p) continue;
-      const per = p.extract.personal;
-      out.push({
-        id: p.id, created_at: p.created_at, updated_at: p.updated_at, source: p.source, engine: p.engine, objective: p.objective, status: p.status, notes: p.notes, contact_ok: p.contact_ok, file: p.file,
-        name: [per.first_name, per.last_name].filter(Boolean).join(' ') || 'Sin nombre', email: per.email, phone: per.phone, country: per.country,
-        current_role: p.extract.current_role, seniority: p.extract.seniority, years_experience: p.extract.years_experience, highest_degree: p.extract.highest_degree, target_areas: p.route.target_areas
-      });
-    }
-  }
-  return { profiles: out.sort((a, b) => (a.created_at < b.created_at ? 1 : -1)), total: blobs.length };
+  const sql = getSql();
+  const [rows, [count]] = await Promise.all([
+    sql`select id, created_at, updated_at, source, engine, objective, status, notes, contact_ok, first_name, last_name, email, phone, country,
+               current_position, seniority, years_experience, highest_degree, target_areas, cv_blob_path, cv_file_name, cv_file_type, cv_file_size
+        from profiles order by created_at desc limit ${limit}`,
+    sql`select count(*)::int as n from profiles`
+  ]);
+  const iso = (v: unknown) => new Date(v as string).toISOString();
+  return {
+    total: count.n,
+    profiles: rows.map((p) => ({
+      id: p.id, created_at: iso(p.created_at), updated_at: iso(p.updated_at), source: p.source, engine: p.engine, objective: p.objective, status: p.status,
+      notes: p.notes, contact_ok: p.contact_ok,
+      file: p.cv_blob_path ? { pathname: p.cv_blob_path, name: p.cv_file_name, type: p.cv_file_type, size: p.cv_file_size } : null,
+      name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Sin nombre', email: p.email, phone: p.phone, country: p.country,
+      current_role: p.current_position, seniority: p.seniority, years_experience: p.years_experience, highest_degree: p.highest_degree, target_areas: p.target_areas ?? []
+    }))
+  };
 }
 
 export async function updateProfile(id: string, patch: { status?: unknown; notes?: unknown }): Promise<ProfileAnalysis | null> {
@@ -193,14 +173,16 @@ export async function updateProfile(id: string, patch: { status?: unknown; notes
     notes: typeof patch.notes === 'string' ? patch.notes.slice(0, 2000) : current.notes,
     updated_at: new Date().toISOString()
   };
-  await put(`${PREFIX}${id}.json`, JSON.stringify(next), { access: 'private', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true });
+  await upsertProfile(getSql(), next);
   return next;
 }
 
+/** Elimina el diagnóstico (y en cascada sus tablas hijas) y el CV guardado en Blob. */
 export async function deleteProfile(id: string): Promise<boolean> {
   const current = await readProfile(id);
   if (!current) return false;
-  await del([`${PREFIX}${id}.json`, ...(current.file ? [current.file.pathname] : [])]);
+  if (current.file) await del(current.file.pathname).catch((err) => console.error('cv_delete_failed', err instanceof Error ? err.message : err));
+  await getSql()`delete from profiles where id = ${id}`;
   return true;
 }
 
@@ -218,16 +200,4 @@ export async function profileFile(id: string): Promise<Response | null> {
       'X-Content-Type-Options': 'nosniff'
     }
   });
-}
-
-/** Ids de todos los diagnósticos guardados (para la sincronización con la base de datos). */
-export async function listProfileIds(): Promise<string[]> {
-  const ids: string[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await list({ prefix: PREFIX, limit: 1000, cursor });
-    ids.push(...page.blobs.map((b) => b.pathname.slice(PREFIX.length).replace(/\.json$/, '')).filter((id) => ID_RE.test(id)));
-    cursor = page.hasMore ? page.cursor : undefined;
-  } while (cursor);
-  return ids;
 }

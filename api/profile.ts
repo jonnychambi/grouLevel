@@ -6,7 +6,7 @@
  *                       → 201 { profile }
  *   GET  /api/profile?id=prf_…  → { profile }   (enlace privado para volver a ver el resultado)
  *
- * Guarda el CV y los datos extraídos en Blob privado. Con ANTHROPIC_API_KEY el análisis lo hace Claude;
+ * Guarda los datos extraídos en la base (Supabase) y el CV original en Vercel Blob. Con ANTHROPIC_API_KEY el análisis lo hace Claude;
  * sin ella (o si falla) se usa el motor por reglas.
  */
 import { json } from './_lib/http.js';
@@ -15,11 +15,10 @@ import { isStoreConfigured } from './_lib/store.js';
 import { detectCvType, extractCvText } from './_lib/cvText.js';
 import { newProfileId, readProfile, runAnalysis, saveProfile, toPublic, validateSubmission, type ProfileSubmission } from './_lib/profiles.js';
 import { PROFILE_LIMITS } from '../src/utils/profileAnalysis.js';
-import { mirror } from './_lib/db.js';
-import { upsertProfile } from './_lib/dbSync.js';
+import { isDbConfigured } from './_lib/db.js';
 
 export async function POST(request: Request): Promise<Response> {
-  if (!isStoreConfigured()) return json(503, { error: 'store_not_configured', message: 'El diagnóstico no está disponible en este momento.' });
+  if (!isDbConfigured()) return json(503, { error: 'db_not_configured', message: 'El diagnóstico no está disponible en este momento.' });
   if (rateLimited(request, 'profile', 6, 60 * 60_000)) return json(429, { error: 'rate_limited', message: 'Alcanzaste el límite de diagnósticos por hora. Inténtalo más tarde.' });
 
   let form: FormData;
@@ -39,7 +38,9 @@ export async function POST(request: Request): Promise<Response> {
   let text = '';
   const upload = form.get('cv');
   if (upload && typeof upload !== 'string' && upload.size > 0) {
-    if (upload.size > PROFILE_LIMITS.fileMaxBytes) errors.push('El CV supera los 4 MB.');
+    // El CV se guarda en Vercel Blob; sin Blob configurado solo se acepta la descripción.
+    if (!isStoreConfigured()) errors.push('La carga de CV no está disponible en este momento. Describe tu perfil en texto.');
+    else if (upload.size > PROFILE_LIMITS.fileMaxBytes) errors.push('El CV supera los 4 MB.');
     else {
       const bytes = new Uint8Array(await upload.arrayBuffer());
       const type = detectCvType(bytes, upload.name);
@@ -69,12 +70,11 @@ export async function POST(request: Request): Promise<Response> {
   };
   const analysis = await runAnalysis(submission);
   const record = await saveProfile(newProfileId(), analysis, file);
-  await mirror('profile', (sql) => upsertProfile(sql, record));
   return json(201, { profile: toPublic(record) });
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!isStoreConfigured()) return json(503, { error: 'store_not_configured' });
+  if (!isDbConfigured()) return json(503, { error: 'db_not_configured' });
   const id = new URL(request.url).searchParams.get('id') ?? '';
   if (!id) return json(400, { error: 'bad_request', message: 'Falta el id.' });
   if (rateLimited(request, 'profile-read', 60)) return json(429, { error: 'rate_limited' });

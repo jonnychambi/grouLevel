@@ -1,21 +1,13 @@
-/** Flujo de leads con Vercel Blob simulado en memoria. */
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+/** Flujo de leads sobre PostgreSQL (PGlite). */
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { startTestDb } from './testDb';
 import courses from '../../../src/data/courses.json';
-import institutions from '../../../src/data/institutions.json';
-import categories from '../../../src/data/categories.json';
 
-const blobs = new Map<string, { body: string; uploadedAt: Date }>();
-vi.mock('@vercel/blob', () => ({
-  list: async ({ prefix }: { prefix: string }) => ({
-    blobs: [...blobs.entries()].filter(([k]) => k.startsWith(prefix)).map(([pathname, v]) => ({ pathname, uploadedAt: v.uploadedAt, size: v.body.length })),
-    hasMore: false
-  }),
-  put: async (pathname: string, body: string) => { blobs.set(pathname, { body, uploadedAt: new Date() }); return { pathname }; },
-  get: async (pathname: string) => { const b = blobs.get(pathname); return b ? { statusCode: 200, stream: new Response(b.body).body } : null; },
-  del: async (p: string | string[]) => [p].flat().forEach((x) => blobs.delete(x))
-}));
 
+const db = await startTestDb({ seedCatalog: true });
+afterAll(() => db.stop());
 const leadsApi = await import('../../leads');
+const count = async () => (await db.sql`select count(*)::int as n from leads`)[0].n as number;
 const admin = await import('../../admin');
 const course = courses[0];
 
@@ -37,9 +29,6 @@ const authed = (method: string, action: string, body?: unknown) =>
 beforeAll(async () => {
   process.env.ADMIN_PASSWORD = 'pw';
   process.env.ADMIN_SESSION_SECRET = 's';
-  process.env.BLOB_READ_WRITE_TOKEN = 'fake';
-  // catálogo publicado (el endpoint valida que el programa exista)
-  blobs.set('catalog/versions/2026-10-05T00-00-00-000Z__init.json', { body: JSON.stringify({ courses, institutions, categories }), uploadedAt: new Date() });
   const res = await admin.POST(new Request('https://x/api/admin?action=login', { method: 'POST', body: JSON.stringify({ password: 'pw' }) }));
   token = ((await res.json()) as { token: string }).token;
 });
@@ -52,8 +41,9 @@ describe('POST /api/leads', () => {
     expect(body.lead_score).toBe(100); // 40 inicio + 25 objetivo + 20 comportamiento + 15 contacto (email corporativo), no el 1 enviado por el cliente
     expect(body.lead_tier).toBe('HIGH_INTENT');
     expect(body.course_name).toBe(course.name);
-    const stored = [...blobs.entries()].find(([k]) => k.startsWith('leads/'))!;
-    const lead = JSON.parse(stored[1].body);
+    const [row] = await db.sql`select raw, email, lead_score, status from leads where id = ${body.id}`;
+    expect(row).toMatchObject({ email: 'ana@empresa.pe', lead_score: 100, status: 'nuevo' });
+    const lead = row.raw as Record<string, unknown>;
     expect(lead).toMatchObject({ first_name: 'Ana', email: 'ana@empresa.pe', utm_source: 'google', status: 'nuevo', institution_id: course.institution_id });
     expect(JSON.stringify(lead)).not.toContain('1.1.1.1'); // no se guarda la IP
   });
@@ -68,9 +58,9 @@ describe('POST /api/leads', () => {
   });
 
   it('ignora bots que llenan el campo trampa', async () => {
-    const before = [...blobs.keys()].filter((k) => k.startsWith('leads/')).length;
+    const before = await count();
     expect((await post(valid({ website: 'http://spam' }), '3.3.3.3')).status).toBe(200);
-    expect([...blobs.keys()].filter((k) => k.startsWith('leads/')).length).toBe(before);
+    expect(await count()).toBe(before);
   });
 
   it('limita envíos repetidos desde la misma IP', async () => {
@@ -94,9 +84,9 @@ describe('Leads en el administrador', () => {
     const upd = (await (await admin.POST(authed('POST', 'lead', { pathname: target.pathname, status: 'contactado', notes: 'Llamado' }))).json()) as { lead: { status: string; notes: string } };
     expect(upd.lead).toMatchObject({ status: 'contactado', notes: 'Llamado' });
     expect((await admin.POST(authed('POST', 'lead', { pathname: target.pathname, status: 'hackeado' }))).status).toBe(200);
-    expect(JSON.parse(blobs.get(target.pathname)!.body).status).toBe('contactado'); // estado inválido ignorado
-    expect((await admin.POST(authed('POST', 'lead', { pathname: 'catalog/versions/x.json', status: 'nuevo' }))).status).toBe(404); // fuera de leads/
+    expect((await db.sql`select status from leads where id = ${target.pathname}`)[0].status).toBe('contactado'); // estado inválido ignorado
+    expect((await admin.POST(authed('POST', 'lead', { pathname: 'catalog/versions/x.json', status: 'nuevo' }))).status).toBe(404); // id inválido
     expect((await admin.POST(authed('POST', 'lead-delete', { pathname: target.pathname }))).status).toBe(200);
-    expect(blobs.has(target.pathname)).toBe(false);
+    expect((await db.sql`select count(*)::int as n from leads where id = ${target.pathname}`)[0].n).toBe(0);
   });
 });

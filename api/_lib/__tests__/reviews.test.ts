@@ -1,20 +1,11 @@
-/** Ciclo completo de reseñas con Vercel Blob simulado en memoria. */
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+/** Ciclo completo de reseñas sobre PostgreSQL (PGlite). */
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { startTestDb } from './testDb';
 import courses from '../../../src/data/courses.json';
-import institutions from '../../../src/data/institutions.json';
-import categories from '../../../src/data/categories.json';
 
-const blobs = new Map<string, { body: string; uploadedAt: Date }>();
-vi.mock('@vercel/blob', () => ({
-  list: async ({ prefix }: { prefix: string }) => ({
-    blobs: [...blobs.entries()].filter(([k]) => k.startsWith(prefix)).map(([pathname, v]) => ({ pathname, uploadedAt: v.uploadedAt, size: v.body.length })),
-    hasMore: false
-  }),
-  put: async (pathname: string, body: string) => { blobs.set(pathname, { body, uploadedAt: new Date() }); return { pathname }; },
-  get: async (pathname: string) => { const b = blobs.get(pathname); return b ? { statusCode: 200, stream: new Response(b.body).body } : null; },
-  del: async (p: string | string[]) => [p].flat().forEach((x) => blobs.delete(x))
-}));
 
+const db = await startTestDb({ seedCatalog: true });
+afterAll(() => db.stop());
 const api = await import('../../reviews');
 const admin = await import('../../admin');
 const [c1, c2] = courses.filter((c) => c.institution_id === courses[0].institution_id);
@@ -34,8 +25,6 @@ const all = async () => ((await (await admin.GET(authed('GET', 'reviews'))).json
 beforeAll(async () => {
   process.env.ADMIN_PASSWORD = 'pw';
   process.env.ADMIN_SESSION_SECRET = 's';
-  process.env.BLOB_READ_WRITE_TOKEN = 'fake';
-  blobs.set('catalog/versions/2026-10-05T00-00-00-000Z__init.json', { body: JSON.stringify({ courses, institutions, categories }), uploadedAt: new Date() });
   token = ((await (await admin.POST(new Request('https://x/api/admin?action=login', { method: 'POST', body: JSON.stringify({ password: 'pw' }) }))).json()) as { token: string }).token;
 });
 

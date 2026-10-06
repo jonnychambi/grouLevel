@@ -1,14 +1,12 @@
 /**
- * Almacenamiento versionado del catálogo en Vercel Blob (store privado).
+ * Versiones antiguas del catálogo en Vercel Blob (solo lectura).
  *
- * Cada guardado crea un archivo nuevo e inmutable: catalog/versions/<ISO>__<nota>.json.
- * La versión vigente es la más reciente. Esto da historial y restauración gratis,
- * y evita problemas de caché (nunca se sobrescribe un mismo archivo).
+ * Antes de Supabase, cada publicación se guardaba como catalog/versions/<ISO>__<nota>.json.
+ * Hoy el catálogo vive en la base; estas funciones solo permiten listar e importar/restaurar esas versiones.
  */
-import { del, get, list, put } from '@vercel/blob';
+import { get, list } from '@vercel/blob';
 
 const PREFIX = 'catalog/versions/';
-const KEEP_VERSIONS = 50;
 
 export interface VersionInfo {
   pathname: string;
@@ -44,40 +42,4 @@ export async function readVersion<T>(pathname: string): Promise<T | null> {
   if (!res || res.statusCode !== 200) return null;
   const text = await new Response(res.stream).text();
   return JSON.parse(text) as T;
-}
-
-export async function readLatest<T>(): Promise<{ data: T; version: VersionInfo } | null> {
-  const [latest] = await listVersions();
-  if (!latest) return null;
-  const data = await readVersion<T>(latest.pathname);
-  return data ? { data, version: latest } : null;
-}
-
-export async function writeVersion(data: unknown, note: string): Promise<VersionInfo> {
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const slug = note
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 60);
-  const pathname = `${PREFIX}${stamp}${slug ? `__${slug}` : ''}.json`;
-  const blob = await put(pathname, JSON.stringify(data), {
-    access: 'private',
-    contentType: 'application/json',
-    addRandomSuffix: false
-  });
-  void prune();
-  return { pathname: blob.pathname, uploaded_at: new Date().toISOString(), size: JSON.stringify(data).length, note: slug.replace(/-/g, ' ') };
-}
-
-async function prune() {
-  try {
-    const versions = await listVersions();
-    const old = versions.slice(KEEP_VERSIONS).map((v) => v.pathname);
-    if (old.length) await del(old);
-  } catch {
-    /* limpieza best-effort */
-  }
 }
