@@ -100,6 +100,7 @@ export function toGA(e: AnalyticsEvent): [string, Record<string, unknown>] {
     case 'share_clicked': return ['share', clean({ method: p.method, content_type: 'programa', item_id: p.course_id })];
     case 'compare_added': return ['add_to_compare', clean({ ...money, items: item, compare_count: p.compare_count })];
     case 'comparison_viewed': return ['view_comparison', clean({ compare_count: p.count })];
+    case 'profile_submitted': return ['generate_route', clean({ route_source: p.source, route_engine: p.engine, route_stages: p.stages, target_areas: (p.target_areas as string[]).join(', ') })];
     case 'outbound_click': return ['click_institution_site', clean({ link_url: p.url, items: item })];
     default: return [e.name, clean(p)];
   }

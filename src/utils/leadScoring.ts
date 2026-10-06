@@ -42,7 +42,7 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
   behavior: {
     comparedTwoOrMore: 10,
     viewedThreeOrMore: 5,
-    source: { comparador: 5, detalle: 3 },
+    source: { comparador: 5, ruta: 5, detalle: 3 },
     max: 20
   },
   contact: { whatsapp: 10, corporateEmail: 5, max: 15 },

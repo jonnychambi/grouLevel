@@ -99,6 +99,16 @@ Interpreta lenguaje natural (`"maestría de inteligencia artificial"`, `"curso d
 - El sitio lee `GET /api/reviews?summary=1` (caché CDN ~1 min) y muestra la valoración en cada tarjeta de programa, en la ficha (sección "Valoraciones") y en las tarjetas/fichas de institución.
 - Evento GA: `review_submitted`.
 
+## Mi ruta — diagnóstico de perfil y ruta de formación (`/mi-ruta`)
+
+- La persona **sube su CV** (PDF, Word .docx o TXT, máx. 4 MB) **o describe** su posición y formación, y escribe su **objetivo** (más preferencias opcionales: modalidad, presupuesto, horas por semana).
+- `POST /api/profile` guarda el **CV original** (`profiles-files/<id>.<ext>`) y el **análisis** (`profiles/<id>.json`) en Blob privado. Se extraen: nombres, apellidos, email, teléfono, país, ciudad, LinkedIn, posición y empresa actual, seniority, años de experiencia, grado más alto, formación actual, estudios (grado, universidad, estado), experiencia, certificaciones, idiomas y herramientas.
+- **Evaluación**: puntaje 0–100 y nivel (básico/intermedio/avanzado/experto) en cada materia del catálogo (las categorías), habilidades técnicas y 10 habilidades blandas, con evidencia, fortalezas y brechas frente al objetivo.
+- **Ruta**: 2–4 etapas (fundamentos → especialización → dominio) desde el nivel actual, con programas reales del catálogo que respetan modalidad y presupuesto, y se pueden comparar.
+- **Motor**: con `ANTHROPIC_API_KEY` configurada, el análisis lo hace Claude (`claude-opus-5-5`, salida JSON estructurada; el PDF se le envía como documento). Sin clave, o si la IA falla, se usa el motor por reglas (`src/utils/profileAnalysis.ts`). El resultado siempre se sanea en el servidor (niveles coherentes, solo programas existentes).
+- El resultado vive en `/mi-ruta/<id>` (enlace privado, no indexado). En `/admin` → **Perfiles** se ven los diagnósticos, se descarga el CV, se exporta CSV, se marcan como contactados/descartados y se eliminan (borra también el CV). Solo se contacta a quien marcó que quiere ser contactado.
+- Límite: 6 diagnósticos por hora por IP. Evento GA: `generate_route`.
+
 ## Lead scoring — Signal Score™ (0–100)
 `utils/leadScoring.ts`, configuración desacoplada (`DEFAULT_SCORING_CONFIG`):
 

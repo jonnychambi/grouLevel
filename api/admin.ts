@@ -12,6 +12,11 @@
  *   GET  /api/admin?action=reviews                                  → { reviews }
  *   POST /api/admin?action=review    { pathname, status?, reply?, rejection_reason? } → { review }
  *   POST /api/admin?action=review-delete { pathname }               → { ok }
+ *   GET  /api/admin?action=profiles  [&limit=300]                    → { profiles, total }   (diagnósticos "Mi ruta")
+ *   GET  /api/admin?action=profile&id=prf_…                         → { profile }   (completo)
+ *   GET  /api/admin?action=profile-file&id=prf_…                    → CV original (descarga)
+ *   POST /api/admin?action=profile   { id, status?, notes? }        → { profile }
+ *   POST /api/admin?action=profile-delete { id }                    → { ok }   (borra también el CV)
  *
  * Todas las acciones salvo login requieren Authorization: Bearer <token>.
  */
@@ -21,6 +26,7 @@ import { isStoreConfigured, listVersions, readLatest, readVersion, writeVersion 
 import { validateCatalog, type CatalogPayload } from './_lib/validate.js';
 import { deleteLead, listLeads, updateLead } from './_lib/leads.js';
 import { deleteReview, listAllReviews, moderateReview } from './_lib/reviews.js';
+import { deleteProfile, listProfiles, profileFile, readProfile, updateProfile } from './_lib/profiles.js';
 
 const action = (request: Request) => new URL(request.url).searchParams.get('action') ?? '';
 
@@ -61,6 +67,15 @@ export async function POST(request: Request): Promise<Response> {
     const review = await moderateReview(body.pathname, body);
     return review ? json(200, { review }) : json(404, { error: 'not_found', message: 'La reseña no existe.' });
   }
+  if (act === 'profile' || act === 'profile-delete') {
+    const denied = guard(request);
+    if (denied) return denied;
+    const body = await readJson<{ id?: string; status?: string; notes?: string }>(request);
+    if (!body?.id) return json(400, { error: 'bad_request', message: 'Falta el diagnóstico.' });
+    if (act === 'profile-delete') return (await deleteProfile(body.id)) ? json(200, { ok: true }) : json(404, { error: 'not_found' });
+    const profile = await updateProfile(body.id, body);
+    return profile ? json(200, { profile }) : json(404, { error: 'not_found', message: 'El diagnóstico no existe.' });
+  }
   if (act === 'lead' || act === 'lead-delete') {
     const denied = guard(request);
     if (denied) return denied;
@@ -83,6 +98,16 @@ export async function GET(request: Request): Promise<Response> {
   }
   if (act === 'versions') return json(200, { versions: await listVersions() });
   if (act === 'reviews') return json(200, { reviews: await listAllReviews() });
+  if (act === 'profiles') {
+    const limit = Math.min(2000, Math.max(1, Number(new URL(request.url).searchParams.get('limit')) || 300));
+    return json(200, await listProfiles(limit));
+  }
+  if (act === 'profile' || act === 'profile-file') {
+    const id = new URL(request.url).searchParams.get('id') ?? '';
+    if (act === 'profile-file') return (await profileFile(id)) ?? json(404, { error: 'not_found', message: 'Este diagnóstico no tiene CV.' });
+    const profile = await readProfile(id);
+    return profile ? json(200, { profile }) : json(404, { error: 'not_found' });
+  }
   if (act === 'leads') {
     const limit = Math.min(5000, Math.max(1, Number(new URL(request.url).searchParams.get('limit')) || 500));
     return json(200, await listLeads(limit));

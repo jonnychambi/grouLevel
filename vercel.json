@@ -21,6 +21,15 @@
   ],
   "headers": [
     {
+      "source": "/mi-ruta/:id",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
       "source": "/admin(.*)",
       "headers": [
         {
@@ -64,6 +73,15 @@
     {
       "source": "/admin/:path+",
       "destination": "/admin/index.html"
+    },
+    {
+      "source": "/mi-ruta/:id",
+      "destination": "/mi-ruta/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/profile.ts": {
+      "maxDuration": 300
+    }
+  }
 }

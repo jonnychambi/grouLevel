@@ -9,6 +9,7 @@ import { Logo } from '../ui/Logo';
 const NAV = [
   { to: '/programas', label: 'Explorar programas' },
   { to: '/comparar', label: 'Comparar' },
+  { to: '/mi-ruta', label: 'Mi ruta' },
   { to: '/instituciones', label: 'Instituciones', end: true },
   { to: '/nosotros', label: 'Nosotros' }
 ];

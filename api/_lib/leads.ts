@@ -11,7 +11,7 @@ const PREFIX = 'leads/';
 export const LEAD_STATUSES: LeadStatus[] = ['nuevo', 'contactado', 'enviado', 'matriculado', 'descartado'];
 const TIMELINES = Object.keys(DEFAULT_SCORING_CONFIG.timeline) as StartTimeline[];
 const OBJECTIVES = Object.keys(DEFAULT_SCORING_CONFIG.objective) as LeadObjective[];
-const SOURCES: LeadSource[] = ['detalle', 'comparador', 'listado', 'institucion', 'favoritos', 'home'];
+const SOURCES: LeadSource[] = ['detalle', 'comparador', 'listado', 'institucion', 'favoritos', 'home', 'ruta'];
 
 export interface StoredLead extends Lead { pathname: string }
 

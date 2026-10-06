@@ -13,11 +13,13 @@
     "data:template": "python3 scripts/make_import_template.py"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@vercel/blob": "^2.8.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4",
-    "read-excel-file": "^9.3.10"
+    "read-excel-file": "^9.3.10",
+    "unpdf": "^1.8.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

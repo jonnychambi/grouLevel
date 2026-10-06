@@ -4,6 +4,7 @@ import { CourseEditor, emptyCourse, STATUS_LABELS } from '../components/admin/Co
 import { emptyInstitution, InstitutionEditor } from '../components/admin/InstitutionEditor';
 import { ImportPanel } from '../components/admin/ImportPanel';
 import { LeadsPanel } from '../components/admin/LeadsPanel';
+import { ProfilesPanel } from '../components/admin/ProfilesPanel';
 import { ReviewsPanel } from '../components/admin/ReviewsPanel';
 import { InstitutionLogo } from '../components/institution/InstitutionLogo';
 import { Icon } from '../components/ui/Icon';
@@ -19,7 +20,7 @@ import { effectivePrice, formatDate, formatMoney } from '../utils/format';
 import { PROGRAM_TYPE_LABELS } from '../utils/labels';
 import { normalize } from '../utils/text';
 
-type Tab = 'programas' | 'leads' | 'reseñas' | 'instituciones' | 'importar' | 'versiones';
+type Tab = 'programas' | 'leads' | 'perfiles' | 'reseñas' | 'instituciones' | 'importar' | 'versiones';
 type Editing = { kind: 'course'; course: Course; isNew: boolean } | { kind: 'institution'; institution: Institution; isNew: boolean } | null;
 type Notice = { tone: 'ok' | 'error' | 'info'; text: string; details?: string[] } | null;
 
@@ -137,8 +138,8 @@ export default function AdminPage() {
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
           <Link to="/" aria-label="Ir al sitio"><Logo size={18} /></Link>
           <span className="rounded-full border border-violet/40 px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.14em] text-violet-soft">Admin</span>
-          <nav className="ml-2 flex gap-1" aria-label="Secciones del administrador">
-            {(['programas', 'leads', 'reseñas', 'instituciones', 'importar', 'versiones'] as Tab[]).map((t) => (
+          <nav className="scrollbar-none ml-2 flex min-w-0 gap-1 overflow-x-auto" aria-label="Secciones del administrador">
+            {(['programas', 'leads', 'perfiles', 'reseñas', 'instituciones', 'importar', 'versiones'] as Tab[]).map((t) => (
               <button key={t} onClick={() => { setTab(t); setEditing(null); }} aria-current={tab === t ? 'page' : undefined} className={`rounded-full px-3 py-1.5 text-sm capitalize ${tab === t ? 'bg-raise text-white' : 'text-gray hover:text-white'}`}>
                 {t}
               </button>
@@ -225,6 +226,8 @@ export default function AdminPage() {
             onBulkStatus={(ids, status) => void persist({ ...catalog, courses: catalog.courses.map((c) => (ids.has(c.id) ? { ...c, status } : c)) }, `estado ${status} ${ids.size}`, `${ids.size} programas marcados como ${STATUS_LABELS[status].toLowerCase()}.`)}
             saving={saving}
           />
+        ) : tab === 'perfiles' ? (
+          <ProfilesPanel onError={handleError} onNotice={(text) => setNotice({ tone: 'ok', text })} courseName={(id) => catalog?.courses.find((c) => c.id === id)?.name ?? id} />
         ) : tab === 'reseñas' ? (
           <ReviewsPanel onError={handleError} onNotice={(text) => setNotice({ tone: 'ok', text })} />
         ) : tab === 'leads' ? (

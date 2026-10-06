@@ -17,7 +17,7 @@ export type LeadSegment = 'hot' | 'warm' | 'cold';
 export type LeadStatus = 'nuevo' | 'contactado' | 'enviado' | 'matriculado' | 'descartado';
 
 /** Origen de la interacción dentro de Groulevel. */
-export type LeadSource = 'detalle' | 'comparador' | 'listado' | 'institucion' | 'favoritos' | 'home';
+export type LeadSource = 'detalle' | 'comparador' | 'listado' | 'institucion' | 'favoritos' | 'home' | 'ruta';
 
 export interface Attribution {
   utm_source: string | null;

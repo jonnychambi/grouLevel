@@ -15,6 +15,8 @@ export interface AnalyticsEventMap {
   share_clicked: CourseContext & { method: 'native' | 'clipboard' };
   review_submitted: CourseContext & { rating: number; relationship: string };
   reviews_viewed: { course_id: string; count: number };
+  profile_submitted: { source: 'cv' | 'texto'; engine: string; stages: number; target_areas: string[] };
+  route_course_clicked: { course_id: string; stage: number };
 }
 
 export interface CourseContext {

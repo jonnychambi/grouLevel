@@ -164,6 +164,29 @@ export default function HomePage() {
         </ul>
       </section>
 
+      {/* MI RUTA */}
+      <section className="container-page py-12" aria-labelledby="route-title">
+        <div className="card relative overflow-hidden p-6 sm:p-10">
+          <div className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-violet/25 blur-3xl" aria-hidden="true" />
+          <div className="relative grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+            <div>
+              <p className="eyebrow">Nuevo · Diagnóstico de perfil</p>
+              <h2 id="route-title" className="mt-3 text-3xl text-white sm:text-4xl">¿No sabes por dónde empezar? <span className="grad-text">Sube tu CV.</span></h2>
+              <p className="mt-3 max-w-xl text-gray">Evaluamos tus conocimientos por materia y tus habilidades técnicas y blandas, y te proponemos una ruta de formación por etapas hacia tu objetivo, con programas reales que puedes comparar.</p>
+              <Link to="/mi-ruta" className="btn btn-accent mt-6">Armar mi ruta <Icon name="arrow-right" size={17} /></Link>
+            </div>
+            <ol className="space-y-3">
+              {['Sube tu CV o describe tu perfil', 'Cuéntanos tu objetivo', 'Recibe tu diagnóstico y tu ruta'].map((t, i) => (
+                <li key={t} className="flex items-center gap-3 rounded-xl border border-line bg-navy/40 px-4 py-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-cyan/50 font-mono text-sm text-cyan">{i + 1}</span>
+                  <span className="text-white">{t}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </section>
+
       {/* COMPARADOR TEASER */}
       {sample.length === 3 && (
         <section className="container-page py-16 sm:py-20" aria-labelledby="cmp-title">

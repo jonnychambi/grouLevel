@@ -2,7 +2,7 @@
  * Cliente del API de administración (/api/admin). La sesión vive en sessionStorage
  * (se cierra al cerrar la pestaña) y expira a las 12 horas.
  */
-import type { Category, Course, Institution, Lead, LeadStatus, Review, ReviewStatus } from '../types';
+import type { Category, Course, EducationLevel, Institution, Lead, LeadStatus, ProfileAnalysis, ProfileEngine, ProfileSource, ProfileStatus, Review, ReviewStatus, Seniority } from '../types';
 import { sessionStore } from './storage';
 
 export interface AdminCatalog {
@@ -102,3 +102,33 @@ export const moderateReview = (pathname: string, patch: { status?: ReviewStatus;
   call<{ review: StoredReview }>('review', { method: 'POST', body: JSON.stringify({ pathname, ...patch }) });
 
 export const deleteReviewRecord = (pathname: string) => call<{ ok: true }>('review-delete', { method: 'POST', body: JSON.stringify({ pathname }) });
+
+/* ------------------------------------------------------ Mi ruta (perfiles) */
+
+export interface ProfileListItem {
+  id: string; created_at: string; updated_at: string; source: ProfileSource; engine: ProfileEngine; objective: string; status: ProfileStatus; notes: string; contact_ok: boolean;
+  file: ProfileAnalysis['file']; name: string; email: string | null; phone: string | null; country: string | null; current_role: string | null; seniority: Seniority;
+  years_experience: number | null; highest_degree: EducationLevel | null; target_areas: string[];
+}
+
+export const fetchProfiles = (limit = 500) => call<{ profiles: ProfileListItem[]; total: number }>(`profiles&limit=${limit}`);
+
+export const fetchProfileDetail = (id: string) => call<{ profile: ProfileAnalysis }>(`profile&id=${encodeURIComponent(id)}`);
+
+export const updateProfileRecord = (id: string, patch: { status?: ProfileStatus; notes?: string }) =>
+  call<{ profile: ProfileAnalysis }>('profile', { method: 'POST', body: JSON.stringify({ id, ...patch }) });
+
+export const deleteProfileRecord = (id: string) => call<{ ok: true }>('profile-delete', { method: 'POST', body: JSON.stringify({ id }) });
+
+/** Descarga el CV original (requiere sesión; no se expone por URL pública). */
+export async function downloadProfileFile(id: string, fileName: string): Promise<void> {
+  const session = getSession();
+  const res = await fetch(`${ENDPOINT}?action=profile-file&id=${encodeURIComponent(id)}`, { headers: session ? { Authorization: `Bearer ${session.token}` } : {} });
+  if (!res.ok) throw new AdminApiError(res.status === 401 ? 'Sesión inválida o vencida. Vuelve a ingresar.' : 'No se pudo descargar el CV.', res.status);
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement('a'), { href: url, download: fileName });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}

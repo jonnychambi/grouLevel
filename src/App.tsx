@@ -12,6 +12,8 @@ const InstitutionDetailPage = lazy(() => import('./pages/InstitutionDetailPage')
 const PartnersPage = lazy(() => import('./pages/PartnersPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const FavoritesPage = lazy(() => import('./pages/FavoritesPage'));
+const RoutePage = lazy(() => import('./pages/RoutePage'));
+const RouteResultPage = lazy(() => import('./pages/RouteResultPage'));
 const MetricsPage = lazy(() => import('./pages/MetricsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
@@ -32,6 +34,8 @@ export default function App() {
         <Route path="institucion/:slug" element={<InstitutionDetailPage />} />
         <Route path="nosotros" element={<AboutPage />} />
         <Route path="favoritos" element={<FavoritesPage />} />
+        <Route path="mi-ruta" element={<RoutePage />} />
+        <Route path="mi-ruta/:id" element={<RouteResultPage />} />
         <Route path="interno/metricas" element={<MetricsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
