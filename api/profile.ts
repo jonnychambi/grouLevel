@@ -15,6 +15,8 @@ import { isStoreConfigured } from './_lib/store.js';
 import { detectCvType, extractCvText } from './_lib/cvText.js';
 import { newProfileId, readProfile, runAnalysis, saveProfile, toPublic, validateSubmission, type ProfileSubmission } from './_lib/profiles.js';
 import { PROFILE_LIMITS } from '../src/utils/profileAnalysis.js';
+import { mirror } from './_lib/db.js';
+import { upsertProfile } from './_lib/dbSync.js';
 
 export async function POST(request: Request): Promise<Response> {
   if (!isStoreConfigured()) return json(503, { error: 'store_not_configured', message: 'El diagnóstico no está disponible en este momento.' });
@@ -67,6 +69,7 @@ export async function POST(request: Request): Promise<Response> {
   };
   const analysis = await runAnalysis(submission);
   const record = await saveProfile(newProfileId(), analysis, file);
+  await mirror('profile', (sql) => upsertProfile(sql, record));
   return json(201, { profile: toPublic(record) });
 }
 

@@ -11,6 +11,8 @@
 import { findCourse, rateLimited } from './_lib/guard.js';
 import { json, readJson } from './_lib/http.js';
 import { publicReviews, publicSummary, submitReview } from './_lib/reviews.js';
+import { mirror } from './_lib/db.js';
+import { upsertReview } from './_lib/dbSync.js';
 import { isStoreConfigured } from './_lib/store.js';
 
 const CACHE = { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=600' };
@@ -33,5 +35,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = await submitReview(body, await findCourse(String(body.course_id ?? '')));
   if (!result.ok) return json(result.status, { error: 'invalid', message: result.message, errors: result.errors });
-  return json(201, { ok: true, id: result.review.id, status: result.review.status });
+  const { review, pathname } = result;
+  await mirror('review', (sql) => upsertReview(sql, review, pathname));
+  return json(201, { ok: true, id: review.id, status: review.status });
 }

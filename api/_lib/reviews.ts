@@ -55,7 +55,7 @@ async function readMany(paths: string[]): Promise<StoredReview[]> {
 
 /* ------------------------------------------------------------- Envío público */
 
-export async function submitReview(body: Record<string, unknown>, course: CourseRef | null): Promise<{ ok: true; review: Review } | { ok: false; status: number; message: string; errors?: string[] }> {
+export async function submitReview(body: Record<string, unknown>, course: CourseRef | null): Promise<{ ok: true; review: Review; pathname: string } | { ok: false; status: number; message: string; errors?: string[] }> {
   if (!course || !safeId(course.id)) return { ok: false, status: 422, message: 'El programa no existe.' };
   const input: Partial<ReviewInput> = {
     rating: typeof body.rating === 'number' ? body.rating : Number(body.rating),
@@ -94,8 +94,9 @@ export async function submitReview(body: Record<string, unknown>, course: Course
     reply: null,
     page_url: typeof body.page_url === 'string' ? body.page_url.slice(0, 500) : ''
   };
-  await writeJson(`${RAW}${course.id}/${now.replace(/[:.]/g, '-')}_${hash}_${review.id}.json`, review);
-  return { ok: true, review };
+  const pathname = `${RAW}${course.id}/${now.replace(/[:.]/g, '-')}_${hash}_${review.id}.json`;
+  await writeJson(pathname, review);
+  return { ok: true, review, pathname };
 }
 
 /* ------------------------------------------------------------ Lectura pública */

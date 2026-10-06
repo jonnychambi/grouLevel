@@ -109,6 +109,15 @@ Interpreta lenguaje natural (`"maestría de inteligencia artificial"`, `"curso d
 - El resultado vive en `/mi-ruta/<id>` (enlace privado, no indexado). En `/admin` → **Perfiles** se ven los diagnósticos, se descarga el CV, se exporta CSV, se marcan como contactados/descartados y se eliminan (borra también el CV). Solo se contacta a quien marcó que quiere ser contactado.
 - Límite: 6 diagnósticos por hora por IP. Evento GA: `generate_route`.
 
+## Base de datos (Supabase / PostgreSQL)
+
+- Proyecto Supabase **supabase-groulevel**, conectado a Vercel desde el Marketplace (variables `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, `SUPABASE_*`).
+- **Esquema**: `db/migrations/*.sql` (catálogo: `categories`, `institutions`, `courses`, `catalog_versions`, `catalog_changes`; comercial: `leads`; `reviews` + vistas `course_ratings` / `institution_ratings`; Mi ruta: `profiles`, `profile_education`, `profile_experience`, `profile_scores`, `profile_route_courses`; operación: `sync_runs`, `schema_migrations`). Cada tabla principal guarda además el registro original en `raw` (jsonb).
+- **Migraciones**: `npm run db:migrate` (o `db:status`). En Vercel se aplican solas en cada build de **producción** (en preview solo con `MIGRATE=1`); cada archivo se aplica una vez, en una transacción. Para agregar cambios: crear `db/migrations/002_<nombre>.sql`.
+- **Seguridad**: RLS activado sin políticas en todas las tablas → las claves públicas de Supabase (anon/publishable) no pueden leer nada; solo el servidor (conexión `postgres`) accede.
+- **Sincronización**: Vercel Blob sigue siendo la fuente principal. Cada escritura de la API (leads, reseñas, diagnósticos, catálogo, moderación, cambios de estado y borrados) se replica en la base (best effort: si la base falla, el sitio sigue funcionando). La primera vez que responde `/api/health` con la base conectada se copia todo lo existente; desde `/admin` → **Base de datos** se ve el estado y se puede forzar una sincronización completa (idempotente, reconcilia borrados).
+- `GET /api/health` → `{ ok, blob, db, migrations, initial_sync }` (sin datos sensibles).
+
 ## Lead scoring — Signal Score™ (0–100)
 `utils/leadScoring.ts`, configuración desacoplada (`DEFAULT_SCORING_CONFIG`):
 

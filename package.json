@@ -6,15 +6,18 @@
   "description": "Groulevel — comparador y marketplace de formación tecnológica (MVP)",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig.api.json && vite build && node scripts/postbuild.mjs",
+    "build": "node scripts/migrate.mjs && tsc -p tsconfig.json && tsc -p tsconfig.api.json && vite build && node scripts/postbuild.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.api.json",
     "test": "vitest run",
-    "data:template": "python3 scripts/make_import_template.py"
+    "data:template": "python3 scripts/make_import_template.py",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:status": "node scripts/migrate.mjs --status"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
     "@vercel/blob": "^2.8.0",
+    "postgres": "^3.4.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4",
@@ -22,6 +25,8 @@
     "unpdf": "^1.8.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",

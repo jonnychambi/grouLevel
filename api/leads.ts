@@ -11,6 +11,8 @@ import { json, readJson } from './_lib/http.js';
 import { buildLeadFromRequest, saveLead } from './_lib/leads.js';
 import { isStoreConfigured } from './_lib/store.js';
 import { findCourse, rateLimited } from './_lib/guard.js';
+import { mirror } from './_lib/db.js';
+import { upsertLead } from './_lib/dbSync.js';
 
 async function forwardWebhook(lead: unknown) {
   const url = process.env.LEAD_WEBHOOK_URL;
@@ -35,7 +37,8 @@ export async function POST(request: Request): Promise<Response> {
   const result = buildLeadFromRequest(body, course);
   if (!result.ok) return json(422, { error: 'invalid', message: 'Revisa los datos del formulario.', errors: result.errors });
 
-  await saveLead(result.lead);
+  const pathname = await saveLead(result.lead);
+  await mirror('lead', (sql) => upsertLead(sql, result.lead, pathname));
   await forwardWebhook(result.lead);
   const { id, lead_score, lead_tier, lead_segment, created_at, course_id, course_name, institution_id, institution_name, source } = result.lead;
   return json(201, { id, lead_score, lead_tier, lead_segment, created_at, course_id, course_name, institution_id, institution_name, source });

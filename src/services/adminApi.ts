@@ -132,3 +132,18 @@ export async function downloadProfileFile(id: string, fileName: string): Promise
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+/* ------------------------------------------------- Base de datos (Supabase) */
+
+export interface DbStatus {
+  configured: boolean;
+  connected?: boolean;
+  error?: string;
+  migrations?: { version: string; applied_at: string }[];
+  counts?: Record<'courses' | 'institutions' | 'categories' | 'catalog_versions' | 'catalog_changes' | 'leads' | 'reviews' | 'profiles', number>;
+  last_sync?: { id: number; started_at: string; finished_at: string | null; trigger: string; stats: Record<string, unknown> | null; error: string | null } | null;
+}
+
+export const fetchDbStatus = () => call<DbStatus>('db-status');
+
+export const runDbSync = () => call<{ stats: { versions: number; leads: number; reviews: number; profiles: number; ms: number; catalog: { courses: number; changes: number } | null; removed: Record<string, number> } }>('db-sync', { method: 'POST' });

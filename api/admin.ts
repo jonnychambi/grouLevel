@@ -17,6 +17,8 @@
  *   GET  /api/admin?action=profile-file&id=prf_…                    → CV original (descarga)
  *   POST /api/admin?action=profile   { id, status?, notes? }        → { profile }
  *   POST /api/admin?action=profile-delete { id }                    → { ok }   (borra también el CV)
+ *   GET  /api/admin?action=db-status                                → estado de Supabase (migraciones, conteos, última sync)
+ *   POST /api/admin?action=db-sync                                  → copia completa Blob → base de datos
  *
  * Todas las acciones salvo login requieren Authorization: Bearer <token>.
  */
@@ -27,6 +29,9 @@ import { validateCatalog, type CatalogPayload } from './_lib/validate.js';
 import { deleteLead, listLeads, updateLead } from './_lib/leads.js';
 import { deleteReview, listAllReviews, moderateReview } from './_lib/reviews.js';
 import { deleteProfile, listProfiles, profileFile, readProfile, updateProfile } from './_lib/profiles.js';
+import { getSql, isDbConfigured, mirror } from './_lib/db.js';
+import { blobSources } from './_lib/dbSources.js';
+import { dbStatus, deleteLeadRow, deleteProfileRow, deleteReviewRow, syncAll, upsertCatalog, upsertLead, upsertProfile, upsertReview } from './_lib/dbSync.js';
 
 const action = (request: Request) => new URL(request.url).searchParams.get('action') ?? '';
 
@@ -55,7 +60,9 @@ export async function POST(request: Request): Promise<Response> {
     if (!body?.pathname) return json(400, { error: 'bad_request', message: 'Falta la versión a restaurar.' });
     const data = await readVersion<CatalogPayload>(body.pathname);
     if (!data) return json(404, { error: 'not_found', message: 'La versión no existe.' });
-    const version = await writeVersion({ ...data, meta: { ...(data.meta ?? {}), restored_from: body.pathname, saved_at: new Date().toISOString() } }, 'restaurado');
+    const restored = { ...data, meta: { ...(data.meta ?? {}), restored_from: body.pathname, saved_at: new Date().toISOString() } };
+    const version = await writeVersion(restored, 'restaurado');
+    await mirror('catalog', (sql) => upsertCatalog(sql, restored, version), 20_000);
     return json(200, { version });
   }
   if (act === 'review' || act === 'review-delete') {
@@ -63,8 +70,13 @@ export async function POST(request: Request): Promise<Response> {
     if (denied) return denied;
     const body = await readJson<{ pathname?: string; status?: string; reply?: string; rejection_reason?: string }>(request);
     if (!body?.pathname) return json(400, { error: 'bad_request', message: 'Falta la reseña.' });
-    if (act === 'review-delete') return (await deleteReview(body.pathname)) ? json(200, { ok: true }) : json(404, { error: 'not_found' });
+    if (act === 'review-delete') {
+      if (!(await deleteReview(body.pathname))) return json(404, { error: 'not_found' });
+      await mirror('review-delete', (sql) => deleteReviewRow(sql, body.pathname!));
+      return json(200, { ok: true });
+    }
     const review = await moderateReview(body.pathname, body);
+    if (review) await mirror('review', (sql) => upsertReview(sql, review, review.pathname));
     return review ? json(200, { review }) : json(404, { error: 'not_found', message: 'La reseña no existe.' });
   }
   if (act === 'profile' || act === 'profile-delete') {
@@ -72,17 +84,38 @@ export async function POST(request: Request): Promise<Response> {
     if (denied) return denied;
     const body = await readJson<{ id?: string; status?: string; notes?: string }>(request);
     if (!body?.id) return json(400, { error: 'bad_request', message: 'Falta el diagnóstico.' });
-    if (act === 'profile-delete') return (await deleteProfile(body.id)) ? json(200, { ok: true }) : json(404, { error: 'not_found' });
+    if (act === 'profile-delete') {
+      if (!(await deleteProfile(body.id))) return json(404, { error: 'not_found' });
+      await mirror('profile-delete', (sql) => deleteProfileRow(sql, body.id!));
+      return json(200, { ok: true });
+    }
     const profile = await updateProfile(body.id, body);
+    if (profile) await mirror('profile', (sql) => upsertProfile(sql, profile));
     return profile ? json(200, { profile }) : json(404, { error: 'not_found', message: 'El diagnóstico no existe.' });
+  }
+  if (act === 'db-sync') {
+    const denied = guard(request);
+    if (denied) return denied;
+    if (!isDbConfigured()) return json(503, { error: 'db_not_configured', message: 'La base de datos no está conectada (faltan POSTGRES_URL en Vercel).' });
+    try {
+      const stats = await syncAll(getSql(), blobSources, 'admin');
+      return json(200, { stats });
+    } catch (err) {
+      return json(500, { error: 'db_sync_failed', message: `No se pudo sincronizar: ${err instanceof Error ? err.message : 'error desconocido'}` });
+    }
   }
   if (act === 'lead' || act === 'lead-delete') {
     const denied = guard(request);
     if (denied) return denied;
     const body = await readJson<{ pathname?: string; status?: string; notes?: string }>(request);
     if (!body?.pathname) return json(400, { error: 'bad_request', message: 'Falta el lead.' });
-    if (act === 'lead-delete') return (await deleteLead(body.pathname)) ? json(200, { ok: true }) : json(404, { error: 'not_found' });
+    if (act === 'lead-delete') {
+      if (!(await deleteLead(body.pathname))) return json(404, { error: 'not_found' });
+      await mirror('lead-delete', (sql) => deleteLeadRow(sql, body.pathname!));
+      return json(200, { ok: true });
+    }
     const lead = await updateLead(body.pathname, body);
+    if (lead) await mirror('lead', (sql) => upsertLead(sql, lead, lead.pathname));
     return lead ? json(200, { lead }) : json(404, { error: 'not_found', message: 'El lead no existe.' });
   }
   return json(404, { error: 'unknown_action' });
@@ -97,6 +130,14 @@ export async function GET(request: Request): Promise<Response> {
     return json(200, { catalog: latest?.data ?? null, version: latest?.version ?? null });
   }
   if (act === 'versions') return json(200, { versions: await listVersions() });
+  if (act === 'db-status') {
+    if (!isDbConfigured()) return json(200, { configured: false });
+    try {
+      return json(200, { configured: true, connected: true, ...(await dbStatus(getSql())) });
+    } catch (err) {
+      return json(200, { configured: true, connected: false, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
   if (act === 'reviews') return json(200, { reviews: await listAllReviews() });
   if (act === 'profiles') {
     const limit = Math.min(2000, Math.max(1, Number(new URL(request.url).searchParams.get('limit')) || 300));
@@ -132,5 +173,6 @@ export async function PUT(request: Request): Promise<Response> {
   }
   const catalog = { ...result.catalog, meta: { saved_at: new Date().toISOString(), note: body.note ?? '' } };
   const version = await writeVersion(catalog, body.note ?? 'edicion');
+  await mirror('catalog', (sql) => upsertCatalog(sql, catalog, version), 20_000);
   return json(200, { version });
 }

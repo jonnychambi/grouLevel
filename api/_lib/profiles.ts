@@ -219,3 +219,15 @@ export async function profileFile(id: string): Promise<Response | null> {
     }
   });
 }
+
+/** Ids de todos los diagnósticos guardados (para la sincronización con la base de datos). */
+export async function listProfileIds(): Promise<string[]> {
+  const ids: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix: PREFIX, limit: 1000, cursor });
+    ids.push(...page.blobs.map((b) => b.pathname.slice(PREFIX.length).replace(/\.json$/, '')).filter((id) => ID_RE.test(id)));
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  return ids;
+}

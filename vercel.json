@@ -82,6 +82,9 @@
   "functions": {
     "api/profile.ts": {
       "maxDuration": 300
+    },
+    "api/admin.ts": {
+      "maxDuration": 300
     }
   }
 }
