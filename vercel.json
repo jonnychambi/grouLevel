@@ -72,11 +72,11 @@
   "rewrites": [
     {
       "source": "/admin/:path+",
-      "destination": "/admin/index.html"
+      "destination": "/admin"
     },
     {
       "source": "/mi-ruta/:id",
-      "destination": "/mi-ruta/index.html"
+      "destination": "/mi-ruta"
     }
   ],
   "functions": {
