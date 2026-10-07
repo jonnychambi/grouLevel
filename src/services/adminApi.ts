@@ -148,3 +148,35 @@ export interface DbStatus {
 export const fetchDbStatus = () => call<DbStatus>('db-status');
 
 export const runDbImport = () => call<{ stats: { versions: number; leads: number; reviews: number; profiles: number; ms: number; skipped: Record<string, number> } }>('db-import', { method: 'POST' });
+
+/* ---------------------------------------------------- Actualización de programas */
+
+export type RefreshFrequency = 'diario' | 'semanal' | 'desactivado';
+export interface RefreshSettings { frequency: RefreshFrequency; batch_size: number }
+export interface FieldChange { field: string; label: string; current: unknown; proposed: unknown }
+export interface ProgramUpdate {
+  id: number; course_id: string; course_name: string; detected_at: string; status: 'pendiente' | 'aplicada' | 'descartada'; changes: FieldChange[];
+  source_url: string | null; method: 'ia' | 'huella'; model: string | null; input_tokens: number; output_tokens: number;
+  decided_at: string | null; version: string | null; note: string | null;
+}
+export type CheckStatus = 'sin_cambios' | 'cambios' | 'error' | 'sin_contenido';
+export interface ProgramCheck { course_id: string; last_checked_at: string; last_status: CheckStatus; http_status: number | null; last_error: string | null; last_changed_at: string | null }
+export interface RefreshRun { id: number; trigger: string; started_at: string; finished_at: string | null; checked: number; unchanged: number; changed: number; errors: number; ai_calls: number; input_tokens: number; output_tokens: number }
+export interface RefreshOverview {
+  settings: RefreshSettings;
+  ai: { configured: boolean; model: string };
+  usage_30d: { input_tokens: number; output_tokens: number; ai_calls: number; runs: number; estimated_usd: number };
+  pending: ProgramUpdate[];
+  recent: ProgramUpdate[];
+  runs: RefreshRun[];
+  checks: ProgramCheck[];
+}
+export interface RefreshSummary { checked: number; unchanged: number; changed: number; errors: number; ai_calls: number; input_tokens: number; output_tokens: number; remaining: number }
+export interface CheckResult { course_id: string; status: CheckStatus; changes: FieldChange[]; ai_used: boolean; usage: { input_tokens: number; output_tokens: number }; http_status: number | null; error?: string }
+
+export const fetchRefresh = () => call<RefreshOverview>('refresh');
+export const saveRefreshSettings = (settings: Partial<RefreshSettings>) => call<{ settings: RefreshSettings }>('refresh-settings', { method: 'POST', body: JSON.stringify(settings) });
+export const runRefreshNow = () => call<{ summary: RefreshSummary }>('refresh-run', { method: 'POST' });
+export const checkProgram = (course_id: string) => call<{ result: CheckResult }>('refresh-check', { method: 'POST', body: JSON.stringify({ course_id }) });
+export const applyProgramUpdate = (id: number, fields: string[]) => call<{ version: VersionInfo }>('refresh-apply', { method: 'POST', body: JSON.stringify({ id, fields }) });
+export const discardProgramUpdate = (id: number) => call<{ ok: true }>('refresh-discard', { method: 'POST', body: JSON.stringify({ id }) });

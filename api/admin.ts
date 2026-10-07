@@ -20,6 +20,12 @@
  *   POST /api/admin?action=profile-delete { id }                    → { ok }   (borra también el CV)
  *   GET  /api/admin?action=db-status                                → estado de la base (migraciones, conteos, última importación)
  *   POST /api/admin?action=db-import                                → importa datos antiguos de Blob (no destructivo)
+ *   GET  /api/admin?action=refresh                                  → actualización de programas: configuración, propuestas, ejecuciones, consumo
+ *   POST /api/admin?action=refresh-settings { frequency, batch_size } → { settings }
+ *   POST /api/admin?action=refresh-run                              → revisa un lote ahora → { summary }
+ *   POST /api/admin?action=refresh-check { course_id }              → revisa un programa leyendo su link → { result }
+ *   POST /api/admin?action=refresh-apply { id, fields? }            → aplica la propuesta (todos o algunos campos) → { version, update }
+ *   POST /api/admin?action=refresh-discard { id }                   → { ok }
  *
  * Todas las acciones salvo login requieren Authorization: Bearer <token>.
  */
@@ -33,6 +39,7 @@ import { getSql, isDbConfigured } from './_lib/db.js';
 import { dbStatus, importFromBlob } from './_lib/dbSync.js';
 import { getCurrentCatalog, listVersions, publishCatalog, readVersion, VersionConflictError } from './_lib/catalogRepo.js';
 import { legacyBlobSources } from './_lib/legacyBlob.js';
+import { applyUpdate, checkOne, discardUpdate, refreshOverview, runRefresh, saveSettings, UpdateNotPendingError, type RefreshSettings } from './_lib/programRefresh.js';
 
 const action = (request: Request) => new URL(request.url).searchParams.get('action') ?? '';
 
@@ -86,6 +93,30 @@ export async function POST(request: Request): Promise<Response> {
     const lead = await updateLead(body.pathname, body);
     return lead ? json(200, { lead }) : json(404, { error: 'not_found', message: 'El lead no existe.' });
   }
+  if (act === 'refresh-settings') {
+    const body = await readJson<Partial<RefreshSettings>>(request);
+    return json(200, { settings: await saveSettings(body ?? {}) });
+  }
+  if (act === 'refresh-run') return json(200, { summary: await runRefresh('admin', { timeBudgetMs: 240_000 }) });
+  if (act === 'refresh-check') {
+    const body = await readJson<{ course_id?: string }>(request);
+    if (!body?.course_id) return json(400, { error: 'bad_request', message: 'Falta el programa.' });
+    const result = await checkOne(body.course_id);
+    return result ? json(200, { result }) : json(404, { error: 'not_found', message: 'El programa no existe en el catálogo publicado.' });
+  }
+  if (act === 'refresh-apply' || act === 'refresh-discard') {
+    const body = await readJson<{ id?: number; fields?: string[] }>(request);
+    const id = Number(body?.id);
+    if (!Number.isInteger(id)) return json(400, { error: 'bad_request', message: 'Falta la propuesta.' });
+    if (act === 'refresh-discard') return (await discardUpdate(id)) ? json(200, { ok: true }) : json(404, { error: 'not_found', message: 'La propuesta no está pendiente.' });
+    try {
+      const out = await applyUpdate(id, Array.isArray(body?.fields) ? body.fields.map(String) : null);
+      return out ? json(200, out) : json(404, { error: 'not_found', message: 'La propuesta no existe.' });
+    } catch (err) {
+      if (err instanceof UpdateNotPendingError) return json(409, { error: 'conflict', message: err.message });
+      throw err;
+    }
+  }
   if (act === 'db-import') {
     try {
       return json(200, { stats: await importFromBlob(getSql(), legacyBlobSources, 'admin') });
@@ -116,6 +147,7 @@ export async function GET(request: Request): Promise<Response> {
     return json(200, { catalog: current?.data ?? null, version: current?.version ?? null });
   }
   if (act === 'versions') return json(200, { versions: await listVersions() });
+  if (act === 'refresh') return json(200, await refreshOverview());
   if (act === 'reviews') return json(200, { reviews: await listAllReviews() });
   if (act === 'profiles') return json(200, await listProfiles(Math.min(2000, Math.max(1, Number(params.get('limit')) || 300))));
   if (act === 'profile' || act === 'profile-file') {

@@ -88,6 +88,15 @@
     },
     "api/admin.ts": {
       "maxDuration": 300
+    },
+    "api/cron.ts": {
+      "maxDuration": 300
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "0 9 * * *"
+    }
+  ]
 }

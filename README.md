@@ -125,6 +125,16 @@ Interpreta lenguaje natural (`"maestría de inteligencia artificial"`, `"curso d
 - `GET /api/health` → `{ ok, db, blob, migrations }`.
 - Pruebas del API contra PostgreSQL real embebido (PGlite).
 
+## Actualización automática de programas (`/admin` → Actualizaciones)
+
+Revisa el link oficial de cada programa y propone cambios; **nada se publica sin que el administrador lo apruebe**.
+
+- **Frecuencia**: diario, semanal (el catálogo se reparte en 7 días) o desactivado. Vercel Cron llama a `/api/cron` todos los días a las 4:00 a. m. (Lima) y solo revisa los programas que tocan. Requiere la variable `CRON_SECRET`.
+- **Por programa**: "Revisar link" lee la página en ese momento (siempre consulta la IA); "Editar" abre el editor para cambios manuales. "Revisar lote ahora" ejecuta un lote completo.
+- **Ahorro de fichas**: la página se reduce al texto relevante (precio, inicio, duración, modalidad, horario, cuotas, inscripciones; máx. ~5 000 caracteres) y se calcula una huella. Si la huella no cambió, no se llama al modelo. Cuando cambia, `claude-haiku-5-5` (configurable con `REFRESH_AI_MODEL`) extrae los datos con salida estructurada, sin razonamiento extendido y un límite bajo de salida (~1–2 mil fichas por consulta). La comparación la hace el código: un dato que la página no muestra nunca borra el actual, las fechas pasadas se ignoran.
+- **Propuestas**: muestran valor actual vs. página; se aplican todas o por campo (publica una nueva versión del catálogo, con historial) o se descartan. Sin `ANTHROPIC_API_KEY` solo se avisa que la página cambió, para revisarla a mano.
+- Tablas: `program_checks`, `program_updates`, `refresh_runs`, `app_settings` (migración 004). Las páginas que se cargan solo con JavaScript o bloquean robots aparecen como "Sin contenido" / "Error".
+
 ## Lead scoring — Signal Score™ (0–100)
 `utils/leadScoring.ts`, configuración desacoplada (`DEFAULT_SCORING_CONFIG`):
 
