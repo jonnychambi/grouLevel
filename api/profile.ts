@@ -69,7 +69,7 @@ export async function POST(request: Request): Promise<Response> {
     file
   };
   const analysis = await runAnalysis(submission);
-  const record = await saveProfile(newProfileId(), analysis, file);
+  const record = await saveProfile(newProfileId(), analysis, file, submission.text || null);
   return json(201, { profile: toPublic(record) });
 }
 

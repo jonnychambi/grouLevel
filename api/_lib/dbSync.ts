@@ -145,9 +145,12 @@ export const upsertReview = (sql: Sql, review: Review) => upsertRows(sql, 'revie
 
 /* ─────────────────────── Diagnósticos (Mi ruta) ─────────────────────── */
 
-export async function upsertProfile(sql: Sql, p: ProfileAnalysis): Promise<void> {
+/** Guarda el diagnóstico completo: columnas consultables, tablas hijas y el registro original. `cvText` solo se escribe si se entrega. */
+export async function upsertProfile(sql: Sql, p: ProfileAnalysis, cvText?: string | null): Promise<void> {
   const x = p.extract;
   const per = x.personal;
+  const gap = p.diagnosis?.gap;
+  const prefs = p.preferences;
   await sql.begin(async (tx) => {
     const t = tx as unknown as Sql;
     await upsertRows(t, 'profiles', [{
@@ -156,12 +159,18 @@ export async function upsertProfile(sql: Sql, p: ProfileAnalysis): Promise<void>
       country: per.country, city: per.city, linkedin: per.linkedin, current_position: x.current_role, current_company: x.current_company, headline: x.headline,
       seniority: x.seniority, years_experience: x.years_experience, highest_degree: x.highest_degree, current_studies: x.current_studies,
       certifications: x.certifications, languages: t.json(x.languages as never), tools: x.tools, summary: p.evaluation.summary,
-      strengths: p.evaluation.strengths, gaps: p.evaluation.gaps, target_role: p.route.target_role, target_areas: p.route.target_areas,
+      strengths: p.evaluation.strengths, gaps: p.evaluation.gaps, target_role: gap?.target_role ?? p.route.target_role, target_areas: gap?.target_areas ?? p.route.target_areas,
+      target_role_input: prefs.target_role ?? null, target_level: gap?.target_level ?? null, readiness: gap?.readiness ?? null, time_estimate: gap?.time_estimate ?? null,
+      expected_salary: prefs.expected_salary ?? null, expected_salary_currency: prefs.expected_salary ? prefs.salary_currency ?? 'PEN' : null,
+      target_salary_min: gap?.target_salary?.min ?? null, target_salary_max: gap?.target_salary?.max ?? null, target_salary_currency: gap?.target_salary?.currency ?? null,
+      salary_comparison: gap?.salary_comparison ?? null, modality: prefs.modality, budget_pen: prefs.budget_pen, hours_per_week: prefs.hours_per_week,
+      diagnosis: p.diagnosis ? t.json(p.diagnosis as never) : null, studies: p.studies ? t.json(p.studies as never) : null,
       cv_blob_path: p.file?.pathname ?? null, cv_file_name: p.file?.name ?? null, cv_file_type: p.file?.type ?? null, cv_file_size: p.file?.size ?? null,
       contact_ok: p.contact_ok, status: p.status, notes: p.notes,
       analysis: t.json({ extract: p.extract, evaluation: p.evaluation, route: p.route } as never), raw: t.json(p as never)
     }]);
-    for (const table of ['profile_education', 'profile_experience', 'profile_scores', 'profile_route_courses']) await t`delete from ${t(table)} where profile_id = ${p.id}`;
+    if (cvText !== undefined && cvText !== null) await t`update profiles set cv_text = ${cvText.slice(0, 60_000)} where id = ${p.id}`;
+    for (const table of ['profile_education', 'profile_experience', 'profile_scores', 'profile_route_courses', 'profile_suggested_roles', 'profile_gap_items', 'profile_studies']) await t`delete from ${t(table)} where profile_id = ${p.id}`;
     const edu = x.education.map((e, i) => ({ profile_id: p.id, position: i, degree: e.degree, field: e.field, institution: e.institution, level: e.level, status: e.status, end_year: e.end_year }));
     const exp = x.experience.map((e, i) => ({ profile_id: p.id, position: i, role: e.role, company: e.company, start_year: e.start_year, end_year: e.end_year, is_current: e.current }));
     const seen = new Set<string>();
@@ -175,6 +184,13 @@ export async function upsertProfile(sql: Sql, p: ProfileAnalysis): Promise<void>
     if (exp.length) await t`insert into profile_experience ${t(exp)}`;
     if (scores.length) await t`insert into profile_scores ${t(scores)}`;
     if (route.length) await t`insert into profile_route_courses ${t(route)}`;
+    const roles = (p.diagnosis?.suggested_roles ?? []).map((r, i) => ({ profile_id: p.id, position: i, title: r.title, category_id: r.area_id, level: r.level, fit: r.fit, reason: r.reason, salary_min: r.salary?.min ?? null, salary_max: r.salary?.max ?? null, salary_currency: r.salary?.currency ?? null }));
+    const gapItems = (gap?.items ?? []).map((it, i) => ({ profile_id: p.id, position: i, kind: it.kind, name: it.name, current_value: Math.round(it.current), required_value: Math.round(it.required), note: it.note }));
+    const studies = [...(p.studies?.short_term ?? []), ...(p.studies?.long_term ?? [])].map((st) => ({ profile_id: p.id, term: st.term, course_id: st.course_id, reason: st.reason, covers: st.covers }));
+    const studyRows = studies.map((st, i) => ({ ...st, position: studies.slice(0, i).filter((o) => o.term === st.term).length }));
+    if (roles.length) await t`insert into profile_suggested_roles ${t(roles)}`;
+    if (gapItems.length) await t`insert into profile_gap_items ${t(gapItems)}`;
+    if (studyRows.length) await t`insert into profile_studies ${t(studyRows)}`;
   });
 }
 

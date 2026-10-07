@@ -99,14 +99,19 @@ Interpreta lenguaje natural (`"maestría de inteligencia artificial"`, `"curso d
 - El sitio lee `GET /api/reviews?summary=1` (caché CDN ~1 min) y muestra la valoración en cada tarjeta de programa, en la ficha (sección "Valoraciones") y en las tarjetas/fichas de institución.
 - Evento GA: `review_submitted`.
 
-## Mi ruta — diagnóstico de perfil y ruta de formación (`/mi-ruta`)
+## Analiza mi perfil — diagnóstico y estudios (`/mi-ruta`)
 
-- La persona **sube su CV** (PDF, Word .docx o TXT, máx. 4 MB) **o describe** su posición y formación, y escribe su **objetivo** (más preferencias opcionales: modalidad, presupuesto, horas por semana).
-- `POST /api/profile` guarda el **CV original** en Blob privado (`profiles-files/<id>.<ext>`) y el **análisis** en la base (`profiles` y tablas hijas). Se extraen: nombres, apellidos, email, teléfono, país, ciudad, LinkedIn, posición y empresa actual, seniority, años de experiencia, grado más alto, formación actual, estudios (grado, universidad, estado), experiencia, certificaciones, idiomas y herramientas.
-- **Evaluación**: puntaje 0–100 y nivel (básico/intermedio/avanzado/experto) en cada materia del catálogo (las categorías), habilidades técnicas y 10 habilidades blandas, con evidencia, fortalezas y brechas frente al objetivo.
-- **Ruta**: 2–4 etapas (fundamentos → especialización → dominio) desde el nivel actual, con programas reales del catálogo que respetan modalidad y presupuesto, y se pueden comparar.
-- **Motor**: con `ANTHROPIC_API_KEY` configurada, el análisis lo hace Claude (`claude-opus-5-5`, salida JSON estructurada; el PDF se le envía como documento). Sin clave, o si la IA falla, se usa el motor por reglas (`src/utils/profileAnalysis.ts`). El resultado siempre se sanea en el servidor (niveles coherentes, solo programas existentes).
-- El resultado vive en `/mi-ruta/<id>` (enlace privado, no indexado). En `/admin` → **Perfiles** se ven los diagnósticos, se descarga el CV, se exporta CSV, se marcan como contactados/descartados y se eliminan (borra también el CV). Solo se contacta a quien marcó que quiere ser contactado.
+- Acceso destacado: botón **"Analiza mi perfil"** en el header (y menú móvil) y tarjeta bajo el buscador del home.
+- La persona **sube su CV** (PDF, Word .docx o TXT, máx. 4 MB) **o describe** su perfil, escribe su **objetivo**, el **rol objetivo** y el **salario mensual que espera** en ese rol (más modalidad, presupuesto y horas por semana, opcionales).
+- **Resultado, en este orden:**
+  1. **Diagnóstico**: resumen del perfil; principales habilidades técnicas y blandas con **escala exigente** (1–39 básico · 40–64 intermedio · 65–84 avanzado; nunca "experto" a partir de un CV, ni con IA); **puestos a los que puede postular hoy** con salario referencial; **brecha con el rol objetivo** (preparación %, materias, herramientas, habilidades blandas y años de experiencia requeridos vs. actuales, tiempo estimado, salario referencial del rol vs. salario esperado).
+  2. **Qué estudiar**: hasta 5 opciones de **corto plazo** (cursos, diplomados, bootcamps, especializaciones, certificaciones; respetan el presupuesto) y hasta 5 de **largo plazo** (maestrías) del catálogo.
+  3. Plan por etapas, conocimientos por materia y datos del CV.
+- **Privacidad**: la página y la API pública no exponen correo, teléfono ni LinkedIn; esos datos solo los ve el administrador.
+- **Salarios**: rangos referenciales mensuales brutos para Lima por familia de puestos y nivel (`src/utils/profileAnalysis.ts`); con IA, Claude los estima para el país de la persona. Se muestran siempre como referenciales.
+- **Motor**: con `ANTHROPIC_API_KEY`, Claude (`claude-opus-5-5`, salida JSON estructurada; el PDF se le envía como documento). Sin clave, o si falla, el motor por reglas. El resultado siempre se sanea en el servidor (topes de puntaje, niveles, solo programas existentes y del tipo correcto).
+- **Base de datos** (todo se guarda): `profiles` (datos extraídos, rol objetivo, salario esperado, preparación, rango salarial, preferencias, diagnóstico y estudios en jsonb, texto del CV), `profile_education`, `profile_experience`, `profile_scores`, `profile_route_courses`, `profile_suggested_roles`, `profile_gap_items` y `profile_studies`. El CV original va a Vercel Blob.
+- En `/admin` → **Perfiles**: rol objetivo, preparación, salario esperado, puestos sugeridos, estudios, descarga del CV, CSV, estado y borrado.
 - Límite: 6 diagnósticos por hora por IP. Evento GA: `generate_route`.
 
 ## Base de datos (Supabase / PostgreSQL) — fuente principal

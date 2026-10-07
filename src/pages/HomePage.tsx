@@ -93,6 +93,16 @@ export default function HomePage() {
 
           <SearchBar size="hero" source="home" className="mt-8 max-w-3xl" />
 
+          <Link to="/mi-ruta" className="group mt-4 flex max-w-3xl items-center gap-4 rounded-2xl border border-violet/40 bg-violet/10 p-4 transition-colors hover:border-violet/70 hover:bg-violet/15">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet to-blue text-white"><Icon name="sparkle" size={20} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium text-white">¿No sabes qué estudiar? Analiza mi perfil</span>
+              <span className="block text-sm text-gray">Sube tu CV y descubre tu brecha con el rol que buscas, tu salario referencial y qué estudiar.</span>
+            </span>
+            <span className="btn btn-accent btn-sm hidden shrink-0 sm:inline-flex">Analiza mi perfil <Icon name="arrow-right" size={15} className="transition-transform group-hover:translate-x-0.5" /></span>
+            <Icon name="arrow-right" size={18} className="shrink-0 text-violet-soft sm:hidden" />
+          </Link>
+
           <div className="mt-5 flex max-w-3xl flex-wrap items-center gap-2">
             <span className="mr-1 text-sm text-muted">Búsquedas populares:</span>
             {POPULAR_SEARCHES.map((s) => (
@@ -172,11 +182,11 @@ export default function HomePage() {
             <div>
               <p className="eyebrow">Nuevo · Diagnóstico de perfil</p>
               <h2 id="route-title" className="mt-3 text-3xl text-white sm:text-4xl">¿No sabes por dónde empezar? <span className="grad-text">Sube tu CV.</span></h2>
-              <p className="mt-3 max-w-xl text-gray">Evaluamos tus conocimientos por materia y tus habilidades técnicas y blandas, y te proponemos una ruta de formación por etapas hacia tu objetivo, con programas reales que puedes comparar.</p>
-              <Link to="/mi-ruta" className="btn btn-accent mt-6">Armar mi ruta <Icon name="arrow-right" size={17} /></Link>
+              <p className="mt-3 max-w-xl text-gray">Evaluamos con criterio exigente tus habilidades técnicas y blandas, te mostramos los puestos a los que puedes postular hoy, la brecha con el rol que buscas y su salario referencial, y qué estudiar a corto y largo plazo.</p>
+              <Link to="/mi-ruta" className="btn btn-accent mt-6">Analiza mi perfil <Icon name="arrow-right" size={17} /></Link>
             </div>
             <ol className="space-y-3">
-              {['Sube tu CV o describe tu perfil', 'Cuéntanos tu objetivo', 'Recibe tu diagnóstico y tu ruta'].map((t, i) => (
+              {['Sube tu CV o describe tu perfil', 'Indica el rol al que quieres llegar', 'Recibe tu diagnóstico y qué estudiar'].map((t, i) => (
                 <li key={t} className="flex items-center gap-3 rounded-xl border border-line bg-navy/40 px-4 py-3">
                   <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-cyan/50 font-mono text-sm text-cyan">{i + 1}</span>
                   <span className="text-white">{t}</span>

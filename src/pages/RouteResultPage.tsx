@@ -9,9 +9,9 @@ import { useCatalog } from '../hooks/useCatalog';
 import { useCompare } from '../hooks/useCompare';
 import { useSeo } from '../hooks/useSeo';
 import { fetchProfile } from '../services/profileService';
-import { formatDate, initials } from '../utils/format';
-import { EDUCATION_LABELS, PROFICIENCY_LABELS, SENIORITY_LABELS } from '../utils/profileAnalysis';
-import type { ProficiencyLevel, PublicProfileAnalysis, SkillScore } from '../types';
+import { formatDate, formatMoney, initials } from '../utils/format';
+import { EDUCATION_LABELS, PROFICIENCY_LABELS, ROLE_LEVEL_LABELS, SENIORITY_LABELS } from '../utils/profileAnalysis';
+import type { CourseWithInstitution, GapItem, ProficiencyLevel, PublicProfileAnalysis, RoleGap, SalaryRange, SkillScore, StudyOption, SuggestedRole } from '../types';
 
 const LEVEL_COLOR: Record<ProficiencyLevel, string> = {
   'sin-evidencia': 'bg-line-strong',
@@ -58,6 +58,138 @@ const Fact = ({ label, value }: { label: string; value: ReactNode }) => (
   </div>
 );
 
+const salaryText = (r: SalaryRange) => `${formatMoney(r.min, r.currency)} – ${formatMoney(r.max, r.currency)} / mes`;
+
+function Meter({ value, tone = 'bg-cyan', label }: { value: number; tone?: string; label: string }) {
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-raise" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} aria-label={label}>
+      <div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(value, 2)}%` }} />
+    </div>
+  );
+}
+
+function RoleCard({ role }: { role: SuggestedRole }) {
+  return (
+    <li className="card flex flex-col p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="violet">{ROLE_LEVEL_LABELS[role.level]}</Badge>
+        {role.area && <span className="text-xs text-muted">{role.area}</span>}
+      </div>
+      <h4 className="mt-3 text-lg leading-snug text-white">{role.title}</h4>
+      <p className="mt-2 flex-1 text-sm text-gray">{role.reason}</p>
+      <div className="mt-4">
+        <div className="mb-1.5 flex justify-between text-xs"><span className="text-gray">Preparación hoy</span><span className="font-mono text-white">{role.fit}%</span></div>
+        <Meter value={role.fit} tone="bg-blue" label={`Preparación para ${role.title}: ${role.fit}%`} />
+      </div>
+      {role.salary && <p className="mt-4 border-t border-line pt-3 text-sm text-white"><span className="label-mono mr-2">Salario ref.</span>{salaryText(role.salary)}</p>}
+    </li>
+  );
+}
+
+const GAP_GROUPS: { kind: GapItem['kind']; title: string }[] = [
+  { kind: 'area', title: 'Conocimiento por materia' },
+  { kind: 'tecnica', title: 'Herramientas clave' },
+  { kind: 'blanda', title: 'Habilidades blandas' },
+  { kind: 'experiencia', title: 'Experiencia' }
+];
+
+function GapRow({ item }: { item: GapItem }) {
+  const years = item.kind === 'experiencia';
+  const met = item.current >= item.required;
+  const max = years ? Math.max(item.required, item.current, 1) : 100;
+  return (
+    <li>
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className="flex items-center gap-2 text-white">
+          {met ? <Icon name="check" size={14} className="text-pos" /> : <span className="h-2 w-2 rounded-full bg-warn" aria-hidden="true" />}
+          {item.name}
+        </span>
+        <span className="shrink-0 font-mono text-xs text-gray">
+          {years ? `${item.current} de ${item.required} años` : <>hoy <span className="text-white">{item.current}</span> · requerido {item.required}</>}
+        </span>
+      </div>
+      <div className="relative mt-1.5 h-2 rounded-full bg-raise" role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={item.current} aria-label={`${item.name}: ${item.current} de ${item.required}`}>
+        <div className={`h-full rounded-full ${met ? 'bg-pos' : 'bg-warn'}`} style={{ width: `${Math.min(100, Math.max((item.current / max) * 100, 2))}%` }} />
+        <span className="absolute -top-1 h-4 w-0.5 rounded bg-white/80" style={{ left: `${Math.min(100, (item.required / max) * 100)}%` }} aria-hidden="true" title="Requerido" />
+      </div>
+      {item.note && <p className="mt-1 text-xs text-muted">{item.note}</p>}
+    </li>
+  );
+}
+
+const COMPARISON: Record<NonNullable<RoleGap['salary_comparison']>, { text: string; tone: 'success' | 'warning' | 'neutral' }> = {
+  dentro: { text: 'Dentro del rango referencial', tone: 'success' },
+  debajo: { text: 'Por debajo del rango: tienes margen para negociar', tone: 'neutral' },
+  encima: { text: 'Por encima del rango referencial', tone: 'warning' }
+};
+
+function GapPanel({ gap }: { gap: RoleGap }) {
+  return (
+    <div className="card p-5 sm:p-6">
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+        <div>
+          <p className="label-mono">Rol objetivo</p>
+          <h4 className="mt-2 text-2xl text-white">{gap.target_role}</h4>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Badge tone="violet">{ROLE_LEVEL_LABELS[gap.target_level]}</Badge>
+            {gap.target_areas.map((a) => <Badge key={a} tone="live">{a}</Badge>)}
+          </div>
+          <div className="mt-6 flex items-end gap-3">
+            <span className="tnum text-5xl font-semibold text-white">{gap.readiness}%</span>
+            <span className="pb-2 text-sm text-gray">de preparación hoy</span>
+          </div>
+          <div className="mt-3"><Meter value={gap.readiness} tone={gap.readiness >= 70 ? 'bg-pos' : gap.readiness >= 45 ? 'bg-blue' : 'bg-warn'} label={`Preparación para ${gap.target_role}: ${gap.readiness}%`} /></div>
+          <p className="mt-4 text-gray">{gap.summary}</p>
+          <dl className="mt-5 grid gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <div><dt className="label-mono">Tiempo estimado</dt><dd className="mt-1 text-white">{gap.time_estimate}</dd></div>
+            {gap.target_salary && <div><dt className="label-mono">Salario referencial</dt><dd className="mt-1 text-white">{salaryText(gap.target_salary)}</dd></div>}
+            {gap.expected_salary && (
+              <div className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                <dt className="label-mono">Tu expectativa</dt>
+                <dd className="mt-1 flex flex-wrap items-center gap-2 text-white">
+                  {formatMoney(gap.expected_salary.amount, gap.expected_salary.currency)} / mes
+                  {gap.salary_comparison && <Badge tone={COMPARISON[gap.salary_comparison].tone}>{COMPARISON[gap.salary_comparison].text}</Badge>}
+                </dd>
+              </div>
+            )}
+          </dl>
+          {gap.target_salary && <p className="mt-3 text-xs text-muted">{gap.target_salary.note}</p>}
+        </div>
+        <div className="space-y-6">
+          {GAP_GROUPS.map(({ kind, title }) => {
+            const items = gap.items.filter((i) => i.kind === kind);
+            if (!items.length) return null;
+            return (
+              <div key={kind}>
+                <h5 className="label-mono">{title}</h5>
+                <ul className="mt-3 space-y-4">{items.map((it) => <GapRow key={`${kind}-${it.name}`} item={it} />)}</ul>
+              </div>
+            );
+          })}
+          <p className="flex items-center gap-2 text-xs text-muted"><span className="inline-block h-3 w-0.5 rounded bg-white/80" aria-hidden="true" />Marca blanca: nivel requerido para el rol.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StudyList({ items, courseOf, loading, empty }: { items: StudyOption[]; courseOf: (id: string) => CourseWithInstitution | undefined; loading: boolean; empty: string }) {
+  if (!items.length) return <p className="card p-5 text-sm text-gray">{empty}</p>;
+  return (
+    <ol className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {items.map((s, i) => {
+        const c = courseOf(s.course_id);
+        return (
+          <li key={s.course_id} className="flex flex-col gap-2">
+            <p className="flex gap-2 text-sm text-gray"><span className="font-mono text-cyan">{String(i + 1).padStart(2, '0')}</span>{s.reason}</p>
+            <div className="flex-1">{c ? <CourseCard course={c} source="ruta" /> : loading ? <CourseCardSkeleton /> : <p className="card p-5 text-sm text-muted">Este programa ya no está disponible en el catálogo.</p>}</div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export default function RouteResultPage() {
   const { id = '' } = useParams();
   const location = useLocation();
@@ -66,8 +198,9 @@ export default function RouteResultPage() {
   const { catalog, loading } = useCatalog();
   const { replace } = useCompare();
   const [showAllAreas, setShowAllAreas] = useState(false);
+  const [showAllSkills, setShowAllSkills] = useState(false);
   const [copied, setCopied] = useState(false);
-  useSeo({ title: 'Tu diagnóstico y ruta de formación', path: `/mi-ruta/${id}`, noindex: true });
+  useSeo({ title: 'Diagnóstico de tu perfil', path: `/mi-ruta/${id}`, noindex: true });
 
   useEffect(() => {
     if (profile?.id === id) return;
@@ -99,6 +232,11 @@ export default function RouteResultPage() {
   const withEvidence = areas.filter((a) => a.score > 0);
   const visibleAreas = showAllAreas ? areas : withEvidence.slice(0, 8);
   const softSorted = [...ev.soft_skills].sort((a, b) => b.score - a.score);
+  const techSorted = [...ev.technical_skills].sort((a, b) => b.score - a.score);
+  const visibleTech = showAllSkills ? techSorted : techSorted.slice(0, 6);
+  const visibleSoft = showAllSkills ? softSorted : softSorted.filter((s) => s.score > 0).slice(0, 5);
+  const diagnosis = profile.diagnosis;
+  const studies = profile.studies;
   const courseOf = (cid: string) => catalog?.byId.get(cid);
   const allRouteIds = route.stages.flatMap((s) => s.course_ids);
   const totalHours = allRouteIds.reduce((acc, cid) => acc + (courseOf(cid)?.duration_hours ?? 0), 0);
@@ -115,7 +253,7 @@ export default function RouteResultPage() {
 
   return (
     <div className="container-page pt-8 pb-16">
-      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Mi ruta', to: '/mi-ruta' }, { label: 'Diagnóstico' }]} />
+      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Analiza tu perfil', to: '/mi-ruta' }, { label: 'Diagnóstico' }]} />
 
       {/* PERFIL */}
       <header className="card relative mt-6 overflow-hidden p-6 sm:p-8">
@@ -139,7 +277,6 @@ export default function RouteResultPage() {
             <Link to="/mi-ruta" className="btn btn-quiet btn-sm">Nuevo diagnóstico</Link>
           </div>
         </div>
-        <p className="relative mt-6 max-w-3xl text-lg text-gray">{ev.summary}</p>
         <div className="relative mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line pt-4 text-xs text-muted">
           <span className="flex items-center gap-1.5"><Icon name={profile.engine === 'ia' ? 'sparkle' : 'chart'} size={14} className="text-cyan" />{profile.engine === 'ia' ? 'Análisis con inteligencia artificial' : 'Análisis automático por reglas'}</span>
           <span>{profile.source === 'cv' ? 'Basado en tu CV' : 'Basado en tu descripción'}</span>
@@ -149,16 +286,86 @@ export default function RouteResultPage() {
       </header>
 
       <nav aria-label="Secciones del diagnóstico" className="scrollbar-none -mx-4 mt-6 flex gap-2 overflow-x-auto px-4">
-        {[['ruta', 'Tu ruta'], ['conocimientos', 'Conocimientos'], ['habilidades', 'Habilidades'], ['datos', 'Datos del CV']].map(([h, t]) => (
+        {[['diagnostico', '1 · Diagnóstico'], ['estudios', '2 · Qué estudiar'], ['ruta', '3 · Plan por etapas'], ['conocimientos', 'Conocimientos por materia'], ['datos', 'Datos del CV']].map(([h, t]) => (
           <a key={h} href={`#${h}`} className="chip shrink-0">{t}</a>
         ))}
       </nav>
 
       <div className="mt-10 space-y-16">
-        {/* RUTA */}
+        {/* 1. DIAGNÓSTICO */}
+        <Section id="diagnostico" eyebrow="Paso 1 · Diagnóstico" title="Así está tu perfil hoy">
+          <div className="space-y-10">
+            <div className="card p-5 sm:p-6">
+              <h3 className="text-lg text-white">Resumen del perfil</h3>
+              <p className="mt-3 max-w-4xl text-gray">{ev.summary}</p>
+              <dl className="mt-5 grid gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Fact label="Posición actual" value={x.current_role} />
+                <Fact label="Experiencia" value={x.years_experience !== null ? `${x.years_experience} año${x.years_experience === 1 ? '' : 's'}` : null} />
+                <Fact label="Formación" value={x.highest_degree ? EDUCATION_LABELS[x.highest_degree] : null} />
+                <Fact label="Nivel profesional" value={x.seniority !== 'no-indicado' ? SENIORITY_LABELS[x.seniority] : null} />
+              </dl>
+              {ev.strengths.length > 0 && (
+                <div className="mt-5 flex flex-wrap gap-2"><span className="label-mono mr-1 self-center">Fortalezas</span>{ev.strengths.map((st) => <Badge key={st} tone="success">{st}</Badge>)}</div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <h3 className="text-xl text-white">Principales habilidades</h3>
+                <button className="btn btn-quiet btn-sm" onClick={() => setShowAllSkills((v) => !v)}>{showAllSkills ? 'Ver solo las principales' : 'Ver todas'}</button>
+              </div>
+              <p className="mt-1 text-sm text-muted">Evaluación exigente, como la de un reclutador: mencionar una herramienta no es dominarla, y no asignamos nivel experto a partir de un CV.</p>
+              <div className="mt-4 grid gap-6 lg:grid-cols-2">
+                <div className="card p-5 sm:p-6">
+                  <h4 className="flex items-center gap-2 text-lg text-white"><Icon name="tool" size={18} className="text-cyan" />Técnicas</h4>
+                  {visibleTech.length ? <ul className="mt-5 space-y-4">{visibleTech.map((sk: SkillScore) => <ScoreBar key={sk.name} {...sk} />)}</ul> : <p className="mt-4 text-sm text-gray">No identificamos herramientas o tecnologías concretas. Menciónalas en tu CV con proyectos y resultados.</p>}
+                </div>
+                <div className="card p-5 sm:p-6">
+                  <h4 className="flex items-center gap-2 text-lg text-white"><Icon name="user" size={18} className="text-violet-soft" />Blandas</h4>
+                  {visibleSoft.length ? <ul className="mt-5 space-y-4">{visibleSoft.map((sk) => <ScoreBar key={sk.name} {...sk} />)}</ul> : <p className="mt-4 text-sm text-gray">Tu perfil no muestra evidencia de habilidades blandas: descríbelas con logros concretos (equipos a cargo, negociaciones, presentaciones).</p>}
+                </div>
+              </div>
+            </div>
+
+            {diagnosis ? (
+              <>
+                <div>
+                  <h3 className="text-xl text-white">Puestos a los que puedes postular hoy</h3>
+                  <p className="mt-1 text-sm text-muted">Según tu conocimiento y experiencia actuales, no según tu objetivo.</p>
+                  <ul className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{diagnosis.suggested_roles.map((r) => <RoleCard key={r.title} role={r} />)}</ul>
+                </div>
+                <div>
+                  <h3 className="text-xl text-white">Brecha entre hoy y tu rol objetivo</h3>
+                  <div className="mt-4"><GapPanel gap={diagnosis.gap} /></div>
+                </div>
+              </>
+            ) : (
+              <p className="card p-5 text-sm text-gray">Este diagnóstico se hizo con una versión anterior. <Link to="/mi-ruta" className="text-cyan underline underline-offset-4">Analiza tu perfil de nuevo</Link> para ver puestos sugeridos, la brecha con tu rol objetivo y el salario referencial.</p>
+            )}
+          </div>
+        </Section>
+
+        {/* 2. ESTUDIOS */}
+        {studies && (
+          <Section id="estudios" eyebrow="Paso 2 · Qué estudiar" title="Estudios que cierran tu brecha">
+            <div className="space-y-10">
+              <div>
+                <h3 className="text-xl text-white">Corto plazo <span className="text-base font-normal text-gray">· cursos, diplomados, bootcamps y especializaciones</span></h3>
+                <div className="mt-4"><StudyList items={studies.short_term} courseOf={courseOf} loading={loading} empty="No encontramos programas de corto plazo con tus filtros; prueba ampliando el presupuesto o la modalidad." /></div>
+              </div>
+              <div>
+                <h3 className="text-xl text-white">Largo plazo <span className="text-base font-normal text-gray">· maestrías</span></h3>
+                <div className="mt-4"><StudyList items={studies.long_term} courseOf={courseOf} loading={loading} empty="Aún no hay maestrías en el catálogo alineadas a tu objetivo." /></div>
+              </div>
+              {studies.note && <p className="flex gap-2 text-sm text-muted"><Icon name="info" size={15} className="mt-0.5 shrink-0" />{studies.note}</p>}
+            </div>
+          </Section>
+        )}
+
+        {/* 3. RUTA */}
         <Section
           id="ruta"
-          eyebrow="Ruta de formación sugerida"
+          eyebrow="Paso 3 · Plan por etapas"
           title={route.target_role ? `Hacia: ${route.target_role}` : 'Tu camino hacia el objetivo'}
           aside={totalHours > 0 ? <p className="font-mono text-sm text-gray">{route.stages.length} etapas · {allRouteIds.length} programas · {totalHours} h</p> : undefined}
         >
@@ -211,7 +418,7 @@ export default function RouteResultPage() {
         {/* CONOCIMIENTOS POR MATERIA */}
         <Section
           id="conocimientos"
-          eyebrow="Evaluación"
+          eyebrow="Detalle"
           title="Conocimientos por materia"
           aside={<button className="btn btn-quiet btn-sm" onClick={() => setShowAllAreas((v) => !v)}>{showAllAreas ? 'Ver solo con evidencia' : `Ver las ${areas.length} materias`}</button>}
         >
@@ -236,24 +443,6 @@ export default function RouteResultPage() {
           </div>
         </Section>
 
-        {/* HABILIDADES */}
-        <Section id="habilidades" eyebrow="Evaluación" title="Habilidades técnicas y blandas">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="card p-5 sm:p-6">
-              <h3 className="flex items-center gap-2 text-lg text-white"><Icon name="tool" size={18} className="text-cyan" />Técnicas</h3>
-              {ev.technical_skills.length ? (
-                <ul className="mt-5 space-y-4">{ev.technical_skills.map((s: SkillScore) => <ScoreBar key={s.name} {...s} />)}</ul>
-              ) : (
-                <p className="mt-4 text-sm text-gray">No identificamos herramientas o tecnologías concretas. Menciónalas en tu CV.</p>
-              )}
-            </div>
-            <div className="card p-5 sm:p-6">
-              <h3 className="flex items-center gap-2 text-lg text-white"><Icon name="user" size={18} className="text-violet-soft" />Blandas</h3>
-              <ul className="mt-5 space-y-4">{softSorted.map((s) => <ScoreBar key={s.name} {...s} />)}</ul>
-            </div>
-          </div>
-        </Section>
-
         {/* DATOS EXTRAÍDOS */}
         <Section id="datos" eyebrow="Tu información" title={profile.source === 'cv' ? 'Datos extraídos de tu CV' : 'Datos de tu perfil'}>
           <div className="grid gap-6 lg:grid-cols-3">
@@ -262,11 +451,10 @@ export default function RouteResultPage() {
               <dl className="mt-4 grid grid-cols-2 gap-4">
                 <Fact label="Nombres" value={p.first_name} />
                 <Fact label="Apellidos" value={p.last_name} />
-                <div className="col-span-2"><Fact label="Correo" value={p.email} /></div>
-                <Fact label="Teléfono" value={p.phone} />
                 <Fact label="País" value={p.country} />
-                {p.linkedin && <div className="col-span-2"><Fact label="LinkedIn" value={p.linkedin} /></div>}
+                <Fact label="Ciudad" value={p.city} />
               </dl>
+              <p className="mt-4 flex gap-2 border-t border-line pt-3 text-xs text-muted"><Icon name="shield" size={14} className="mt-0.5 shrink-0" />Por tu privacidad, tus datos de contacto no se muestran en esta página.</p>
             </div>
             <div className="card p-5 sm:p-6">
               <h3 className="text-lg text-white">Formación</h3>

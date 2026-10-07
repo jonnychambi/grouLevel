@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { deleteProfileRecord, downloadProfileFile, fetchProfileDetail, fetchProfiles, updateProfileRecord, type ProfileListItem } from '../../services/adminApi';
 import type { ProfileAnalysis, ProfileStatus } from '../../types';
-import { EDUCATION_LABELS, PROFICIENCY_LABELS, SENIORITY_LABELS } from '../../utils/profileAnalysis';
+import { EDUCATION_LABELS, PROFICIENCY_LABELS, ROLE_LEVEL_LABELS, SENIORITY_LABELS } from '../../utils/profileAnalysis';
+import { formatMoney } from '../../utils/format';
 import { normalize } from '../../utils/text';
 import { Icon } from '../ui/Icon';
 
@@ -12,7 +13,7 @@ function toCsv(rows: ProfileListItem[]): string {
   const cols: [string, (p: ProfileListItem) => unknown][] = [
     ['Fecha', (p) => new Date(p.created_at).toLocaleString('es-PE')], ['Nombre', (p) => p.name], ['Email', (p) => p.email], ['Teléfono', (p) => p.phone], ['País', (p) => p.country],
     ['Posición actual', (p) => p.current_role], ['Seniority', (p) => SENIORITY_LABELS[p.seniority]], ['Años de experiencia', (p) => p.years_experience],
-    ['Grado más alto', (p) => (p.highest_degree ? EDUCATION_LABELS[p.highest_degree] : '')], ['Objetivo', (p) => p.objective], ['Materias objetivo', (p) => p.target_areas.join(' / ')],
+    ['Grado más alto', (p) => (p.highest_degree ? EDUCATION_LABELS[p.highest_degree] : '')], ['Objetivo', (p) => p.objective], ['Rol objetivo', (p) => p.target_role], ['Preparación %', (p) => p.readiness], ['Salario esperado', (p) => (p.expected_salary ? `${p.expected_salary_currency ?? 'PEN'} ${p.expected_salary}` : '')], ['Materias objetivo', (p) => p.target_areas.join(' / ')],
     ['Quiere contacto', (p) => (p.contact_ok ? 'Sí' : 'No')], ['Fuente', (p) => (p.source === 'cv' ? 'CV' : 'Descripción')], ['Motor', (p) => p.engine], ['Estado', (p) => p.status], ['Notas', (p) => p.notes], ['ID', (p) => p.id]
   ];
   const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -138,7 +139,7 @@ export function ProfilesPanel({ onError, onNotice, courseName }: { onError: (e: 
                     <span className="rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-gray">{p.engine === 'ia' ? 'IA' : 'Reglas'}</span>
                   </span>
                   <span className="mt-0.5 block truncate text-sm text-gray">{[p.current_role, p.years_experience !== null ? `${p.years_experience} años` : null, p.country, p.email].filter(Boolean).join(' · ')}</span>
-                  <span className="mt-0.5 block truncate text-sm text-muted">Objetivo: {p.objective}</span>
+                  <span className="mt-0.5 block truncate text-sm text-muted">{p.target_role ? `Rol objetivo: ${p.target_role}` : `Objetivo: ${p.objective}`}{p.readiness !== null ? ` · preparación ${p.readiness}%` : ''}{p.expected_salary ? ` · espera ${formatMoney(p.expected_salary, p.expected_salary_currency ?? 'PEN')}` : ''}</span>
                 </span>
                 <span className="font-mono text-xs text-dim">{when(p.created_at)}</span>
                 <Icon name={open === p.id ? 'chevron-up' : 'chevron-down'} size={16} className="text-gray" />
@@ -198,6 +199,25 @@ export function ProfilesPanel({ onError, onNotice, courseName }: { onError: (e: 
                       </div>
 
                       <div className="space-y-4 text-sm">
+                        {detail.diagnosis && (
+                          <div>
+                            <p className="label-mono">Rol objetivo · {detail.diagnosis.gap.readiness}% preparado</p>
+                            <p className="mt-1 text-white">{detail.diagnosis.gap.target_role} ({ROLE_LEVEL_LABELS[detail.diagnosis.gap.target_level]})</p>
+                            <p className="text-gray">{detail.diagnosis.gap.summary}</p>
+                            {detail.diagnosis.gap.expected_salary && <p className="text-gray">Espera {formatMoney(detail.diagnosis.gap.expected_salary.amount, detail.diagnosis.gap.expected_salary.currency)}{detail.diagnosis.gap.target_salary ? ` · rango ref. ${formatMoney(detail.diagnosis.gap.target_salary.min, detail.diagnosis.gap.target_salary.currency)}–${formatMoney(detail.diagnosis.gap.target_salary.max, detail.diagnosis.gap.target_salary.currency)}` : ''}</p>}
+                            <p className="label-mono mt-3">Puestos sugeridos hoy</p>
+                            <p className="mt-1 text-gray">{detail.diagnosis.suggested_roles.map((r) => `${r.title} (${r.fit}%)`).join(' · ')}</p>
+                          </div>
+                        )}
+                        {detail.studies && (
+                          <div>
+                            <p className="label-mono">Estudios sugeridos</p>
+                            <p className="mt-1 text-xs text-muted">Corto plazo</p>
+                            <ul className="ml-4 list-disc text-gray">{detail.studies.short_term.map((st) => <li key={st.course_id}>{courseName(st.course_id)}</li>)}</ul>
+                            <p className="mt-1 text-xs text-muted">Largo plazo</p>
+                            <ul className="ml-4 list-disc text-gray">{detail.studies.long_term.length ? detail.studies.long_term.map((st) => <li key={st.course_id}>{courseName(st.course_id)}</li>) : <li>—</li>}</ul>
+                          </div>
+                        )}
                         <div>
                           <p className="label-mono">Ruta sugerida</p>
                           <ol className="mt-2 space-y-2">

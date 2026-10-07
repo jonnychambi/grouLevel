@@ -17,7 +17,15 @@ import type {
   ProfileExtract,
   ProfilePreferences,
   ProficiencyLevel,
+  ProfileDiagnosis,
+  RoleGap,
+  RoleLevel,
+  GapItem,
   RouteStage,
+  SalaryRange,
+  StudyOption,
+  StudyPlan,
+  SuggestedRole,
   Seniority,
   SkillScore,
   TrainingRoute
@@ -40,7 +48,7 @@ export interface RouteCourse {
   featured: boolean;
 }
 
-export interface RouteCategory { id: string; name: string; keywords: string[] }
+export interface RouteCategory { id: string; name: string; keywords: string[]; group?: string | null }
 
 export interface AnalysisInput {
   text: string;
@@ -146,11 +154,17 @@ function countPhrase(haystack: string, phrase: string): number {
   return count;
 }
 
+/**
+ * Escala exigente: 1–39 básico · 40–64 intermedio · 65–84 avanzado · 85+ experto.
+ * El diagnóstico nunca supera SCORE_CAP: "experto" no se asigna a partir de un CV.
+ */
+export const SCORE_CAP = 84;
+
 export function levelFromScore(score: number): ProficiencyLevel {
   if (score <= 0) return 'sin-evidencia';
-  if (score < 35) return 'basico';
-  if (score < 60) return 'intermedio';
-  if (score < 80) return 'avanzado';
+  if (score < 40) return 'basico';
+  if (score < 65) return 'intermedio';
+  if (score < 85) return 'avanzado';
   return 'experto';
 }
 
@@ -376,7 +390,9 @@ export function extractProfile(text: string, source: 'cv' | 'texto', toolDiction
   }
   if (!current_role && experience[0]) current_role = experience[0].role;
 
-  const highest = education.reduce<EducationLevel | null>((acc, e) => (!acc || DEGREE_RANK.indexOf(e.level) > DEGREE_RANK.indexOf(acc) ? e.level : acc), null);
+  // El grado más alto considera solo estudios concluidos (lo que está en curso va en current_studies).
+  const finished = education.filter((e) => e.status !== 'en-curso' && e.status !== 'incompleto');
+  const highest = (finished.length ? finished : education).reduce<EducationLevel | null>((acc, e) => (!acc || DEGREE_RANK.indexOf(e.level) > DEGREE_RANK.indexOf(acc) ? e.level : acc), null);
   const studying = education.find((e) => e.status === 'en-curso');
   const tools = toolDictionary.filter((t) => countPhrase(n, t) > 0);
 
@@ -418,10 +434,11 @@ export function evaluateProfile(text: string, extract: ProfileExtract, categorie
     const hits = (signals.get(cat.id) ?? []).map((s) => [s, countPhrase(n, s)] as const).filter(([, c]) => c > 0);
     const distinct = hits.length;
     const mentions = hits.reduce((a, [, c]) => a + c, 0);
-    let score = distinct ? distinct * 11 + Math.min(mentions, 20) * 2 : 0;
-    if (distinct >= 2 && years >= 3) score += 10;
-    if (distinct >= 3 && years >= 6) score += 10;
-    score = clamp(score, 0, 95);
+    // Exigente: mencionar no es dominar. Pesa la variedad de evidencia y la experiencia acumulada.
+    let score = distinct ? distinct * 6 + Math.min(mentions, 12) * 1.5 : 0;
+    if (distinct >= 2 && years >= 3) score += 6;
+    if (distinct >= 3 && years >= 6) score += 6;
+    score = clamp(score, 0, 72);
     const top = [...hits].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([s]) => s);
     return { area_id: cat.id, area: cat.name, score, level: levelFromScore(score), evidence: top.length ? `Menciona: ${top.join(', ')}.` : 'Sin evidencia en la información entregada.' };
   });
@@ -429,7 +446,7 @@ export function evaluateProfile(text: string, extract: ProfileExtract, categorie
   const technical_skills: SkillScore[] = extract.tools
     .map((t) => {
       const mentions = countPhrase(n, t);
-      const score = clamp(40 + 10 * Math.min(mentions - 1, 3) + (years >= 3 ? 10 : 0) + (years >= 6 ? 5 : 0), 0, 90);
+      const score = clamp(28 + 7 * Math.min(mentions - 1, 3) + (years >= 3 ? 8 : 0) + (years >= 6 ? 6 : 0), 0, 72);
       return { name: t, score, level: levelFromScore(score), evidence: mentions > 1 ? `Mencionado ${mentions} veces.` : 'Mencionado en tu perfil.' };
     })
     .sort((a, b) => b.score - a.score)
@@ -437,9 +454,10 @@ export function evaluateProfile(text: string, extract: ProfileExtract, categorie
 
   const soft_skills: SkillScore[] = SOFT_SKILLS.map(({ name, signals: s }) => {
     const hits = s.filter((x) => countPhrase(n, x) > 0);
-    let score = hits.length ? 45 + 12 * (hits.length - 1) : 0;
-    if (name === 'Liderazgo' && (extract.seniority === 'lider' || extract.seniority === 'ejecutivo')) score = Math.max(score, 70);
-    score = clamp(score, 0, 85);
+    // Las habilidades blandas declaradas en un CV se validan poco: se puntúan con cautela.
+    let score = hits.length ? 32 + 9 * (hits.length - 1) : 0;
+    if (name === 'Liderazgo' && (extract.seniority === 'lider' || extract.seniority === 'ejecutivo')) score = Math.max(score, 58);
+    score = clamp(score, 0, 68);
     return { name, score, level: levelFromScore(score), evidence: hits.length ? `Evidencia: ${hits.slice(0, 3).join(', ')}.` : 'No se menciona; conviene demostrarla con ejemplos.' };
   });
 
@@ -447,7 +465,7 @@ export function evaluateProfile(text: string, extract: ProfileExtract, categorie
   const strengths = uniq([
     ...topAreas.slice(0, 3).map((a) => `${a.area} (${PROFICIENCY_LABELS[a.level].toLowerCase()})`),
     ...technical_skills.slice(0, 3).map((t) => `Manejo de ${t.name}`),
-    ...soft_skills.filter((s) => s.score >= 60).slice(0, 2).map((s) => s.name)
+    ...soft_skills.filter((s) => s.score >= 50).slice(0, 2).map((s) => s.name)
   ]).slice(0, 6);
 
   const role = extract.current_role ? `como ${extract.current_role}` : '';
@@ -485,20 +503,24 @@ export function objectiveAreas(objective: string, categories: RouteCategory[], s
   for (const cat of categories) {
     // Señales curadas pesan más que las herramientas frecuentes del catálogo (que se comparten entre materias).
     const curated = new Set([cat.name, ...cat.keywords, ...(AREA_SIGNALS[cat.id] ?? [])].map(normalize));
-    const s = (signals.get(cat.id) ?? []).reduce((acc, kw) => acc + (countPhrase(n, kw) > 0 ? (curated.has(kw) ? (kw.includes(' ') ? 3 : 2) : 1) : 0), 0);
+    // Una frase explícita ("machine learning", "ciencia de datos") vale más que una palabra suelta o una herramienta.
+    const s = (signals.get(cat.id) ?? []).reduce((acc, kw) => acc + (countPhrase(n, kw) > 0 ? (curated.has(kw) ? (kw.includes(' ') ? 5 : 2) : 1) : 0), 0);
     if (s > 0) scores.set(cat.id, s);
   }
-  // Señal secundaria: programas cuyo nombre coincide con el objetivo.
+  // Señal secundaria (acotada): programas cuyo nombre coincide con el objetivo.
+  // Se limita a +2 por materia para que las materias con muchos programas no dominen.
   const tokens = normalize(objective).split(' ').filter((t) => t.length > 3);
+  const secondary = new Map<string, number>();
   for (const c of courses) {
     const name = normalize(c.name);
     const overlap = tokens.filter((t) => name.includes(t)).length;
-    if (overlap >= 2) scores.set(c.category, (scores.get(c.category) ?? 0) + 1);
+    if (overlap >= 2) secondary.set(c.category, Math.min(2, (secondary.get(c.category) ?? 0) + 1));
   }
+  for (const [id, v] of secondary) scores.set(id, (scores.get(id) ?? 0) + v);
   const ranked = [...scores.entries()].sort((a, b) => b[1] - a[1]);
   if (!ranked.length) return [];
   const top = ranked[0][1];
-  return ranked.filter(([, s]) => s >= top * 0.4).slice(0, 3).map(([id, weight]) => ({ id, weight }));
+  return ranked.filter(([, s]) => s >= top * 0.3).slice(0, 3).map(([id, weight]) => ({ id, weight }));
 }
 
 function relevance(c: RouteCourse, objective: string, areaWeight: Map<string, number>): number {
@@ -599,43 +621,323 @@ export function buildRoute(
   };
 }
 
+// ───────────────────────── Diagnóstico para el rol objetivo ─────────────────────────
+
+export const ROLE_LEVELS: RoleLevel[] = ['junior', 'semi-senior', 'senior', 'lider'];
+export const ROLE_LEVEL_LABELS: Record<RoleLevel, string> = { junior: 'Junior', 'semi-senior': 'Semi senior', senior: 'Senior', lider: 'Líder / Jefatura' };
+
+/** Puestos típicos por materia y nivel: junior, semi senior, senior, líder. */
+export const ROLE_LADDER: Record<string, [string, string, string, string]> = {
+  'data-analytics': ['Analista de Datos Junior', 'Analista de Datos', 'Analista de Datos Senior / BI', 'Líder de Analítica'],
+  'data-science': ['Científico de Datos Junior', 'Científico de Datos', 'Científico de Datos Senior', 'Líder de Data Science'],
+  'data-engineering': ['Ingeniero de Datos Junior', 'Ingeniero de Datos', 'Ingeniero de Datos Senior', 'Arquitecto / Líder de Datos'],
+  'inteligencia-artificial': ['Analista de IA Junior', 'Especialista en IA', 'Especialista en IA Senior', 'Líder de Inteligencia Artificial'],
+  'machine-learning': ['ML Engineer Junior', 'ML Engineer', 'ML Engineer Senior', 'Líder de Machine Learning / MLOps'],
+  'ia-generativa': ['Especialista en IA Generativa Junior', 'Especialista en IA Generativa', 'AI Engineer Senior', 'Líder de IA Generativa'],
+  'desarrollo-de-software': ['Desarrollador Junior', 'Desarrollador de Software', 'Desarrollador Senior', 'Tech Lead'],
+  'cloud-computing': ['Soporte Cloud Junior', 'Ingeniero Cloud', 'Ingeniero Cloud Senior', 'Arquitecto Cloud'],
+  ciberseguridad: ['Analista SOC Junior', 'Analista de Ciberseguridad', 'Especialista en Ciberseguridad Senior', 'Jefe de Seguridad de la Información'],
+  devops: ['DevOps Junior', 'Ingeniero DevOps', 'DevOps / SRE Senior', 'Líder de Plataforma'],
+  'product-management': ['Product Analyst', 'Product Owner', 'Product Manager Senior', 'Head of Product'],
+  'ux-ui': ['Diseñador UX/UI Junior', 'Diseñador UX/UI', 'Diseñador UX Senior', 'Líder de Diseño'],
+  'business-analytics': ['Analista de Negocio Junior', 'Analista de Negocio', 'Business Analyst Senior', 'Jefe de Inteligencia Comercial'],
+  'negocios-digitales': ['Asistente de E-commerce', 'Analista de Negocios Digitales', 'Especialista en Transformación Digital', 'Gerente de Negocios Digitales'],
+  automatizacion: ['Analista de Automatización Junior', 'Especialista en Automatización', 'Especialista RPA Senior', 'Líder de Automatización'],
+  'no-code-low-code': ['Desarrollador No-Code Junior', 'Desarrollador Low-Code', 'Especialista Low-Code Senior', 'Líder de Soluciones Low-Code'],
+  'marketing-digital': ['Asistente de Marketing Digital', 'Analista de Marketing Digital', 'Especialista en Marketing Digital Senior', 'Jefe de Marketing Digital'],
+  'gestion-de-proyectos': ['Asistente de Proyectos', 'Coordinador de Proyectos', 'Jefe de Proyectos / Scrum Master', 'Gerente de Proyectos / PMO'],
+  'gestion-de-ti': ['Analista de Soporte TI', 'Analista de Servicios TI', 'Especialista en Gestión de TI', 'Jefe de TI']
+};
+
+type Family = 'tech' | 'producto' | 'negocio';
+const FAMILY: Record<string, Family> = {
+  'product-management': 'producto', 'ux-ui': 'producto', 'business-analytics': 'producto', 'gestion-de-proyectos': 'producto',
+  'marketing-digital': 'negocio', 'negocios-digitales': 'negocio'
+};
+/** Bandas salariales mensuales brutas en PEN (Lima) por familia de puestos y nivel. */
+const SALARY_BANDS: Record<Family, [number, number][]> = {
+  tech: [[2500, 4500], [4500, 8000], [8000, 13000], [12000, 20000]],
+  producto: [[2500, 4000], [4000, 7000], [7000, 11000], [10000, 17000]],
+  negocio: [[1800, 3200], [3200, 5500], [5500, 9000], [8500, 14000]]
+};
+export const SALARY_NOTE = 'Rango referencial mensual bruto para Lima (Perú), estimado por Groulevel. Varía según empresa, sector y ciudad.';
+export const PEN_PER_USD = 3.75;
+
+export function salaryFor(areaId: string | null, level: RoleLevel): SalaryRange {
+  const [min, max] = SALARY_BANDS[FAMILY[areaId ?? ''] ?? 'tech'][ROLE_LEVELS.indexOf(level)];
+  return { min, max, currency: 'PEN', note: SALARY_NOTE };
+}
+
+/** Lo mínimo que se espera en cada nivel (materia, experiencia, herramientas y habilidades blandas). */
+const LEVEL_REQ: Record<RoleLevel, { area: number; years: number; tools: number; soft: [string, number][] }> = {
+  junior: { area: 35, years: 0, tools: 45, soft: [['Adaptabilidad y aprendizaje', 40], ['Trabajo en equipo', 40]] },
+  'semi-senior': { area: 55, years: 2, tools: 55, soft: [['Trabajo en equipo', 45], ['Pensamiento analítico', 50], ['Comunicación', 45]] },
+  senior: { area: 68, years: 5, tools: 60, soft: [['Comunicación', 55], ['Resolución de problemas', 55], ['Pensamiento analítico', 55]] },
+  lider: { area: 72, years: 8, tools: 60, soft: [['Liderazgo', 60], ['Comunicación', 60], ['Negociación', 50], ['Organización y gestión del tiempo', 50]] }
+};
+
+/** Nivel al que puede postular hoy en una materia, según conocimiento y experiencia. */
+export function currentLevel(score: number, years: number, seniority: Seniority): RoleLevel {
+  if ((score >= 62 && years >= 8) || ((seniority === 'lider' || seniority === 'ejecutivo') && score >= 55 && years >= 5)) return 'lider';
+  if (score >= 55 && years >= 5) return 'senior';
+  if (score >= 35 && years >= 2) return 'semi-senior';
+  return 'junior';
+}
+
+/** Nivel implícito en el texto del rol objetivo ("Jefe de…", "… Senior"); null si no lo dice. */
+export function levelFromText(text: string): RoleLevel | null {
+  const n = pad(normalize(text));
+  if (/ (gerente|jefe|jefa|lider|head|director|directora|manager|lead|arquitecto|arquitecta|coordinador|coordinadora|pmo) /.test(n)) return 'lider';
+  if (/ (semi senior|semisenior|ssr) /.test(n)) return 'semi-senior';
+  if (/ (senior|sr) /.test(n)) return 'senior';
+  if (/ (junior|jr|practicante|trainee|asistente|becario) /.test(n)) return 'junior';
+  return null;
+}
+
+const nextLevel = (l: RoleLevel): RoleLevel => ROLE_LEVELS[Math.min(ROLE_LEVELS.indexOf(l) + 1, ROLE_LEVELS.length - 1)];
+
+/** Puestos a los que podría postular hoy (máximo 4), con su salario referencial. */
+export function suggestRoles(extract: ProfileExtract, evaluation: ProfileEvaluation): SuggestedRole[] {
+  const years = extract.years_experience ?? 0;
+  const top = [...evaluation.areas].filter((a) => a.score >= 20).sort((a, b) => b.score - a.score).slice(0, 4);
+  const seen = new Set<string>();
+  const roles: SuggestedRole[] = [];
+  for (const a of top) {
+    const level = currentLevel(a.score, years, extract.seniority);
+    const title = ROLE_LADDER[a.area_id]?.[ROLE_LEVELS.indexOf(level)] ?? `${a.area} · ${ROLE_LEVEL_LABELS[level]}`;
+    if (seen.has(normalize(title))) continue;
+    seen.add(normalize(title));
+    roles.push({
+      title, area_id: a.area_id, area: a.area, level,
+      fit: clamp(a.score * 0.75 + Math.min(years, 10) * 2.5, 0, 92),
+      reason: `Conocimiento ${PROFICIENCY_LABELS[a.level].toLowerCase()} en ${a.area} (${a.score}/100)${years ? ` y ${years} año${years === 1 ? '' : 's'} de experiencia` : ''}.`,
+      salary: salaryFor(a.area_id, level)
+    });
+  }
+  if (!roles.length) {
+    roles.push({
+      title: extract.current_role ?? 'Puesto de entrada (asistente o practicante) en tu área',
+      area_id: null, area: null, level: 'junior', fit: 25,
+      reason: 'La información no muestra conocimientos técnicos específicos; detallar herramientas y proyectos permitirá sugerir puestos más precisos.',
+      salary: null
+    });
+  }
+  return roles;
+}
+
+const toPen = (amount: number, currency: 'PEN' | 'USD') => (currency === 'USD' ? amount * PEN_PER_USD : amount);
+
+export function compareSalary(expected: RoleGap['expected_salary'], range: SalaryRange | null): RoleGap['salary_comparison'] {
+  if (!expected || !range) return null;
+  const amount = toPen(expected.amount, expected.currency);
+  const min = toPen(range.min, range.currency);
+  const max = toPen(range.max, range.currency);
+  return amount < min ? 'debajo' : amount > max ? 'encima' : 'dentro';
+}
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Brecha entre el perfil de hoy y el rol objetivo: materias, herramientas, habilidades blandas y experiencia. */
+export function buildGap(
+  input: { objective: string; preferences: ProfilePreferences },
+  extract: ProfileExtract,
+  evaluation: ProfileEvaluation,
+  route: TrainingRoute,
+  categories: RouteCategory[],
+  courses: RouteCourse[],
+  signals: Map<string, string[]>
+): { gap: RoleGap; areaIds: string[]; missingTools: string[] } {
+  const years = extract.years_experience ?? 0;
+  const targetText = (input.preferences.target_role ?? '').trim();
+  let areas = objectiveAreas(`${input.objective} ${targetText}`, categories, signals, courses).map((a) => a.id);
+  if (!areas.length) {
+    const byName = new Map(categories.map((c) => [c.name, c.id]));
+    areas = route.target_areas.map((n) => byName.get(n)).filter((x): x is string => !!x);
+  }
+  if (!areas.length) {
+    const best = [...evaluation.areas].sort((a, b) => b.score - a.score)[0];
+    if (best && best.score > 0) areas = [best.area_id];
+  }
+  areas = areas.slice(0, 2);
+  const primary = areas[0] ?? null;
+  const areaScore = (id: string) => evaluation.areas.find((a) => a.area_id === id)?.score ?? 0;
+  const now = currentLevel(primary ? areaScore(primary) : 0, years, extract.seniority);
+  const level = levelFromText(targetText) ?? levelFromText(input.objective) ?? (now === 'lider' ? 'lider' : nextLevel(now));
+  const title = targetText ? capitalize(targetText) : (primary && ROLE_LADDER[primary]?.[ROLE_LEVELS.indexOf(level)]) || route.target_role || 'Tu rol objetivo';
+  const req = LEVEL_REQ[level];
+  const catName = new Map(categories.map((c) => [c.id, c.name]));
+
+  const items: GapItem[] = [];
+  for (const id of areas) {
+    items.push({ kind: 'area', name: catName.get(id) ?? id, current: areaScore(id), required: req.area, note: `Nivel esperado para un rol ${ROLE_LEVEL_LABELS[level].toLowerCase()}.` });
+  }
+  // Herramientas que más piden los programas de las materias objetivo.
+  const freq = new Map<string, number>();
+  for (const c of courses) if (areas.includes(c.category)) for (const t of c.tools) freq.set(t, (freq.get(t) ?? 0) + 1);
+  const tech = new Map(evaluation.technical_skills.map((t) => [normalize(t.name), t.score]));
+  const keyTools = [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t]) => t);
+  for (const t of keyTools) {
+    const current = tech.get(normalize(t)) ?? 0;
+    items.push({ kind: 'tecnica', name: t, current, required: req.tools, note: current ? 'Ya la usas; falta profundizar.' : 'No aparece en tu perfil.' });
+  }
+  const soft = new Map(evaluation.soft_skills.map((s) => [s.name, s.score]));
+  for (const [name, required] of req.soft) {
+    const current = soft.get(name) ?? 0;
+    items.push({ kind: 'blanda', name, current, required, note: current ? 'Demuéstrala con logros concretos.' : 'Sin evidencia en tu perfil.' });
+  }
+  items.push({ kind: 'experiencia', name: 'Años de experiencia', current: years, required: req.years, note: req.years ? `Lo habitual para un rol ${ROLE_LEVEL_LABELS[level].toLowerCase()}.` : 'No se exige experiencia previa.' });
+
+  // Preparación: promedio de cumplimiento (las materias pesan doble).
+  let total = 0;
+  let weight = 0;
+  for (const it of items) {
+    const w = it.kind === 'area' ? 2 : 1;
+    total += w * (it.required <= 0 ? 1 : Math.min(1, it.current / it.required));
+    weight += w;
+  }
+  const readiness = clamp((total / weight) * 100, 0, 100);
+  const unmet = items.filter((it) => it.current < it.required).sort((a, b) => a.current / Math.max(a.required, 1) - b.current / Math.max(b.required, 1));
+  const time_estimate = readiness >= 80 ? '0 a 3 meses' : readiness >= 60 ? '3 a 6 meses' : readiness >= 40 ? '6 a 12 meses' : '12 a 24 meses';
+  const expected = input.preferences.expected_salary ? { amount: input.preferences.expected_salary, currency: input.preferences.salary_currency ?? 'PEN' } : null;
+  const target_salary = salaryFor(primary, level);
+  const summary = `Hoy cumples el ${readiness}% de lo que suele pedirse para ${title} (${ROLE_LEVEL_LABELS[level].toLowerCase()}).${unmet.length ? ` Tus brechas principales: ${unmet.slice(0, 3).map((u) => u.name).join(', ')}.` : ' Ya cumples los requisitos principales: enfócate en demostrarlo con proyectos.'}`;
+
+  return {
+    gap: {
+      target_role: title, target_level: level, target_areas: areas.map((id) => catName.get(id) ?? id), readiness, summary, items, time_estimate,
+      target_salary, expected_salary: expected, salary_comparison: compareSalary(expected, target_salary)
+    },
+    areaIds: areas,
+    missingTools: items.filter((it) => it.kind === 'tecnica' && it.current < it.required).map((it) => it.name)
+  };
+}
+
+export const SHORT_TERM_TYPES = ['curso', 'especializacion', 'bootcamp', 'diplomado', 'certificacion', 'programa-ejecutivo'];
+export const LONG_TERM_TYPES = ['maestria'];
+
+/** Hasta 5 estudios de corto plazo y 5 de largo plazo (maestrías), priorizando lo que cierra las brechas. */
+export function buildStudies(
+  input: { objective: string; preferences: ProfilePreferences },
+  areaIds: string[],
+  missingTools: string[],
+  evaluation: ProfileEvaluation,
+  categories: RouteCategory[],
+  courses: RouteCourse[]
+): StudyPlan {
+  const groupOf = new Map(categories.map((c) => [c.id, c.group ?? null]));
+  const groups = new Set(areaIds.map((id) => groupOf.get(id)).filter(Boolean));
+  const missing = new Set(missingTools.map(normalize));
+  const catName = new Map(categories.map((c) => [c.id, c.name]));
+  const areaScore = (id: string) => evaluation.areas.find((a) => a.area_id === id)?.score ?? 0;
+  const tokens = uniq(normalize(`${input.objective} ${input.preferences.target_role ?? ''}`).split(' ').filter((t) => t.length > 3));
+
+  const score = (c: RouteCourse) => {
+    const idx = areaIds.indexOf(c.category);
+    let s = idx === 0 ? 6 : idx > 0 ? 4 : groups.has(groupOf.get(c.category)) ? 1.5 : 0;
+    const covers = c.tools.filter((t) => missing.has(normalize(t)));
+    s += covers.length * 2;
+    const hay = normalize([c.name, ...c.keywords].join(' '));
+    s += tokens.filter((t) => hay.includes(t)).length;
+    // Nivel acorde: quien parte de cero no empieza por lo avanzado y viceversa.
+    const lvl = courseLevel(c);
+    const base = areaScore(c.category);
+    if ((base < 40 && lvl !== 'avanzado') || (base >= 40 && lvl !== 'basico')) s += 1;
+    return { s, covers };
+  };
+  const pick = (types: string[], useBudget: boolean, minScore: number) => {
+    const perInstitution = new Map<string, number>();
+    const out: StudyOption[] = [];
+    const ranked = courses
+      .filter((c) => types.includes(c.program_type) && fitsPreferences(c, useBudget ? input.preferences : { ...input.preferences, budget_pen: null }))
+      .map((c) => ({ c, ...score(c) }))
+      .filter((x) => x.s >= minScore)
+      .sort((a, b) => b.s - a.s || Number(b.c.featured) - Number(a.c.featured));
+    for (const { c, covers } of ranked) {
+      const n = perInstitution.get(c.institution_name) ?? 0;
+      if (n >= 2) continue; // variedad de instituciones
+      perInstitution.set(c.institution_name, n + 1);
+      const area = catName.get(c.category) ?? c.category;
+      const term = types === LONG_TERM_TYPES ? 'largo' : 'corto';
+      out.push({
+        course_id: c.id, term,
+        covers: covers.length ? covers.slice(0, 4) : [area],
+        reason: covers.length ? `Cubre herramientas que te faltan: ${covers.slice(0, 3).join(', ')}.` : term === 'largo' ? `Formación de posgrado en ${area}, alineada a tu objetivo.` : `Fortalece ${area}, clave para tu objetivo.`
+      });
+      if (out.length >= 5) break;
+    }
+    return out;
+  };
+  const short_term = pick(SHORT_TERM_TYPES, true, 4);
+  const long_term = pick(LONG_TERM_TYPES, false, 1.5);
+  const notes: string[] = [];
+  if (input.preferences.budget_pen) notes.push('Los estudios de corto plazo respetan tu presupuesto; las maestrías se muestran sin ese filtro.');
+  if (!long_term.length) notes.push('Aún no hay maestrías en el catálogo alineadas a tu objetivo.');
+  return { short_term, long_term, note: notes.join(' ') };
+}
+
+export function buildDiagnosis(
+  input: { objective: string; preferences: ProfilePreferences },
+  extract: ProfileExtract,
+  evaluation: ProfileEvaluation,
+  route: TrainingRoute,
+  categories: RouteCategory[],
+  courses: RouteCourse[],
+  signals: Map<string, string[]>
+): { diagnosis: ProfileDiagnosis; studies: StudyPlan } {
+  const { gap, areaIds, missingTools } = buildGap(input, extract, evaluation, route, categories, courses, signals);
+  // Si un puesto sugerido coincide con el rol objetivo, su preparación es la de la brecha;
+  // y si aún no alcanza el 60 %, no es un puesto "para postular hoy".
+  const target = normalize(gap.target_role);
+  let roles = suggestRoles(extract, evaluation)
+    .map((r) => (normalize(r.title) === target ? { ...r, fit: gap.readiness, reason: `${r.reason} Es tu rol objetivo.` } : r))
+    .filter((r) => normalize(r.title) !== target || gap.readiness >= 60);
+  if (!roles.length) roles = suggestRoles({ ...extract, current_role: extract.current_role }, { ...evaluation, areas: [] });
+  return {
+    diagnosis: { suggested_roles: roles, gap },
+    studies: buildStudies(input, areaIds, missingTools, evaluation, categories, courses)
+  };
+}
+
 /** Motor completo por reglas. */
 export function analyzeWithRules(input: AnalysisInput & { source: 'cv' | 'texto' }, categories: RouteCategory[], courses: RouteCourse[]) {
   const signals = buildAreaSignals(categories, courses);
   const extract = extractProfile(input.text, input.source, toolDictionary(courses));
   const evaluation = evaluateProfile(input.text, extract, categories, signals);
   const route = buildRoute(input, evaluation, extract, categories, courses, signals);
-  return { extract, evaluation, route };
+  const { diagnosis, studies } = buildDiagnosis(input, extract, evaluation, route, categories, courses, signals);
+  return { extract, evaluation, route, diagnosis, studies };
 }
 
-/** Normaliza un resultado (de la IA o de reglas): niveles coherentes, todas las materias, cursos existentes. */
+/** Normaliza un resultado (de la IA o de reglas): niveles coherentes y exigentes, todas las materias, cursos existentes. */
 export function sanitizeAnalysis(
-  result: { extract: ProfileExtract; evaluation: ProfileEvaluation; route: TrainingRoute },
+  result: { extract: ProfileExtract; evaluation: ProfileEvaluation; route: TrainingRoute; diagnosis?: ProfileDiagnosis; studies?: StudyPlan },
   categories: RouteCategory[],
   courses: RouteCourse[],
-  fallbackRoute: TrainingRoute
+  fallback: { route: TrainingRoute; diagnosis: ProfileDiagnosis; studies: StudyPlan },
+  preferences?: ProfilePreferences
 ) {
   const byId = new Map(courses.map((c) => [c.id, c]));
+  const cap = (n: unknown) => clamp(Math.min(Number(n) || 0, SCORE_CAP));
   const fixSkill = (s: SkillScore): SkillScore => {
-    const score = clamp(Number(s.score) || 0);
+    const score = cap(s.score);
     return { name: String(s.name).slice(0, 60), score, level: levelFromScore(score), evidence: String(s.evidence ?? '').slice(0, 300) };
   };
   const given = new Map(result.evaluation.areas.map((a) => [a.area_id, a]));
   const areas = categories.map((cat) => {
     const a = given.get(cat.id);
-    const score = clamp(Number(a?.score) || 0);
+    const score = cap(a?.score);
     return { area_id: cat.id, area: cat.name, score, level: levelFromScore(score), evidence: String(a?.evidence ?? 'Sin evidencia en la información entregada.').slice(0, 300) };
   });
   const evaluation: ProfileEvaluation = {
     summary: String(result.evaluation.summary ?? '').slice(0, 1200),
     areas,
-    technical_skills: result.evaluation.technical_skills.slice(0, 20).map(fixSkill),
+    technical_skills: result.evaluation.technical_skills.slice(0, 20).map(fixSkill).sort((a, b) => b.score - a.score),
     soft_skills: result.evaluation.soft_skills.slice(0, 12).map(fixSkill),
     strengths: result.evaluation.strengths.map(String).slice(0, 8),
     gaps: result.evaluation.gaps.map(String).slice(0, 8)
   };
   const used = new Set<string>();
-  const fallbackIds = fallbackRoute.stages.flatMap((s) => s.course_ids);
+  const fallbackIds = fallback.route.stages.flatMap((s) => s.course_ids);
   const stages = result.route.stages
     .slice(0, 5)
     .map((s, i) => {
@@ -649,8 +951,65 @@ export function sanitizeAnalysis(
     objective_summary: String(result.route.objective_summary ?? '').slice(0, 300),
     target_role: result.route.target_role ? String(result.route.target_role).slice(0, 100) : null,
     target_areas: result.route.target_areas.map(String).slice(0, 4),
-    stages: stages.length ? stages : fallbackRoute.stages,
+    stages: stages.length ? stages : fallback.route.stages,
     advice: result.route.advice.map(String).slice(0, 6)
   };
-  return { extract: result.extract, evaluation, route };
+
+  // Diagnóstico: valores acotados; si falta algo se completa con el motor por reglas.
+  const level = (l: unknown): RoleLevel => (ROLE_LEVELS.includes(l as RoleLevel) ? (l as RoleLevel) : 'junior');
+  const fixSalary = (r: SalaryRange | null | undefined): SalaryRange | null => {
+    const min = Number(r?.min);
+    const max = Number(r?.max);
+    if (!r || !Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max < min) return null;
+    return { min: Math.round(min), max: Math.round(max), currency: r.currency === 'USD' ? 'USD' : 'PEN', note: String(r.note || SALARY_NOTE).slice(0, 200) };
+  };
+  const catIds = new Set(categories.map((c) => c.id));
+  const catName = new Map(categories.map((c) => [c.id, c.name]));
+  const aiRoles = (result.diagnosis?.suggested_roles ?? []).slice(0, 4).map((r) => {
+    const area_id = r.area_id && catIds.has(r.area_id) ? r.area_id : null;
+    return {
+      title: String(r.title).slice(0, 100), area_id, area: area_id ? catName.get(area_id) ?? null : null, level: level(r.level),
+      fit: clamp(Math.min(Number(r.fit) || 0, 92)), reason: String(r.reason ?? '').slice(0, 300), salary: fixSalary(r.salary)
+    };
+  }).filter((r) => r.title.trim());
+  const g = result.diagnosis?.gap;
+  const expected = preferences?.expected_salary ? { amount: preferences.expected_salary, currency: preferences.salary_currency ?? 'PEN' } : fallback.diagnosis.gap.expected_salary;
+  let gap: RoleGap = fallback.diagnosis.gap;
+  if (g && String(g.target_role ?? '').trim() && Array.isArray(g.items) && g.items.length) {
+    const target_salary = fixSalary(g.target_salary) ?? fallback.diagnosis.gap.target_salary;
+    gap = {
+      target_role: String(g.target_role).slice(0, 100), target_level: level(g.target_level), target_areas: (g.target_areas ?? []).map(String).slice(0, 3),
+      readiness: clamp(Number(g.readiness) || 0), summary: String(g.summary ?? '').slice(0, 800),
+      items: g.items.slice(0, 14).map((it) => ({
+        kind: (['area', 'tecnica', 'blanda', 'experiencia'].includes(it.kind) ? it.kind : 'tecnica') as GapItem['kind'],
+        name: String(it.name).slice(0, 80),
+        current: it.kind === 'experiencia' ? Math.max(0, Math.min(50, Number(it.current) || 0)) : cap(it.current),
+        required: it.kind === 'experiencia' ? Math.max(0, Math.min(50, Number(it.required) || 0)) : clamp(Number(it.required) || 0),
+        note: String(it.note ?? '').slice(0, 200)
+      })),
+      time_estimate: String(g.time_estimate || fallback.diagnosis.gap.time_estimate).slice(0, 60),
+      target_salary, expected_salary: expected, salary_comparison: compareSalary(expected, target_salary)
+    };
+  }
+  const diagnosis: ProfileDiagnosis = { suggested_roles: aiRoles.length ? aiRoles : fallback.diagnosis.suggested_roles, gap };
+
+  // Estudios: solo programas existentes y del tipo correcto; se completa hasta 5 con las reglas.
+  const fixStudies = (list: StudyOption[] | undefined, term: 'corto' | 'largo', types: string[], extra: StudyOption[]) => {
+    const seen = new Set<string>();
+    const out: StudyOption[] = [];
+    for (const s of [...(list ?? []), ...extra]) {
+      const c = byId.get(String(s.course_id));
+      if (!c || !types.includes(c.program_type) || seen.has(c.id)) continue;
+      seen.add(c.id);
+      out.push({ course_id: c.id, term, reason: String(s.reason ?? '').slice(0, 300), covers: (s.covers ?? []).map(String).slice(0, 5) });
+      if (out.length >= 5) break;
+    }
+    return out;
+  };
+  const studies: StudyPlan = {
+    short_term: fixStudies(result.studies?.short_term, 'corto', SHORT_TERM_TYPES, fallback.studies.short_term),
+    long_term: fixStudies(result.studies?.long_term, 'largo', LONG_TERM_TYPES, fallback.studies.long_term),
+    note: String(result.studies?.note || fallback.studies.note).slice(0, 400)
+  };
+  return { extract: result.extract, evaluation, route, diagnosis, studies };
 }

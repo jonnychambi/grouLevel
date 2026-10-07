@@ -104,7 +104,61 @@ export interface ProfilePreferences {
   /** Presupuesto máximo por programa en PEN (null = sin límite). */
   budget_pen: number | null;
   hours_per_week: number | null;
+  /** Rol al que quiere llegar (texto libre, opcional). */
+  target_role?: string | null;
+  /** Salario mensual que espera ganar en el rol objetivo (opcional). */
+  expected_salary?: number | null;
+  salary_currency?: SalaryCurrency;
 }
+
+export type SalaryCurrency = 'PEN' | 'USD';
+/** Nivel del puesto (escalera profesional). */
+export type RoleLevel = 'junior' | 'semi-senior' | 'senior' | 'lider';
+
+/** Rango salarial mensual bruto referencial. */
+export interface SalaryRange { min: number; max: number; currency: SalaryCurrency; note: string }
+
+export interface SuggestedRole {
+  title: string;
+  area_id: string | null;
+  area: string | null;
+  level: RoleLevel;
+  /** 0–100: qué tan preparado está hoy para el puesto. */
+  fit: number;
+  reason: string;
+  salary: SalaryRange | null;
+}
+
+export type GapKind = 'area' | 'tecnica' | 'blanda' | 'experiencia';
+
+/** Una brecha entre el nivel actual y el requerido por el rol objetivo (0–100, o años para experiencia). */
+export interface GapItem { kind: GapKind; name: string; current: number; required: number; note: string }
+
+export interface RoleGap {
+  target_role: string;
+  target_level: RoleLevel;
+  target_areas: string[];
+  /** 0–100: preparación actual para el rol objetivo. */
+  readiness: number;
+  summary: string;
+  items: GapItem[];
+  time_estimate: string;
+  target_salary: SalaryRange | null;
+  expected_salary: { amount: number; currency: SalaryCurrency } | null;
+  /** Salario esperado frente al rango referencial del rol objetivo. */
+  salary_comparison: 'debajo' | 'dentro' | 'encima' | null;
+}
+
+export interface ProfileDiagnosis {
+  suggested_roles: SuggestedRole[];
+  gap: RoleGap;
+}
+
+export type StudyTerm = 'corto' | 'largo';
+export interface StudyOption { course_id: string; term: StudyTerm; reason: string; covers: string[] }
+
+/** Estudios sugeridos: corto plazo (cursos, diplomados, bootcamps, especializaciones) y largo plazo (maestrías). */
+export interface StudyPlan { short_term: StudyOption[]; long_term: StudyOption[]; note: string }
 
 export interface StoredFile { pathname: string; name: string; type: string; size: number }
 
@@ -120,11 +174,20 @@ export interface ProfileAnalysis {
   extract: ProfileExtract;
   evaluation: ProfileEvaluation;
   route: TrainingRoute;
+  /** Diagnóstico para el rol objetivo (los diagnósticos anteriores a esta versión no lo tienen). */
+  diagnosis?: ProfileDiagnosis;
+  studies?: StudyPlan;
   file: StoredFile | null;
   contact_ok: boolean;
   status: ProfileStatus;
   notes: string;
 }
 
-/** Lo que se devuelve al navegador (sin el archivo ni datos internos). */
-export type PublicProfileAnalysis = Omit<ProfileAnalysis, 'file' | 'status' | 'notes'> & { has_file: boolean };
+/** Datos personales visibles para el usuario: sin correo, teléfono ni LinkedIn. */
+export type PublicPersonalData = Omit<PersonalData, 'email' | 'phone' | 'linkedin'>;
+
+/** Lo que se devuelve al navegador: sin archivo, datos internos ni datos de contacto. */
+export type PublicProfileAnalysis = Omit<ProfileAnalysis, 'file' | 'status' | 'notes' | 'extract'> & {
+  has_file: boolean;
+  extract: Omit<ProfileExtract, 'personal'> & { personal: PublicPersonalData };
+};

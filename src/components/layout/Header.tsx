@@ -9,7 +9,6 @@ import { Logo } from '../ui/Logo';
 const NAV = [
   { to: '/programas', label: 'Explorar programas' },
   { to: '/comparar', label: 'Comparar' },
-  { to: '/mi-ruta', label: 'Mi ruta' },
   { to: '/instituciones', label: 'Instituciones', end: true },
   { to: '/nosotros', label: 'Nosotros' }
 ];
@@ -61,7 +60,8 @@ export function Header() {
             <Icon name="heart" size={19} />
             {favorites.count > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-neg" aria-hidden="true" />}
           </Link>
-          <Link to="/instituciones/partners" className="btn btn-ghost btn-sm ml-2 hidden sm:inline-flex">Para instituciones</Link>
+          <Link to="/mi-ruta" className="btn btn-accent btn-sm ml-2 hidden sm:inline-flex"><Icon name="sparkle" size={15} />Analiza mi perfil</Link>
+          <Link to="/instituciones/partners" className="btn btn-ghost btn-sm ml-2 hidden xl:inline-flex">Para instituciones</Link>
           <button onClick={() => setMenuOpen(true)} className="grid h-10 w-10 place-items-center rounded-full text-gray hover:bg-raise hover:text-white lg:hidden" aria-label="Abrir menú" aria-expanded={menuOpen} aria-controls="mobile-menu">
             <Icon name="menu" size={20} />
           </button>
@@ -85,6 +85,9 @@ export function Header() {
               <button onClick={() => setMenuOpen(false)} className="grid h-10 w-10 place-items-center rounded-full text-gray hover:bg-raise" aria-label="Cerrar menú" autoFocus>
                 <Icon name="x" />
               </button>
+            </div>
+            <div className="px-4 pt-2">
+              <Link to="/mi-ruta" className="btn btn-accent w-full"><Icon name="sparkle" size={16} />Analiza mi perfil</Link>
             </div>
             <nav aria-label="Principal móvil" className="flex flex-col gap-1 p-4">
               {[...NAV, { to: '/favoritos', label: 'Favoritos' }].map((n) => (

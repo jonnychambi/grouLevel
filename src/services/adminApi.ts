@@ -109,6 +109,7 @@ export interface ProfileListItem {
   id: string; created_at: string; updated_at: string; source: ProfileSource; engine: ProfileEngine; objective: string; status: ProfileStatus; notes: string; contact_ok: boolean;
   file: ProfileAnalysis['file']; name: string; email: string | null; phone: string | null; country: string | null; current_role: string | null; seniority: Seniority;
   years_experience: number | null; highest_degree: EducationLevel | null; target_areas: string[];
+  target_role: string | null; readiness: number | null; expected_salary: number | null; expected_salary_currency: 'PEN' | 'USD' | null;
 }
 
 export const fetchProfiles = (limit = 500) => call<{ profiles: ProfileListItem[]; total: number }>(`profiles&limit=${limit}`);

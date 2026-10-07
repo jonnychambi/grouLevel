@@ -6,7 +6,7 @@ import { useSeo } from '../hooks/useSeo';
 import { track } from '../services/analytics';
 import { profileHistory, ProfileSubmitError, submitProfile } from '../services/profileService';
 import { formatDate } from '../utils/format';
-import { PROFILE_LIMITS } from '../utils/profileAnalysis';
+import { PROFILE_LIMITS, ROLE_LADDER } from '../utils/profileAnalysis';
 import type { ProfilePreferences } from '../types';
 
 const ACCEPT = '.pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain';
@@ -17,13 +17,14 @@ const OBJECTIVE_EXAMPLES = [
   'Usar IA generativa para automatizar procesos en mi trabajo',
   'Convertirme en desarrollador full stack'
 ];
-const STEPS = ['Leyendo tu información', 'Identificando formación y experiencia', 'Evaluando conocimientos y habilidades', 'Armando tu ruta con programas reales'];
+const STEPS = ['Leyendo tu información', 'Identificando formación y experiencia', 'Evaluando habilidades con criterio exigente', 'Midiendo la brecha con tu rol objetivo', 'Eligiendo estudios del catálogo'];
+const ROLE_SUGGESTIONS = [...new Set(Object.values(ROLE_LADDER).flat())].sort((a, b) => a.localeCompare(b, 'es'));
 
 type Mode = 'cv' | 'texto';
 type Errors = Partial<Record<'file' | 'description' | 'objective' | 'consent', string>>;
 
 export default function RoutePage() {
-  useSeo({ title: 'Mi ruta de formación', description: 'Sube tu CV o describe tu perfil, define tu objetivo y recibe un diagnóstico de tus conocimientos y una ruta de formación con programas reales.', path: '/mi-ruta' });
+  useSeo({ title: 'Analiza tu perfil', description: 'Sube tu CV o describe tu perfil, indica el rol al que quieres llegar y recibe un diagnóstico exigente: habilidades, puestos sugeridos, brecha con tu objetivo, salario referencial y estudios recomendados.', path: '/mi-ruta' });
   const uid = useId();
   const navigate = useNavigate();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -32,7 +33,7 @@ export default function RoutePage() {
   const [dragging, setDragging] = useState(false);
   const [description, setDescription] = useState('');
   const [objective, setObjective] = useState('');
-  const [prefs, setPrefs] = useState<ProfilePreferences>({ modality: 'cualquiera', budget_pen: null, hours_per_week: 6 });
+  const [prefs, setPrefs] = useState<ProfilePreferences>({ modality: 'cualquiera', budget_pen: null, hours_per_week: 6, target_role: '', expected_salary: null, salary_currency: 'PEN' });
   const [consent, setConsent] = useState(false);
   const [contactOk, setContactOk] = useState(false);
   const [trap, setTrap] = useState('');
@@ -94,6 +95,9 @@ export default function RoutePage() {
     fd.set('modality', prefs.modality);
     if (prefs.budget_pen) fd.set('budget_pen', String(prefs.budget_pen));
     if (prefs.hours_per_week) fd.set('hours_per_week', String(prefs.hours_per_week));
+    if (prefs.target_role?.trim()) fd.set('target_role', prefs.target_role.trim());
+    if (prefs.expected_salary) fd.set('expected_salary', String(prefs.expected_salary));
+    fd.set('salary_currency', prefs.salary_currency ?? 'PEN');
     fd.set('consent', String(consent));
     fd.set('contact_ok', String(contactOk));
     fd.set('website', trap);
@@ -115,12 +119,12 @@ export default function RoutePage() {
 
   return (
     <div className="container-page pt-8 pb-16">
-      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Mi ruta' }]} />
+      <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, { label: 'Analiza tu perfil' }]} />
       <header className="mt-6 grid gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-end">
         <div>
           <p className="eyebrow">Diagnóstico de perfil</p>
-          <h1 className="mt-3 text-4xl text-white sm:text-5xl">Tu ruta de formación, <span className="grad-text">a tu medida.</span></h1>
-          <p className="mt-4 max-w-xl text-lg text-gray">Sube tu CV o cuéntanos tu perfil, dinos a dónde quieres llegar y te mostramos tu nivel por materia, tus habilidades y una ruta con programas reales del catálogo.</p>
+          <h1 className="mt-3 text-4xl text-white sm:text-5xl">Analiza tu perfil, <span className="grad-text">descubre tu brecha.</span></h1>
+          <p className="mt-4 max-w-xl text-lg text-gray">Sube tu CV o cuéntanos tu perfil y el rol al que quieres llegar. Te mostramos un diagnóstico exigente de tus habilidades, los puestos a los que puedes postular hoy, la brecha con tu objetivo, el salario referencial y qué estudiar.</p>
         </div>
         <ol className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
           {([['upload', 'Tu perfil', 'CV o descripción'], ['target', 'Tu objetivo', 'A dónde quieres llegar'], ['route', 'Tu ruta', 'Programas por etapas']] as [IconName, string, string][]).map(([icon, t, d], i) => (
@@ -199,6 +203,24 @@ export default function RoutePage() {
                 <button key={ex} type="button" className="chip text-left" onClick={() => setObjective(ex)}>{ex}</button>
               ))}
             </div>
+            <div className="mt-6 grid gap-4 border-t border-line pt-5 sm:grid-cols-[1.4fr_1fr]">
+              <div>
+                <label htmlFor={`${uid}-target-role`} className={label}>Rol objetivo <span className="font-normal text-muted">(recomendado)</span></label>
+                <input id={`${uid}-target-role`} list={`${uid}-roles`} className="input" maxLength={100} placeholder="Ej. Científico de Datos Senior" value={prefs.target_role ?? ''} onChange={(e) => setPrefs({ ...prefs, target_role: e.target.value })} />
+                <datalist id={`${uid}-roles`}>{ROLE_SUGGESTIONS.map((r) => <option key={r} value={r} />)}</datalist>
+              </div>
+              <div>
+                <label htmlFor={`${uid}-salary`} className={label}>¿Qué salario mensual esperas en ese rol?</label>
+                <div className="flex gap-2">
+                  <select aria-label="Moneda" className="input w-24 shrink-0" value={prefs.salary_currency ?? 'PEN'} onChange={(e) => setPrefs({ ...prefs, salary_currency: e.target.value as 'PEN' | 'USD' })}>
+                    <option value="PEN">S/</option>
+                    <option value="USD">US$</option>
+                  </select>
+                  <input id={`${uid}-salary`} type="number" inputMode="numeric" min={0} step={100} className="input" placeholder="Ej. 9000" value={prefs.expected_salary ?? ''} onChange={(e) => setPrefs({ ...prefs, expected_salary: e.target.value ? Number(e.target.value) : null })} />
+                </div>
+                <p className="mt-1 text-xs text-muted">Bruto mensual. Lo comparamos con el rango referencial del rol.</p>
+              </div>
+            </div>
           </fieldset>
 
           {/* 3. PREFERENCIAS */}
@@ -240,10 +262,10 @@ export default function RoutePage() {
             <h2 className="text-lg text-white">Qué recibirás</h2>
             <ul className="mt-4 space-y-3 text-sm text-gray">
               {[
-                ['chart', 'Tu nivel de conocimiento en cada materia (datos, IA, software, cloud, negocio…)'],
-                ['user', 'Tus habilidades técnicas y blandas, con fortalezas y brechas'],
-                ['route', 'Una ruta por etapas con programas reales que puedes comparar'],
-                ['file', 'Los datos clave de tu CV ordenados: formación, experiencia, idiomas']
+                ['chart', 'Un diagnóstico exigente de tus habilidades técnicas y blandas'],
+                ['user', 'Los puestos a los que puedes postular hoy, con salario referencial'],
+                ['target', 'La brecha entre tu perfil y el rol objetivo, y cuánto tiempo tomaría cerrarla'],
+                ['book', 'Estudios sugeridos: corto plazo (cursos, diplomados, bootcamps) y largo plazo (maestrías)']
               ].map(([icon, t]) => (
                 <li key={t} className="flex gap-3"><Icon name={icon as IconName} size={17} className="mt-0.5 shrink-0 text-cyan" />{t}</li>
               ))}
@@ -273,7 +295,7 @@ export default function RoutePage() {
             )}
 
             <button type="submit" className="btn btn-accent btn-lg mt-6 w-full" disabled={sending}>
-              {sending ? 'Analizando…' : <>Analizar mi perfil <Icon name="arrow-right" size={17} /></>}
+              {sending ? 'Analizando…' : <>Analiza mi perfil <Icon name="arrow-right" size={17} /></>}
             </button>
             {sending && (
               <ol className="mt-5 space-y-2.5" role="status" aria-live="polite">

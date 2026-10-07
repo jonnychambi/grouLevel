@@ -28,7 +28,7 @@ export async function loadRouteCatalog(): Promise<{ courses: RouteCourse[]; cate
     sql`select c.id, c.name, c.category_id, c.level, c.program_type, c.modality, c.price, c.discount_price, c.currency, c.duration_hours,
                c.tools, c.keywords, c.featured, i.name as institution_name
         from courses c join institutions i on i.id = c.institution_id where c.status = 'publicado' order by c.position, c.id`,
-    sql`select id, name, keywords from categories order by position, id`
+    sql`select id, name, keywords, "group" from categories order by position, id`
   ]);
   const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
   const courses: RouteCourse[] = rows.map((c) => {
@@ -39,7 +39,7 @@ export async function loadRouteCatalog(): Promise<{ courses: RouteCourse[]; cate
       tools: c.tools ?? [], keywords: c.keywords ?? [], institution_name: c.institution_name, featured: c.featured === true
     };
   });
-  const categories: RouteCategory[] = cats.map((c) => ({ id: c.id, name: c.name, keywords: c.keywords ?? [] }));
+  const categories: RouteCategory[] = cats.map((c) => ({ id: c.id, name: c.name, keywords: c.keywords ?? [], group: c.group ?? null }));
   cache = { at: Date.now(), courses, categories };
   return cache;
 }
@@ -68,6 +68,10 @@ export function validateSubmission(fields: Record<string, string>): { ok: true; 
   const modality = (MODALITIES.includes(fields.modality as ProfilePreferences['modality']) ? fields.modality : 'cualquiera') as ProfilePreferences['modality'];
   const budget = Number(fields.budget_pen);
   const hours = Number(fields.hours_per_week);
+  const targetRole = (fields.target_role ?? '').trim().replace(/\s+/g, ' ');
+  if (targetRole.length > 100) errors.push('El rol objetivo es demasiado largo.');
+  const salary = Number(fields.expected_salary);
+  const currency = fields.salary_currency === 'USD' ? 'USD' : 'PEN';
   if (errors.length) return { ok: false, errors };
   return {
     ok: true,
@@ -78,7 +82,10 @@ export function validateSubmission(fields: Record<string, string>): { ok: true; 
       preferences: {
         modality,
         budget_pen: Number.isFinite(budget) && budget > 0 ? Math.min(Math.round(budget), 1_000_000) : null,
-        hours_per_week: Number.isFinite(hours) && hours > 0 ? Math.min(Math.round(hours), 80) : null
+        hours_per_week: Number.isFinite(hours) && hours > 0 ? Math.min(Math.round(hours), 80) : null,
+        target_role: targetRole || null,
+        expected_salary: Number.isFinite(salary) && salary > 0 ? Math.min(Math.round(salary), 10_000_000) : null,
+        salary_currency: currency
       }
     }
   };
@@ -94,7 +101,7 @@ export async function runAnalysis(sub: ProfileSubmission): Promise<Omit<ProfileA
   if (isAiConfigured()) {
     try {
       const ai = await analyzeWithAI({ ...input, pdf: sub.file?.type === 'pdf' ? sub.file.bytes : null }, categories, courses);
-      result = sanitizeAnalysis(ai, categories, courses, rules.route);
+      result = sanitizeAnalysis(ai, categories, courses, rules, sub.preferences);
       // Datos de contacto: si la IA no los encontró pero las reglas sí, se completan.
       for (const [k, v] of Object.entries(rules.extract.personal) as [keyof typeof rules.extract.personal, string | null][]) {
         if (!result.extract.personal[k] && v) result.extract.personal[k] = v;
@@ -113,7 +120,8 @@ export function newProfileId(): string {
 
 const MIME = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', txt: 'text/plain' } as const;
 
-export async function saveProfile(id: string, analysis: Omit<ProfileAnalysis, 'id' | 'created_at' | 'updated_at' | 'file' | 'status' | 'notes'>, file: ProfileSubmission['file']): Promise<ProfileAnalysis> {
+/** Guarda el diagnóstico completo en la base (y el CV original en Blob). `cvText` es el texto leído del CV. */
+export async function saveProfile(id: string, analysis: Omit<ProfileAnalysis, 'id' | 'created_at' | 'updated_at' | 'file' | 'status' | 'notes'>, file: ProfileSubmission['file'], cvText: string | null = null): Promise<ProfileAnalysis> {
   const now = new Date().toISOString();
   let stored: ProfileAnalysis['file'] = null;
   if (file) {
@@ -122,14 +130,17 @@ export async function saveProfile(id: string, analysis: Omit<ProfileAnalysis, 'i
     stored = { pathname, name: file.name.replace(/[^\p{L}\p{N} ._-]/gu, '_').slice(0, 120), type: MIME[file.type], size: file.bytes.byteLength };
   }
   const record: ProfileAnalysis = { id, created_at: now, updated_at: now, ...analysis, file: stored, status: 'nuevo', notes: '' };
-  await upsertProfile(getSql(), record);
+  await upsertProfile(getSql(), record, cvText);
   return record;
 }
 
+/** Versión pública del diagnóstico: sin archivo, estado interno ni datos de contacto (correo, teléfono, LinkedIn). */
 export function toPublic(p: ProfileAnalysis): PublicProfileAnalysis {
-  const { file, status: _s, notes: _n, ...rest } = p;
+  const { file, status: _s, notes: _n, extract, ...rest } = p;
   void _s; void _n;
-  return { ...rest, has_file: !!file };
+  const { email: _e, phone: _p, linkedin: _l, ...personal } = extract.personal;
+  void _e; void _p; void _l;
+  return { ...rest, extract: { ...extract, personal }, has_file: !!file };
 }
 
 export async function readProfile(id: string): Promise<ProfileAnalysis | null> {
@@ -141,13 +152,14 @@ export async function readProfile(id: string): Promise<ProfileAnalysis | null> {
 /** Resumen para el listado del administrador (sin la evaluación completa). */
 export type ProfileListItem = Pick<ProfileAnalysis, 'id' | 'created_at' | 'updated_at' | 'source' | 'engine' | 'objective' | 'status' | 'notes' | 'contact_ok' | 'file'> & {
   name: string; email: string | null; phone: string | null; country: string | null; current_role: string | null; seniority: string; years_experience: number | null; highest_degree: string | null; target_areas: string[];
+  target_role: string | null; readiness: number | null; expected_salary: number | null; expected_salary_currency: string | null;
 };
 
 export async function listProfiles(limit = 300): Promise<{ profiles: ProfileListItem[]; total: number }> {
   const sql = getSql();
   const [rows, [count]] = await Promise.all([
     sql`select id, created_at, updated_at, source, engine, objective, status, notes, contact_ok, first_name, last_name, email, phone, country,
-               current_position, seniority, years_experience, highest_degree, target_areas, cv_blob_path, cv_file_name, cv_file_type, cv_file_size
+               current_position, seniority, years_experience, highest_degree, target_areas, target_role, readiness, expected_salary, expected_salary_currency, cv_blob_path, cv_file_name, cv_file_type, cv_file_size
         from profiles order by created_at desc limit ${limit}`,
     sql`select count(*)::int as n from profiles`
   ]);
@@ -159,7 +171,8 @@ export async function listProfiles(limit = 300): Promise<{ profiles: ProfileList
       notes: p.notes, contact_ok: p.contact_ok,
       file: p.cv_blob_path ? { pathname: p.cv_blob_path, name: p.cv_file_name, type: p.cv_file_type, size: p.cv_file_size } : null,
       name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Sin nombre', email: p.email, phone: p.phone, country: p.country,
-      current_role: p.current_position, seniority: p.seniority, years_experience: p.years_experience, highest_degree: p.highest_degree, target_areas: p.target_areas ?? []
+      current_role: p.current_position, seniority: p.seniority, years_experience: p.years_experience, highest_degree: p.highest_degree, target_areas: p.target_areas ?? [],
+      target_role: p.target_role ?? null, readiness: p.readiness ?? null, expected_salary: p.expected_salary === null ? null : Number(p.expected_salary), expected_salary_currency: p.expected_salary_currency ?? null
     }))
   };
 }
