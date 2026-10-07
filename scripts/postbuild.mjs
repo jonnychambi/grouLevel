@@ -54,7 +54,8 @@ const template0 = readFileSync(join(dist, 'index.html'), 'utf8');
 /** Prefijo de rutas de la app (coincide con BASE_PATH de Vite). */
 const BASE = (process.env.BASE_PATH ?? '/').replace(/\/$/, '');
 /** Verificación de Google Search Console (opcional): GOOGLE_SITE_VERIFICATION=<código del meta tag>. */
-const verification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
+// Acepta el código solo o con el prefijo del registro DNS ("google-site-verification=…").
+const verification = process.env.GOOGLE_SITE_VERIFICATION?.trim().replace(/^google-site-verification=/, '');
 const template = verification
   ? template0.replace('</head>', `  <meta name="google-site-verification" content="${esc(verification)}" />\n  </head>`)
   : template0;
