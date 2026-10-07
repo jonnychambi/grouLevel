@@ -50,7 +50,7 @@ function guard(request: Request): Response | null {
   return null;
 }
 
-export async function POST(request: Request): Promise<Response> {
+async function handlePost(request: Request): Promise<Response> {
   const act = action(request);
   if (act === 'login') {
     if (!isConfigured()) return json(503, { error: 'not_configured', message: 'Falta configurar ADMIN_PASSWORD en Vercel.' });
@@ -127,7 +127,7 @@ export async function POST(request: Request): Promise<Response> {
   return json(404, { error: 'unknown_action' });
 }
 
-export async function GET(request: Request): Promise<Response> {
+async function handleGet(request: Request): Promise<Response> {
   const act = action(request);
   if (act === 'db-status') {
     const denied = verifyRequest(request) ? null : json(401, { error: 'unauthorized', message: 'Sesión inválida o vencida. Vuelve a ingresar.' });
@@ -160,7 +160,7 @@ export async function GET(request: Request): Promise<Response> {
   return json(404, { error: 'unknown_action' });
 }
 
-export async function PUT(request: Request): Promise<Response> {
+async function handlePut(request: Request): Promise<Response> {
   const denied = guard(request);
   if (denied) return denied;
   if (action(request) !== 'catalog') return json(404, { error: 'unknown_action' });
@@ -181,3 +181,40 @@ export async function PUT(request: Request): Promise<Response> {
     throw err;
   }
 }
+
+/** Acciones que pueden tardar varios minutos (leen muchas páginas). */
+const LONG = new Set(['refresh-run', 'db-import', 'refresh-check']);
+
+/**
+ * Límite por acción: si algo se queda colgado (p. ej. una conexión a la base) se responde un error claro
+ * en lugar de esperar los 5 minutos del límite de la función.
+ */
+function withTimeout(handler: (request: Request) => Promise<Response>) {
+  return async (request: Request): Promise<Response> => {
+    const act = action(request);
+    const ms = LONG.has(act) ? 285_000 : 45_000;
+    const started = Date.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<Response>((resolve) => {
+      timer = setTimeout(() => {
+        console.error(`admin: ${request.method} ${act} sin respuesta tras ${ms / 1000}s`);
+        resolve(json(504, { error: 'timeout', message: 'El servidor tardó demasiado en responder. Intenta de nuevo.' }));
+      }, ms);
+    });
+    try {
+      const res = await Promise.race([handler(request), timeout]);
+      const took = Date.now() - started;
+      if (took > 10_000) console.log(`admin: ${request.method} ${act} ${res.status} en ${took} ms`);
+      return res;
+    } catch (err) {
+      console.error(`admin: ${request.method} ${act} falló`, err);
+      return json(500, { error: 'server_error', message: `Error del servidor: ${err instanceof Error ? err.message : 'desconocido'}` });
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
+export const GET = withTimeout(handleGet);
+export const POST = withTimeout(handlePost);
+export const PUT = withTimeout(handlePut);

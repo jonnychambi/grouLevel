@@ -47,6 +47,7 @@ async function call<T>(action: string, init: RequestInit = {}): Promise<T> {
   }
   const isJson = (res.headers.get('content-type') ?? '').includes('application/json');
   if (!isJson) {
+    if (res.status >= 500) throw new AdminApiError(`El servidor no respondió a tiempo o falló (código ${res.status}). Intenta de nuevo en unos segundos.`, res.status, [], 'server');
     throw new AdminApiError('El API de administración no está disponible en este entorno (funciona en el despliegue de Vercel).', res.status, [], 'no_api');
   }
   const body = (await res.json()) as T & { message?: string; errors?: string[]; error?: string };
