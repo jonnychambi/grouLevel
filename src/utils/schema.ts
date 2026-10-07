@@ -20,6 +20,10 @@ export function websiteSchema() {
   };
 }
 
+export function siteOrganizationSchema() {
+  return { '@context': 'https://schema.org', '@type': 'Organization', name: SITE.name, url: abs('/'), logo: abs('/favicon.svg') };
+}
+
 export function breadcrumbSchema(items: { name: string; path: string }[]) {
   return {
     '@context': 'https://schema.org',
@@ -44,16 +48,19 @@ export function courseSchema(c: CourseWithInstitution) {
     ...(hours ? { timeRequired: `PT${hours}H` } : {}),
     provider: { '@type': 'EducationalOrganization', name: c.institution.name, sameAs: c.institution.website },
     ...(price != null
-      ? { offers: { '@type': 'Offer', category: price === 0 ? 'Free' : 'Paid', price, priceCurrency: c.currency, url: c.url } }
-      : {}),
+      ? { offers: { '@type': 'Offer', category: price === 0 ? 'Free' : 'Paid', price, priceCurrency: c.currency, url: abs(`/programa/${c.slug}`) } }
+      : { offers: { '@type': 'Offer', category: 'Paid', url: abs(`/programa/${c.slug}`) } }),
     hasCourseInstance: {
       '@type': 'CourseInstance',
-      ...(c.modality ? { courseMode: modeMap[c.modality], description: MODALITY_LABELS[c.modality] } : {}),
-      ...(c.schedule ? { courseSchedule: { '@type': 'Schedule', description: c.schedule } } : {}),
+      courseMode: c.modality ? modeMap[c.modality] : 'online',
+      ...(c.modality ? { description: MODALITY_LABELS[c.modality] } : {}),
+      // Google (Course info) exige courseWorkload o courseSchedule.
+      courseWorkload: `PT${hours ?? 1}H`,
+      ...(c.schedule ? { courseSchedule: { '@type': 'Schedule', description: c.schedule, ...(c.duration_weeks ? { duration: `P${c.duration_weeks}W` } : {}) } } : {}),
       ...(c.start_date ? { startDate: c.start_date } : {}),
       ...(c.teachers.length ? { instructor: c.teachers.map((t) => ({ '@type': 'Person', name: t.name })) } : {})
     },
-    ...(c.rating != null && c.reviews_count ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: c.rating, reviewCount: c.reviews_count } } : {})
+    ...(c.rating != null && c.reviews_count ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: c.rating, reviewCount: c.reviews_count, bestRating: 5, worstRating: 1 } } : {})
   };
 }
 

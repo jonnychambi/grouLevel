@@ -174,8 +174,12 @@ Cada lead registra programa, institución, URL, fecha, fuente, campaña y UTMs (
 - Opcional: **`LEAD_WEBHOOK_URL`** reenvía cada lead a un webhook (Zapier/Make → Google Sheets, HubSpot, email…).
 - Donde no hay API (GitHub Pages, desarrollo local) los leads se guardan en el navegador, como antes.
 
-## SEO
-Title/description/canonical/Open Graph/Twitter dinámicos, JSON-LD (WebSite + SearchAction, Course, EducationalOrganization, BreadcrumbList, ItemList), breadcrumbs, URLs semánticas. En el build, `scripts/postbuild.mjs` genera un `index.html` por ruta conocida (62) con su meta y contenido básico, más `sitemap.xml`, `robots.txt` y `404.html` (fallback SPA).
+## SEO (Google)
+- **Páginas del catálogo siempre al día**: en Vercel, `/`, `/programas`, `/programas/:area`, `/programa/:slug`, `/instituciones` e `/institucion/:slug` las sirve `api/seo.ts` desde la base (caché CDN 10 min). Google recibe HTML con contenido real (detalle, temario, precio, inicio, programas similares, enlaces internos), title/description/canonical/Open Graph y JSON-LD. Un programa nuevo o editado en /admin se indexa sin redesplegar; un slug inexistente devuelve 404 real con `noindex`.
+- **Datos estructurados**: Organization + WebSite (SearchAction), Course (provider, offers, hasCourseInstance con courseMode y courseWorkload, aggregateRating con las reseñas aprobadas), BreadcrumbList, ItemList y EducationalOrganization. La app reemplaza estos JSON-LD al navegar (`data-seo-jsonld`).
+- **Sitemap dinámico** en `/sitemap.xml` con `lastmod` por programa; `robots.txt` lo declara.
+- Plantillas compartidas en `scripts/seoPages.mjs` (las usa también el build estático de GitHub Pages).
+- **Search Console**: verificar el dominio (registro DNS TXT) o definir `GOOGLE_SITE_VERIFICATION` en Vercel con el código del meta tag; luego enviar `https://www.groulevel.com/sitemap.xml`.
 
 ## Despliegue
 

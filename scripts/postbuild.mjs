@@ -1,11 +1,12 @@
 /**
- * Post-build para hosting estático (GitHub Pages):
- *  1. Genera un index.html por cada ruta conocida con title, description, canonical,
- *     Open Graph y contenido HTML básico → URLs semánticas con status 200 y SEO sin SSR.
- *  2. Copia index.html como 404.html → fallback SPA para cualquier otra ruta.
- *  3. Genera sitemap.xml, robots.txt y .nojekyll.
+ * Post-build (SEO). Las páginas se construyen con scripts/seoPages.mjs (contenido, metadatos y JSON-LD).
+ *  · GitHub Pages: genera un index.html por ruta y sitemap.xml.
+ *  · Vercel (VERCEL=1): genera solo las páginas fijas; las del catálogo y el sitemap los sirve api/seo.ts
+ *    desde la base, para que Google vea siempre los datos vigentes y los programas nuevos.
+ *  · _shell.html (plantilla limpia), 404.html (SPA, noindex), admin, robots.txt y .nojekyll.
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { buildRoutes, esc, renderPage, sitemapXml, staticRoutes } from './seoPages.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -49,93 +50,36 @@ async function loadCatalog() {
   return { courses: read('src/data/courses.json'), institutions: read('src/data/institutions.json'), categories: read('src/data/categories.json') };
 }
 const catalog = await loadCatalog();
-const courses = catalog.courses.filter((c) => (c.status ?? 'publicado') === 'publicado');
-const institutions = catalog.institutions;
-const usedCategories = new Set(courses.map((c) => c.category));
-const categories = catalog.categories.filter((c) => usedCategories.has(c.id));
-const template = readFileSync(join(dist, 'index.html'), 'utf8');
+const template0 = readFileSync(join(dist, 'index.html'), 'utf8');
 /** Prefijo de rutas de la app (coincide con BASE_PATH de Vite). */
 const BASE = (process.env.BASE_PATH ?? '/').replace(/\/$/, '');
-const href = (path) => `${BASE}${path}`;
+/** Verificación de Google Search Console (opcional): GOOGLE_SITE_VERIFICATION=<código del meta tag>. */
+const verification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
+const template = verification
+  ? template0.replace('</head>', `  <meta name="google-site-verification" content="${esc(verification)}" />\n  </head>`)
+  : template0;
+/** En Vercel las páginas del catálogo y el sitemap los sirve api/seo.ts desde la base (siempre al día). */
+const dynamic = !!process.env.VERCEL;
 
-const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const TYPE = { curso: 'Curso', especializacion: 'Especialización', certificacion: 'Certificación', bootcamp: 'Bootcamp', diplomado: 'Diplomado', 'programa-ejecutivo': 'Programa ejecutivo', maestria: 'Maestría', membresia: 'Membresía' };
-const money = (c) => {
-  if (c.price == null) return 'precio a consultar';
-  const p = c.discount_price ?? c.price;
-  return p === 0 ? 'Gratis' : `${c.currency === 'PEN' ? 'S/' : 'US$'} ${p.toLocaleString('en-US')}`;
-};
-const facts = (c) => [TYPE[c.program_type], c.duration_hours ? `${c.duration_hours} horas` : c.duration_text, money(c)].filter(Boolean).join(', ');
-const instById = new Map(institutions.map((i) => [i.id, i]));
+const catalogRoutes = buildRoutes(catalog, { siteUrl: SITE_URL, base: BASE });
+const fixed = staticRoutes(BASE);
+const routes = [...catalogRoutes, ...fixed];
 
-/** @type {{path:string,title:string,description:string,body:string,priority:number,index?:boolean}[]} */
-const routes = [
-  {
-    path: '/', priority: 1,
-    title: 'Groulevel · Compara programas de tecnología',
-    description: 'Compara cursos, bootcamps, diplomados y maestrías en tecnología de las principales instituciones. Precios, duración y modalidad en un solo lugar.',
-    body: `<h1>Encuentra la formación que te lleva al siguiente nivel.</h1><p>Compara cursos, bootcamps, diplomados y maestrías en tecnología.</p><ul>${categories.map((c) => `<li><a href="${href(`/programas/${c.slug}`)}">${esc(c.name)}</a></li>`).join('')}</ul>`
-  },
-  { path: '/programas', priority: 0.9, title: 'Explora y compara programas de tecnología | Groulevel', description: 'Explora programas de Data, IA, desarrollo de software, cloud, ciberseguridad y más. Filtra por precio, modalidad, duración y nivel.', body: `<h1>Programas de tecnología</h1><ul>${courses.map((c) => `<li><a href="${href(`/programa/${c.slug}`)}">${esc(c.name)}</a></li>`).join('')}</ul>` },
-  { path: '/comparar', priority: 0.6, title: 'Comparador de programas | Groulevel', description: 'Compara hasta 3 programas de tecnología lado a lado: precio, duración, modalidad, certificación, docentes y financiamiento.', body: '<h1>Comparador</h1>' },
-  { path: '/instituciones', priority: 0.7, title: 'Instituciones | Groulevel', description: 'Universidades, escuelas de negocio, academias y bootcamps de tecnología. Conoce sus programas y compáralos.', body: `<h1>Instituciones</h1><ul>${institutions.map((i) => `<li><a href="${href(`/institucion/${i.slug}`)}">${esc(i.name)}</a></li>`).join('')}</ul>` },
-  { path: '/instituciones/partners', priority: 0.5, title: 'Para instituciones | Groulevel', description: 'Publica tus programas de tecnología en Groulevel y recibe leads calificados con Signal Score™, visibilidad destacada y métricas de interés.', body: '<h1>Conecta tus programas con profesionales que están buscando dónde estudiar.</h1>' },
-  { path: '/nosotros', priority: 0.4, title: 'Nosotros | Groulevel', description: 'Elegir dónde aprender tecnología no debería ser complicado. Groulevel hace más transparente y eficiente la decisión de formación profesional.', body: '<h1>Elegir dónde aprender tecnología no debería ser complicado.</h1>' },
-  { path: '/mi-ruta', priority: 0.8, title: 'Analiza tu perfil | Groulevel', description: 'Sube tu CV, indica el rol al que quieres llegar y recibe un diagnóstico exigente: habilidades, puestos sugeridos, brecha, salario referencial y qué estudiar.', body: '<h1>Analiza tu perfil, descubre tu brecha.</h1><p>Sube tu CV o describe tu perfil y el rol al que quieres llegar.</p>' },
-  { path: '/favoritos', priority: 0, index: false, title: 'Mis favoritos | Groulevel', description: 'Tus programas guardados.', body: '<h1>Mis favoritos</h1>' },
-  ...categories.map((c) => ({
-    path: `/programas/${c.slug}`, priority: 0.8,
-    title: `Cursos y programas de ${c.name} en Perú | Groulevel`,
-    description: `Compara cursos, bootcamps, diplomados y maestrías de ${c.name}: precios, duración, modalidad y certificación. ${c.description}`,
-    body: `<h1>Programas de ${esc(c.name)}</h1><p>${esc(c.description)}</p><ul>${courses.filter((x) => x.category === c.id).map((x) => `<li><a href="${href(`/programa/${x.slug}`)}">${esc(x.name)}</a></li>`).join('')}</ul>`
-  })),
-  ...courses.map((c) => {
-    const inst = instById.get(c.institution_id);
-    return {
-      path: `/programa/${c.slug}`, priority: 0.8,
-      title: `${c.name} · ${inst?.short_name ?? ''} | Groulevel`,
-      description: `${c.short_description} ${facts(c)}.`.slice(0, 300),
-      body: `<h1>${esc(c.name)}</h1><p>${esc(inst?.name ?? '')} · ${esc(facts(c))}</p><p>${esc(c.description)}</p>`
-    };
-  }),
-  ...institutions.filter((i) => courses.some((c) => c.institution_id === i.id)).map((i) => ({
-    path: `/institucion/${i.slug}`, priority: 0.6,
-    title: `${i.name}: programas y cursos | Groulevel`,
-    description: `${i.description.slice(0, 150)}`,
-    body: `<h1>${esc(i.name)}</h1><p>${esc(i.description)}</p>`
-  }))
-];
+// Plantilla limpia para el render dinámico.
+writeFileSync(join(dist, '_shell.html'), template);
 
-function render(route) {
-  const url = `${SITE_URL}${route.path === '/' ? '/' : route.path}`;
-  let html = template
-    .replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(route.title)}</title>`)
-    .replace(/<meta name="description"[^>]*>/, `<meta name="description" content="${esc(route.description)}" />`)
-    .replace(/<meta property="og:title"[^>]*>/, `<meta property="og:title" content="${esc(route.title)}" />`)
-    .replace(/<meta property="og:description"[^>]*>/, `<meta property="og:description" content="${esc(route.description)}" />`);
-  const extra = [
-    `<link rel="canonical" href="${url}" />`,
-    `<meta property="og:url" content="${url}" />`,
-    `<meta property="og:image" content="${SITE_URL}/og-image.png" />`,
-    route.index === false ? '<meta name="robots" content="noindex, follow" />' : '<meta name="robots" content="index, follow" />'
-  ].join('\n    ');
-  html = html.replace('</head>', `    ${extra}\n  </head>`);
-  // Contenido estático para crawlers; React lo reemplaza al montar.
-  html = html.replace('<div id="root"></div>', `<div id="root"><div style="max-width:960px;margin:0 auto;padding:48px 16px;font-family:system-ui;color:#9DAABD">${route.body}</div></div>`);
-  return html;
-}
-
-for (const route of routes) {
+let written = 0;
+for (const route of dynamic ? fixed : routes) {
   const file = route.path === '/' ? join(dist, 'index.html') : join(dist, route.path, 'index.html');
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, render(route));
+  writeFileSync(file, renderPage(template, route, SITE_URL));
+  written++;
 }
+// En Vercel "/" lo sirve la función (el index.html estático taparía la reescritura).
+if (dynamic) rmSync(join(dist, 'index.html'), { force: true });
 
 // 404 → SPA fallback (sin contenido estático, noindex)
-writeFileSync(
-  join(dist, '404.html'),
-  template.replace('</head>', '    <meta name="robots" content="noindex" />\n  </head>')
-);
+writeFileSync(join(dist, '404.html'), template.replace('</head>', '    <meta name="robots" content="noindex" />\n  </head>'));
 
 // Administración: shell propio (200, noindex) para /admin.
 mkdirSync(join(dist, 'admin'), { recursive: true });
@@ -144,17 +88,9 @@ writeFileSync(
   template.replace(/<title>[\s\S]*?<\/title>/, '<title>Administración | Groulevel</title>').replace('</head>', '    <meta name="robots" content="noindex, nofollow" />\n  </head>')
 );
 
-const today = new Date().toISOString().slice(0, 10);
-const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${routes
-  .filter((r) => r.index !== false)
-  .map((r) => `  <url><loc>${SITE_URL}${r.path === '/' ? '/' : r.path}</loc><lastmod>${today}</lastmod><priority>${r.priority.toFixed(1)}</priority></url>`)
-  .join('\n')}
-</urlset>
-`;
-writeFileSync(join(dist, 'sitemap.xml'), sitemap);
-writeFileSync(join(dist, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: ${new URL(SITE_URL + '/').pathname}interno/\nDisallow: ${new URL(SITE_URL + '/').pathname}admin\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+const indexable = routes.filter((r) => r.index !== false).length;
+if (!dynamic) writeFileSync(join(dist, 'sitemap.xml'), sitemapXml(routes, SITE_URL));
+writeFileSync(join(dist, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: ${new URL(SITE_URL + '/').pathname}interno/\nDisallow: ${new URL(SITE_URL + '/').pathname}admin\nDisallow: ${new URL(SITE_URL + '/').pathname}mi-ruta/\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
 writeFileSync(join(dist, '.nojekyll'), '');
 
-console.log(`postbuild: ${routes.length} rutas pre-generadas, 404.html, sitemap.xml (${routes.filter((r) => r.index !== false).length} URLs), robots.txt`);
+console.log(`postbuild: ${written} páginas pre-generadas${dynamic ? ` (las ${catalogRoutes.length} del catálogo y el sitemap se sirven desde /api/seo)` : ''}, ${indexable} URLs indexables, 404.html, robots.txt`);

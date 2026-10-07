@@ -10,7 +10,7 @@ import { useCatalog } from '../hooks/useCatalog';
 import { useCompare } from '../hooks/useCompare';
 import { useSeo } from '../hooks/useSeo';
 import { featuredCourses } from '../services/catalogService';
-import { websiteSchema } from '../utils/schema';
+import { siteOrganizationSchema, websiteSchema } from '../utils/schema';
 import { PROGRAM_TYPE_LABELS } from '../utils/labels';
 import type { ProgramType } from '../types';
 
@@ -53,7 +53,7 @@ export default function HomePage() {
   const { replace } = useCompare();
   const navigate = useNavigate();
 
-  useSeo({ path: '/', jsonLd: websiteSchema() });
+  useSeo({ path: '/', jsonLd: [siteOrganizationSchema(), websiteSchema()] });
 
   const counts = useMemo(() => {
     const m = new Map<string, number>();

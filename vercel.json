@@ -24,6 +24,15 @@
   ],
   "headers": [
     {
+      "source": "/_shell.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
       "source": "/mi-ruta/:id",
       "headers": [
         {
@@ -80,6 +89,34 @@
     {
       "source": "/mi-ruta/:id",
       "destination": "/mi-ruta"
+    },
+    {
+      "source": "/",
+      "destination": "/api/seo?path=/"
+    },
+    {
+      "source": "/programas",
+      "destination": "/api/seo?path=/programas"
+    },
+    {
+      "source": "/programas/:slug",
+      "destination": "/api/seo?path=/programas/:slug"
+    },
+    {
+      "source": "/programa/:slug",
+      "destination": "/api/seo?path=/programa/:slug"
+    },
+    {
+      "source": "/instituciones",
+      "destination": "/api/seo?path=/instituciones"
+    },
+    {
+      "source": "/institucion/:slug",
+      "destination": "/api/seo?path=/institucion/:slug"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/seo?sitemap=1"
     }
   ],
   "functions": {
