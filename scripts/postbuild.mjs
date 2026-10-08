@@ -91,6 +91,8 @@ writeFileSync(
 
 const indexable = routes.filter((r) => r.index !== false).length;
 if (!dynamic) writeFileSync(join(dist, 'sitemap.xml'), sitemapXml(routes, SITE_URL));
+// Respaldo para api/seo.ts si la base no responde al pedir el sitemap.
+else writeFileSync(join(dist, 'sitemap-build.xml'), sitemapXml(routes, SITE_URL));
 writeFileSync(join(dist, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: ${new URL(SITE_URL + '/').pathname}interno/\nDisallow: ${new URL(SITE_URL + '/').pathname}admin\nDisallow: ${new URL(SITE_URL + '/').pathname}mi-ruta/\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
 writeFileSync(join(dist, '.nojekyll'), '');
 

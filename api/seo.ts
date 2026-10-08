@@ -50,6 +50,9 @@ export async function GET(request: Request): Promise<Response> {
       return new Response(sitemapXml([...list, ...staticRoutes()], SITE_URL), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': CACHE } });
     } catch (err) {
       console.error('seo: sitemap', err instanceof Error ? err.message : err);
+      // Respaldo: el sitemap generado en el build (nunca dejar a Google sin sitemap).
+      const backup = await fetch(`${origin}/sitemap-build.xml`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+      if (backup?.ok) return new Response(await backup.text(), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=0, s-maxage=300' } });
       return new Response('error', { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '300' } });
     }
   }

@@ -24,6 +24,15 @@
   ],
   "headers": [
     {
+      "source": "/sitemap-build.xml",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
       "source": "/_shell.html",
       "headers": [
         {
