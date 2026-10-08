@@ -11,8 +11,8 @@ export const SITE = {
   contactEmail: 'partners@groulevel.example',
   /** Tipo de cambio referencial para comparar precios en una sola moneda. */
   exchangeRate: { USD_PEN: 3.75 },
-  pageSize: 12,
-  maxCompare: 3
+  pageSize: 50,
+  maxCompare: 4
 } as const;
 
 /** Prefijo de rutas (coincide con `base` de Vite). */

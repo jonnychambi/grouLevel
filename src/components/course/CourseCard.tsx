@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { CourseWithInstitution } from '../../types';
 import { durationLabel, startLabel } from '../../utils/format';
-import { LEVEL_LABELS, MODALITY_LABELS, MODALITY_SHORT, PROGRAM_TYPE_LABELS } from '../../utils/labels';
+import { LEVEL_LABELS, MODALITY_LABELS, MODALITY_SHORT } from '../../utils/labels';
 import { useLeadModal } from '../../context/LeadModalContext';
 import type { LeadSource } from '../../types';
 import { InstitutionLogo } from '../institution/InstitutionLogo';
@@ -10,6 +10,7 @@ import { Icon, type IconName } from '../ui/Icon';
 import { PriceDisplay } from '../ui/PriceDisplay';
 import { Stars } from '../reviews/Stars';
 import { CompareButton } from './CompareButton';
+import { TypeAccent, TypeBadge } from './TypeBadge';
 import { FavoriteButton } from './FavoriteButton';
 
 const MODALITY_ICON: Record<string, IconName> = { 'en-vivo': 'live', grabado: 'play', hibrido: 'layers', presencial: 'building' };
@@ -31,6 +32,7 @@ export function CourseCard({ course, source = 'listado' }: { course: CourseWithI
 
   return (
     <article className="card group relative flex h-full flex-col p-5 transition-colors hover:border-line-strong" aria-labelledby={`c-${course.id}`}>
+      <TypeAccent type={course.program_type} />
       <header className="flex items-start gap-3">
         <InstitutionLogo institution={course.institution} size={40} />
         <div className="min-w-0 flex-1">
@@ -43,7 +45,7 @@ export function CourseCard({ course, source = 'listado' }: { course: CourseWithI
             )}
           </p>
           <div className="mt-1 flex flex-wrap gap-1.5">
-            <Badge tone="type" mono>{PROGRAM_TYPE_LABELS[course.program_type]}</Badge>
+            <TypeBadge type={course.program_type} />
             {course.featured && (
               <Badge tone="featured" mono>
                 <span title="Listing destacado por la institución">Destacado</span>

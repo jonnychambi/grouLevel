@@ -15,6 +15,7 @@ import { track } from '../services/analytics';
 import { featuredCourses, getRelated } from '../services/catalogService';
 import { keyInsights } from '../utils/compare';
 import type { CourseWithInstitution } from '../types';
+import { SITE } from '../config/site';
 
 function Suggestions({ title, courses }: { title: string; courses: CourseWithInstitution[] }) {
   return (
@@ -69,7 +70,7 @@ export default function ComparePage() {
 
   useSeo({
     title: courses.length >= 2 ? `Comparar: ${courses.map((c) => c.name).join(' vs ')}` : 'Comparador de programas',
-    description: 'Compara hasta 3 programas de tecnología lado a lado: precio, duración, modalidad, certificación, docentes y financiamiento.',
+    description: 'Compara hasta 4 programas de tecnología lado a lado: precio, duración, modalidad, certificación, docentes y financiamiento.',
     path: '/comparar',
     noindex: courses.length > 0
   });
@@ -90,7 +91,7 @@ export default function ComparePage() {
       <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl text-white sm:text-4xl">Comparador</h1>
-          <p className="mt-2 text-gray">Hasta 3 programas lado a lado, con criterios homogéneos.</p>
+          <p className="mt-2 text-gray">Hasta 4 programas lado a lado, con criterios homogéneos.</p>
         </div>
         {courses.length >= 2 && (
           <div className="flex gap-2">
@@ -137,7 +138,7 @@ export default function ComparePage() {
           <button className="btn btn-quiet btn-sm" onClick={() => remove(only.id)}>Quitar</button>
         </div>
         <p className="mt-6 flex items-center gap-2 text-gray" role="status">
-          <Icon name="info" size={16} className="text-cyan" /> 1 de 3 programas seleccionados. Agrega otro programa para comparar.
+          <Icon name="info" size={16} className="text-cyan" /> 1 de 4 programas seleccionados. Agrega otro programa para comparar.
         </p>
         <Suggestions title="Programas similares para comparar" courses={getRelated(catalog, only, 6)} />
       </div>
@@ -160,8 +161,8 @@ export default function ComparePage() {
       <div className="mt-8">
         <ComparisonTable courses={courses} onRemove={remove} />
       </div>
-      {courses.length < 3 && (
-        <Suggestions title="¿Quieres sumar una tercera opción?" courses={getRelated(catalog, courses[0], 6).filter((c) => !ids.includes(c.id)).slice(0, 3)} />
+      {courses.length < SITE.maxCompare && (
+        <Suggestions title={courses.length === 2 ? '¿Quieres sumar una tercera opción?' : '¿Quieres sumar una cuarta opción?'} courses={getRelated(catalog, courses[0], 6).filter((c) => !ids.includes(c.id)).slice(0, 3)} />
       )}
       <p className="mt-6 text-xs text-muted">Los montos en USD se convierten a soles con un tipo de cambio referencial para facilitar la comparación.</p>
     </div>

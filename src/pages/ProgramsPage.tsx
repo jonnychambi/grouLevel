@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { CourseGrid } from '../components/course/CourseGrid';
+import { CourseList } from '../components/course/CourseList';
 import { FilterDrawer } from '../components/filters/FilterDrawer';
 import { FilterSidebar } from '../components/filters/FilterSidebar';
 import { SortSelector } from '../components/filters/SortSelector';
@@ -11,6 +12,7 @@ import { Icon } from '../components/ui/Icon';
 import { Pagination } from '../components/ui/Pagination';
 import { SITE } from '../config/site';
 import { useCatalog } from '../hooks/useCatalog';
+import { createPersistentStore } from '../hooks/usePersistentStore';
 import { useSeo } from '../hooks/useSeo';
 import { track } from '../services/analytics';
 import { queryPrograms } from '../services/catalogService';
@@ -20,7 +22,25 @@ import { LEVEL_LABELS, MODALITY_LABELS, PROGRAM_TYPE_LABELS } from '../utils/lab
 import { describeIntent } from '../utils/search';
 import { breadcrumbSchema, itemListSchema } from '../utils/schema';
 
+type View = 'lista' | 'tarjetas';
+/** Vista preferida del listado (se recuerda en el navegador). Por defecto, lista horizontal. */
+const viewStore = createPersistentStore<View>('programs-view', 'lista');
+
+function ViewToggle({ value, onChange }: { value: View; onChange: (v: View) => void }) {
+  return (
+    <div role="group" aria-label="Vista del listado" className="hidden items-center rounded-full border border-line p-0.5 sm:flex">
+      {(['lista', 'tarjetas'] as View[]).map((v) => (
+        <button key={v} type="button" onClick={() => onChange(v)} aria-pressed={value === v} title={v === 'lista' ? 'Lista horizontal' : 'Tarjetas'}
+          className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-sm ${value === v ? 'bg-raise text-white' : 'text-gray hover:text-white'}`}>
+          <Icon name={v === 'lista' ? 'menu' : 'compare'} size={15} /> {v === 'lista' ? 'Lista' : 'Tarjetas'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function ProgramsPage() {
+  const view = viewStore.use();
   const { categoria } = useParams();
   const [params, setParams] = useSearchParams();
   const location = useLocation();
@@ -152,6 +172,7 @@ export default function ProgramsPage() {
               <button className="btn btn-ghost btn-sm lg:hidden" onClick={() => setDrawerOpen(true)} aria-haspopup="dialog">
                 <Icon name="sliders" size={16} /> Filtros {filtersActive > 0 && <span className="tnum text-cyan">({filtersActive})</span>}
               </button>
+              <ViewToggle value={view} onChange={(v) => viewStore.set(v)} />
               {result && <SortSelector value={result.effectiveSort} onChange={setSort} hide={catalog?.courses.some((c) => c.rating != null) ? [] : ['valoracion']} />}
             </div>
           </div>
@@ -171,7 +192,7 @@ export default function ProgramsPage() {
 
           <div className="mt-6">
             {loading || !result ? (
-              <CourseGrid courses={[]} loading skeletons={6} />
+              view === 'lista' ? <CourseList courses={[]} loading /> : <CourseGrid courses={[]} loading skeletons={6} />
             ) : total === 0 ? (
               <EmptyState
                 title="No encontramos programas con esos filtros."
@@ -185,7 +206,7 @@ export default function ProgramsPage() {
               />
             ) : (
               <>
-                <CourseGrid courses={result.items} source="listado" />
+                {view === 'lista' ? <CourseList courses={result.items} source="listado" /> : <CourseGrid courses={result.items} source="listado" />}
                 <Pagination page={result.page} pageCount={result.pageCount} onChange={setPage} />
               </>
             )}

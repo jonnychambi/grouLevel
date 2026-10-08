@@ -6,12 +6,12 @@ import { convert, effectivePrice, formatDate, formatMoney, formatWeeks } from '.
 import { CERTIFICATE_LABELS, LEVEL_LABELS, MODALITY_LABELS, PROGRAM_TYPE_LABELS } from '../../utils/labels';
 import { useLeadModal } from '../../context/LeadModalContext';
 import { InstitutionLogo } from '../institution/InstitutionLogo';
-import { Badge } from '../ui/Badge';
 import { Icon } from '../ui/Icon';
 import { PriceDisplay } from '../ui/PriceDisplay';
 import { Rating } from '../ui/Rating';
+import { TypeBadge } from '../course/TypeBadge';
 
-export const LETTERS = ['A', 'B', 'C'];
+export const LETTERS = ['A', 'B', 'C', 'D'];
 
 interface Row {
   key: string;
@@ -29,7 +29,7 @@ const ROWS: Row[] = [
   { key: 'institution', label: 'Institución', value: (c) => c.institution_id, render: (c) => <span className="text-white">{c.institution.name}<span className="block text-xs text-muted">{c.institution.type} · {c.institution.country}</span></span> },
   {
     key: 'type', label: 'Tipo de programa', value: (c) => c.program_type,
-    render: (c) => <span><Badge tone="type" mono>{PROGRAM_TYPE_LABELS[c.program_type]}</Badge>{c.published_type && c.published_type.toLowerCase() !== PROGRAM_TYPE_LABELS[c.program_type].toLowerCase() && <span className="mt-1 block text-xs text-muted">La institución lo llama “{c.published_type}”</span>}</span>
+    render: (c) => <span><TypeBadge type={c.program_type} />{c.published_type && c.published_type.toLowerCase() !== PROGRAM_TYPE_LABELS[c.program_type].toLowerCase() && <span className="mt-1 block text-xs text-muted">La institución lo llama “{c.published_type}”</span>}</span>
   },
   {
     key: 'price', label: 'Precio', value: (c) => effectivePrice(c), highlights: priceHighlights, bestLabel: 'Más económico',
@@ -127,8 +127,8 @@ export function ComparisonTable({ courses, onRemove }: Props) {
       </div>
 
       {/* Desktop / tablet ancha */}
-      <div className="hidden overflow-hidden rounded-[var(--radius-card)] border border-line md:block">
-        <table className="w-full table-fixed border-collapse text-left">
+      <div className="hidden overflow-x-auto rounded-[var(--radius-card)] border border-line md:block">
+        <table className={`w-full table-fixed border-collapse text-left ${cols === 4 ? 'min-w-[920px]' : ''}`}>
           <caption className="sr-only">Comparación de {cols} programas</caption>
           <colgroup>
             <col className="w-44 lg:w-52" />
@@ -187,7 +187,7 @@ export function ComparisonTable({ courses, onRemove }: Props) {
       {/* Mobile: comparación por bloques */}
       <div className="md:hidden">
         <div className="sticky top-16 z-20 -mx-4 mb-4 border-b border-line bg-navy/95 px-4 py-3 backdrop-blur">
-          <ul className={`grid gap-2 ${cols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <ul className={`grid gap-2 ${cols === 4 ? 'grid-cols-4' : cols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {courses.map((c, i) => (
               <li key={c.id} className="relative min-w-0 rounded-xl border border-line bg-midnight p-2">
                 <span className="font-mono text-xs text-cyan">{LETTERS[i]}</span>

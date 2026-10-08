@@ -131,7 +131,7 @@ export default function HomePage() {
         <ol className="mt-10 grid gap-4 md:grid-cols-3">
           {[
             { n: '01', t: 'Descubre', d: 'Busca por tema, herramienta o institución y filtra por precio, modalidad, duración y nivel.', icon: 'search' as IconName },
-            { n: '02', t: 'Compara', d: 'Pon hasta 3 programas lado a lado con criterios homogéneos: precio, horas, certificación, docentes.', icon: 'compare' as IconName },
+            { n: '02', t: 'Compara', d: 'Pon hasta 4 programas lado a lado con criterios homogéneos: precio, horas, certificación, docentes.', icon: 'compare' as IconName },
             { n: '03', t: 'Decide', d: 'Solicita información solo cuando estés listo. Sin registro para explorar ni comparar.', icon: 'check' as IconName }
           ].map((s) => (
             <li key={s.n} className="card p-6">

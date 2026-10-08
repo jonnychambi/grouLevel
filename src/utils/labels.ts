@@ -1,5 +1,17 @@
 import type { CertificateType, Level, Modality, ProgramType } from '../types';
 
+/** Color de acento por tipo de programa (diferenciación sutil en tarjetas y listados). */
+export const PROGRAM_TYPE_ACCENT: Record<ProgramType, string> = {
+  curso: 'var(--color-gray)',
+  especializacion: 'var(--color-blue)',
+  certificacion: 'var(--color-cyan)',
+  bootcamp: 'var(--color-violet)',
+  diplomado: 'var(--color-blue-soft)',
+  'programa-ejecutivo': 'var(--color-warn)',
+  maestria: 'var(--color-violet-soft)',
+  membresia: 'var(--color-pos)'
+};
+
 export const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
   curso: 'Curso',
   especializacion: 'Especialización',

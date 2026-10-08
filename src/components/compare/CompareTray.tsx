@@ -22,7 +22,7 @@ export function CompareTray() {
     <aside aria-label="Programas seleccionados para comparar" className="fixed inset-x-0 bottom-0 z-40 px-3 pb-3 sm:px-6 sm:pb-5">
       <div className="mx-auto max-w-4xl animate-slide-up rounded-2xl border border-line-strong bg-raise/95 shadow-[0_-10px_60px_-15px_rgba(0,0,0,.7)] backdrop-blur-xl">
         {expanded && (
-          <ul className="grid gap-2 border-b border-line p-3 sm:grid-cols-3">
+          <ul className="grid gap-2 border-b border-line p-3 sm:grid-cols-2 lg:grid-cols-4">
             {courses.map((c) => (
               <li key={c.id} className="flex items-center gap-2.5 rounded-xl bg-midnight p-2.5">
                 <InstitutionLogo institution={c.institution} size={32} />

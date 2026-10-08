@@ -26,6 +26,7 @@ import { durationLabel, effectivePrice, formatDate, formatMoney, formatWeeks, st
 import { CERTIFICATE_LABELS, LEVEL_LABELS, MODALITY_EXPLANATIONS, MODALITY_LABELS, MODALITY_SHORT, PROGRAM_TYPE_LABELS } from '../utils/labels';
 import type { CourseWithInstitution } from '../types';
 import { breadcrumbSchema, courseSchema } from '../utils/schema';
+import { TypeBadge } from '../components/course/TypeBadge';
 
 const SECTIONS = [
   { id: 'sobre', label: 'Sobre el programa' },
@@ -173,7 +174,7 @@ export default function ProgramDetailPage() {
                 <Link to={`/institucion/${course.institution.slug}`} className="text-gray hover:text-white">{course.institution.name}</Link>
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Badge tone="type" mono>{PROGRAM_TYPE_LABELS[course.program_type]}</Badge>
+                <TypeBadge type={course.program_type} />
                 {course.modality && <Badge tone="live">{course.modality === 'presencial' ? 'Presencial' : course.modality === 'hibrido' ? 'Híbrido' : 'Online'}</Badge>}
                 {course.modality && course.modality !== 'presencial' && course.modality !== 'hibrido' && <Badge>{MODALITY_SHORT[course.modality]}</Badge>}
                 {course.level && <Badge>{LEVEL_LABELS[course.level]}</Badge>}
