@@ -100,20 +100,22 @@ export async function enqueueLinks(rawLinks: string[], institutionId: string | n
 
 const n = (t: string) => ({ anyOf: [{ type: t }, { type: 'null' }] });
 const nenum = (values: readonly string[]) => ({ anyOf: [{ type: 'string', enum: [...values] }, { type: 'null' }] });
+const str = { type: 'string' };
 const strArr = { type: 'array', items: { type: 'string' } };
+// La API admite hasta 16 campos con tipos unión (null): los textos opcionales usan "" en lugar de null.
 const obj = (properties: Record<string, unknown>) => ({ type: 'object', additionalProperties: false, required: Object.keys(properties), properties });
 
 export function draftSchema(categoryIds: string[]) {
   return obj({
     found: { type: 'boolean' },
     name: { type: 'string' },
-    institution_name: n('string'),
+    institution_name: str,
     program_type: { type: 'string', enum: [...PROGRAM_TYPES] },
-    published_type: n('string'),
+    published_type: str,
     category: { type: 'string', enum: categoryIds },
     short_description: { type: 'string' },
     description: { type: 'string' },
-    target_audience: n('string'),
+    target_audience: str,
     level: nenum(LEVELS),
     modality: nenum(MODALITIES),
     language: { type: 'string', enum: ['Español', 'Inglés', 'Portugués'] },
@@ -122,10 +124,10 @@ export function draftSchema(categoryIds: string[]) {
     currency: nenum(['PEN', 'USD']),
     duration_hours: n('integer'),
     duration_weeks: n('integer'),
-    duration_text: n('string'),
-    start_date: n('string'),
-    start_text: n('string'),
-    schedule: n('string'),
+    duration_text: str,
+    start_date: str,
+    start_text: str,
+    schedule: str,
     certificate: { anyOf: [obj({ type: { type: 'string', enum: [...CERTS] }, description: { type: 'string' } }), { type: 'null' }] },
     objectives: strArr,
     syllabus: { type: 'array', items: obj({ title: { type: 'string' }, hours: n('integer') }) },
@@ -138,7 +140,7 @@ export function draftSchema(categoryIds: string[]) {
   });
 }
 
-const SYSTEM = (categories: Rec[]) => `Conviertes la página oficial de UN programa de formación en una ficha para el catálogo de Groulevel (comparador de cursos de tecnología, datos y negocios digitales en Perú). Usa SOLO lo que la página dice; si un dato no aparece o es ambiguo: null o lista vacía. Nunca inventes precios, fechas ni horas.
+const SYSTEM = (categories: Rec[]) => `Conviertes la página oficial de UN programa de formación en una ficha para el catálogo de Groulevel (comparador de cursos de tecnología, datos y negocios digitales en Perú). Usa SOLO lo que la página dice; si un dato no aparece o es ambiguo: texto vacío ("") en los textos, null en números y opciones, lista vacía en listas. Nunca inventes precios, fechas ni horas.
 - found: false si la página no describe un programa concreto (listado general, error, home).
 - name: nombre del programa tal como lo publica la institución, sin el nombre de la institución.
 - program_type: curso | especializacion (programa/curso de especialización) | certificacion (preparación para una certificación) | bootcamp | diplomado | programa-ejecutivo (PEE, programa de alta dirección) | maestria (maestría, MBA, máster) | membresia (suscripción). published_type: la denominación literal que usa la institución.

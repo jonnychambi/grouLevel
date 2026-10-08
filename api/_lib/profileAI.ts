@@ -13,7 +13,8 @@ const MODEL = () => process.env.PROFILE_AI_MODEL || 'claude-opus-5-5';
 
 type Schema = Record<string, unknown>;
 const str = { type: 'string' };
-const nstr = { anyOf: [{ type: 'string' }, { type: 'null' }] };
+// La API admite hasta 16 campos con tipos unión: los textos opcionales usan "" y se convierten a null al leer.
+const nstr = { type: 'string' };
 const nint = { anyOf: [{ type: 'integer' }, { type: 'null' }] };
 const obj = (properties: Record<string, Schema>): Schema => ({ type: 'object', additionalProperties: false, required: Object.keys(properties), properties });
 const arr = (items: Schema): Schema => ({ type: 'array', items });
@@ -77,7 +78,7 @@ const SYSTEM = `Eres el motor de diagnóstico de carrera de Groulevel, un compar
 
 Recibes el CV o la descripción de una persona, su objetivo de formación y sus preferencias, junto con el catálogo de materias y programas de Groulevel. Devuelve:
 
-1. extract — los datos tal como aparecen en el documento. No inventes nada: usa null o listas vacías cuando un dato no figura. Separa nombres y apellidos. País con su nombre en español. years_experience = años totales de experiencia laboral estimados a partir de las fechas. current_studies = la formación que está cursando ahora, si la hay. tools = herramientas y tecnologías concretas que menciona.
+1. extract — los datos tal como aparecen en el documento. No inventes nada: usa texto vacío ("") en los textos, null en los números y listas vacías cuando un dato no figura. Separa nombres y apellidos. País con su nombre en español. years_experience = años totales de experiencia laboral estimados a partir de las fechas. current_studies = la formación que está cursando ahora, si la hay. tools = herramientas y tecnologías concretas que menciona.
 
 2. evaluation — puntúa de 0 a 100 el conocimiento en CADA materia del catálogo (usa sus ids exactos) según la evidencia: experiencia, formación, herramientas, logros y proyectos. 0 si no hay evidencia. Escala: 1–39 básico, 40–64 intermedio, 65–84 avanzado, 85–100 experto. Sé MUY exigente, como un reclutador técnico: una mención aislada o un curso no es dominio; "avanzado" exige años de uso demostrado con resultados, y nunca asignes "experto" (85 o más) a partir de un CV. Ante la duda, el puntaje más bajo. technical_skills: hasta 15 habilidades técnicas concretas con su puntaje. soft_skills: evalúa exactamente estas habilidades blandas: ${SOFT_SKILLS.map((s) => s.name).join(', ')} (0 si no hay evidencia; declararlas no basta, puntúa más alto solo si hay logros o responsabilidades que las demuestren). En cada evidence explica en una frase de dónde sale el puntaje. summary: 2–3 frases sobre el perfil. strengths y gaps: 3–6 puntos cada uno, las brechas relativas al objetivo.
 
@@ -100,6 +101,14 @@ function catalogText(categories: RouteCategory[], courses: RouteCourse[]): strin
 }
 
 const MODALITY_TEXT: Record<ProfilePreferences['modality'], string> = { cualquiera: 'cualquiera', 'en-vivo': 'en vivo (online)', grabado: 'grabado / a tu ritmo', hibrido: 'híbrido', presencial: 'presencial' };
+
+/** Campos de texto opcionales que el modelo devuelve como "" (el esquema no admite tantos null). */
+const OPTIONAL_TEXT = new Set(['first_name', 'last_name', 'email', 'phone', 'country', 'city', 'linkedin', 'current_role', 'current_company', 'headline', 'current_studies', 'field', 'institution', 'company', 'target_role', 'area_id']);
+function blankToNull(v: unknown, key = ''): unknown {
+  if (Array.isArray(v)) return v.map((x) => blankToNull(x));
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, blankToNull(x, k)]));
+  return typeof v === 'string' && OPTIONAL_TEXT.has(key) && !v.trim() ? null : v;
+}
 
 export interface AiResult { extract: ProfileExtract; evaluation: ProfileEvaluation; route: TrainingRoute; diagnosis: ProfileDiagnosis; studies: StudyPlan }
 
@@ -139,7 +148,7 @@ export async function analyzeWithAI(
   if (response.stop_reason === 'refusal' || response.stop_reason === 'max_tokens') throw new Error(`ai_${response.stop_reason}`);
   const text = response.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')?.text;
   if (!text) throw new Error('ai_empty');
-  const parsed = JSON.parse(text) as {
+  const parsed = blankToNull(JSON.parse(text)) as {
     extract: ProfileExtract;
     evaluation: Omit<ProfileEvaluation, 'areas' | 'technical_skills' | 'soft_skills'> & {
       areas: { area_id: string; score: number; evidence: string }[];

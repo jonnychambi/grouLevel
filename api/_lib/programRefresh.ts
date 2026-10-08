@@ -192,20 +192,20 @@ export const FACTS_SCHEMA = {
     price: n('number'),
     discount_price: n('number'),
     currency: { anyOf: [{ type: 'string', enum: ['PEN', 'USD'] }, { type: 'null' }] },
-    start_date: n('string'),
-    start_text: n('string'),
+    start_date: { type: 'string' },
+    start_text: { type: 'string' },
     duration_hours: n('integer'),
     duration_weeks: n('integer'),
-    duration_text: n('string'),
+    duration_text: { type: 'string' },
     modality: { anyOf: [{ type: 'string', enum: [...MODALITIES] }, { type: 'null' }] },
-    schedule: n('string'),
+    schedule: { type: 'string' },
     enrollment_open: n('boolean'),
     installments: n('integer'),
     installment_amount: n('number')
   }
 };
 
-const SYSTEM = `Extraes datos de la página oficial de un programa de formación (texto ya filtrado). Devuelve SOLO lo que la página dice explícitamente sobre ESTE programa; si un dato no aparece o es ambiguo, null. No deduzcas ni copies los valores actuales.
+const SYSTEM = `Extraes datos de la página oficial de un programa de formación (texto ya filtrado). Devuelve SOLO lo que la página dice explícitamente sobre ESTE programa; si un dato no aparece o es ambiguo: null (o texto vacío "" en los campos de texto). No deduzcas ni copies los valores actuales.
 - found: false si la página no corresponde al programa (otro curso, página de error, listado general).
 - price: precio regular total; discount_price: precio promocional total si hay. Números sin símbolos. currency: PEN (S/) o USD (US$, $).
 - start_date: próxima fecha de inicio en formato AAAA-MM-DD (año ${new Date().getFullYear()} o siguiente si no se indica); start_text: el texto de inicio tal cual aparece.
@@ -262,7 +262,9 @@ export async function extractFactsWithAI(course: Rec, pageText: string): Promise
   if (response.stop_reason === 'refusal' || response.stop_reason === 'max_tokens') throw Object.assign(new Error(`ai_${response.stop_reason}`), { usage });
   const text = response.content.find((b): b is Anthropic.TextBlock => b.type === 'text')?.text;
   if (!text) throw Object.assign(new Error('ai_empty'), { usage });
-  return { facts: JSON.parse(text) as PageFacts, usage, model };
+  const facts = JSON.parse(text) as PageFacts;
+  for (const k of ['start_date', 'start_text', 'duration_text', 'schedule'] as const) if (!facts[k]?.trim()) facts[k] = null;
+  return { facts, usage, model };
 }
 
 // ───────────────────────── Comparación ─────────────────────────
