@@ -233,12 +233,13 @@ const dist = (rows: Row[], key: string, id: string): RatingSummary['distribution
 };
 
 export async function publicSummary(sql: Sql = getSql()): Promise<ReviewsSummary> {
-  const [courses, institutions, cDist, iDist] = await Promise.all([
-    sql`select * from course_ratings`,
-    sql`select * from institution_ratings`,
-    sql`select course_id, round(coalesce(program_rating, rating))::int star, count(*)::int n from reviews where status = 'aprobada' and course_id is not null and (program_rating is not null or kind = 'programa') group by 1, 2`,
-    sql`select institution_id, round(coalesce(inst_rating, rating))::int star, count(*)::int n from reviews where status = 'aprobada' and institution_id is not null group by 1, 2`
-  ]);
+  // En serie (ver api/_lib/db.ts).
+  const courses = await sql`select * from course_ratings`;
+  const institutions = await sql`select * from institution_ratings`;
+  const [cDist, iDist] = [
+    await sql`select course_id, round(coalesce(program_rating, rating))::int star, count(*)::int n from reviews where status = 'aprobada' and course_id is not null and (program_rating is not null or kind = 'programa') group by 1, 2`,
+    await sql`select institution_id, round(coalesce(inst_rating, rating))::int star, count(*)::int n from reviews where status = 'aprobada' and institution_id is not null group by 1, 2`
+  ];
   const out: ReviewsSummary = { courses: {}, institutions: {}, updated_at: new Date().toISOString() };
   const dims = (r: Row, keys: string[]) => Object.fromEntries(keys.filter((k) => r[k] != null).map((k) => [k, Number(r[k])]));
   for (const r of courses) {

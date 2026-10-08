@@ -31,7 +31,9 @@ export function createSql(url: string, opts: postgres.Options<Record<string, pos
   return postgres(u.toString(), {
     ssl: local || sslmode === 'disable' ? false : 'require',
     prepare: false,
-    max: 3,
+    // Una conexión por instancia: con el pooler de Supabase, varias consultas en paralelo desde la misma
+    // instancia llegaron a quedarse esperando indefinidamente. En serie son igual de rápidas a esta escala.
+    max: 1,
     idle_timeout: 20,
     connect_timeout: 8,
     onnotice: () => {},
