@@ -20,7 +20,9 @@ let routes: Routes | null = null;
 
 async function getShell(origin: string): Promise<string> {
   if (shell && Date.now() - shell.at < 10 * TTL) return shell.html;
-  const res = await withTimeout(fetch(`${origin}/_shell.html`, { signal: AbortSignal.timeout(5000) }), 6000, 'shell');
+  // En vistas previas (protegidas) se usa la plantilla pública de producción.
+  const base = process.env.VERCEL_ENV === 'preview' ? SITE_URL : origin;
+  const res = await withTimeout(fetch(`${base}/_shell.html`, { signal: AbortSignal.timeout(5000) }), 6000, 'shell');
   if (!res.ok) throw new Error(`shell_${res.status}`);
   shell = { html: await res.text(), at: Date.now() };
   return shell.html;
