@@ -7,6 +7,7 @@ import { LeadsPanel } from '../components/admin/LeadsPanel';
 import { DatabasePanel } from '../components/admin/DatabasePanel';
 import { RefreshPanel } from '../components/admin/RefreshPanel';
 import { AddProgramsPanel } from '../components/admin/AddProgramsPanel';
+import { DemandPanel } from '../components/admin/DemandPanel';
 import { ProfilesPanel } from '../components/admin/ProfilesPanel';
 import { ReviewsPanel } from '../components/admin/ReviewsPanel';
 import { InstitutionLogo } from '../components/institution/InstitutionLogo';
@@ -23,7 +24,7 @@ import { effectivePrice, formatDate, formatMoney } from '../utils/format';
 import { PROGRAM_TYPE_LABELS } from '../utils/labels';
 import { normalize } from '../utils/text';
 
-type Tab = 'programas' | 'agregar' | 'actualizaciones' | 'instituciones' | 'leads' | 'perfiles' | 'resenas' | 'importar' | 'versiones' | 'base-de-datos';
+type Tab = 'rendimiento' | 'programas' | 'agregar' | 'actualizaciones' | 'instituciones' | 'leads' | 'perfiles' | 'resenas' | 'importar' | 'versiones' | 'base-de-datos';
 type BadgeKey = keyof AdminSummary;
 
 /** Menú del administrador agrupado por tipo de tarea. Las insignias muestran pendientes. */
@@ -35,6 +36,7 @@ const SECTIONS: { group: string; items: { id: Tab; label: string; icon: IconName
     { id: 'instituciones', label: 'Instituciones', icon: 'building' }
   ] },
   { group: 'Demanda', items: [
+    { id: 'rendimiento', label: 'Rendimiento', icon: 'chart' },
     { id: 'leads', label: 'Leads', icon: 'target', badge: 'leads', hint: 'Leads nuevos sin contactar' },
     { id: 'perfiles', label: 'Perfiles', icon: 'route' },
     { id: 'resenas', label: 'Reseñas', icon: 'star', badge: 'reviews', hint: 'Reseñas por moderar' }
@@ -308,6 +310,8 @@ export default function AdminPage() {
             onBulkStatus={(ids, status) => void persist({ ...catalog, courses: catalog.courses.map((c) => (ids.has(c.id) ? { ...c, status } : c)) }, `estado ${status} ${ids.size}`, `${ids.size} programas marcados como ${STATUS_LABELS[status].toLowerCase()}.`)}
             saving={saving}
           />
+        ) : tab === 'rendimiento' ? (
+          <DemandPanel categories={catalog.categories} onError={handleError} />
         ) : tab === 'agregar' ? (
           <AddProgramsPanel
             institutions={catalog.institutions}

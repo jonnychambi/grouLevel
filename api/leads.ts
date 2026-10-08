@@ -11,6 +11,7 @@ import { json, readJson } from './_lib/http.js';
 import { buildLeadFromRequest, saveLead } from './_lib/leads.js';
 import { findCourse, rateLimited } from './_lib/guard.js';
 import { isDbConfigured } from './_lib/db.js';
+import { deviceOf, geoOf, recordDemand } from './_lib/demand.js';
 
 async function forwardWebhook(lead: unknown) {
   const url = process.env.LEAD_WEBHOOK_URL;
@@ -36,6 +37,11 @@ export async function POST(request: Request): Promise<Response> {
   if (!result.ok) return json(422, { error: 'invalid', message: 'Revisa los datos del formulario.', errors: result.errors });
 
   await saveLead(result.lead);
+  // Panel de Demanda: el lead se cuenta aquí (no depende del navegador ni del consentimiento de cookies).
+  const l = result.lead as unknown as Record<string, string | null>;
+  await recordDemand({ event: 'lead', course_id: l.course_id ?? '', institution_id: l.institution_id ?? '',
+    origin: { utm_source: l.utm_source, utm_medium: l.utm_medium, utm_campaign: l.utm_campaign, referrer: l.referrer },
+    ...geoOf(request), device: deviceOf(request.headers.get('user-agent')) }).catch((err) => console.error('demand_lead_failed', err instanceof Error ? err.message : err));
   await forwardWebhook(result.lead);
   const { id, lead_score, lead_tier, lead_segment, created_at, course_id, course_name, institution_id, institution_name, source } = result.lead;
   return json(201, { id, lead_score, lead_tier, lead_segment, created_at, course_id, course_name, institution_id, institution_name, source });

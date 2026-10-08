@@ -207,3 +207,26 @@ export const retryDraft = (id: number) => call<{ ok: true }>('import-retry', { m
 export const discardDraft = (id: number) => call<{ ok: true }>('import-discard', { method: 'POST', body: JSON.stringify({ id }) });
 export const publishDrafts = (ids: number[], status: 'publicado' | 'borrador') =>
   call<{ version: VersionInfo; published: number; skipped: { id: number; reason: string }[] }>('import-publish', { method: 'POST', body: JSON.stringify({ ids, status }) });
+
+/* ---------------------------------------------------- Demanda */
+
+export interface DemandMetrics { views: number; compares: number; favorites: number; outbound: number; lead_opens: number; leads: number; institution_views: number }
+export interface DemandReport {
+  days: number;
+  since: string;
+  totals: DemandMetrics;
+  courses: (DemandMetrics & { course_id: string; name: string | null; slug: string | null; institution_id: string | null; institution_name: string | null; category_id: string | null; program_type: string | null })[];
+  institutions: (DemandMetrics & { institution_id: string; name: string | null; slug: string | null; programs: number })[];
+  channels: (DemandMetrics & { key: string })[];
+  sources: (DemandMetrics & { channel: string; source: string; campaign: string })[];
+  countries: (DemandMetrics & { key: string })[];
+  cities: (DemandMetrics & { key: string; country: string })[];
+  devices: (DemandMetrics & { key: string })[];
+  daily: (DemandMetrics & { day: string })[];
+  options: { channels: string[]; countries: string[] };
+}
+export const fetchDemand = (f: { days: number; channel?: string; country?: string; category?: string }) => {
+  const q = new URLSearchParams({ days: String(f.days) });
+  for (const k of ['channel', 'country', 'category'] as const) if (f[k]) q.set(k, f[k]!);
+  return call<DemandReport>(`demand&${q.toString()}`);
+};

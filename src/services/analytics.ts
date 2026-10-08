@@ -34,6 +34,8 @@ const sinks: Sink[] = [
   },
   // Google Analytics 4 (si hay ID configurado y la página no es /admin)
   gaSink,
+  // Panel de Demanda (contadores anónimos propios en /api/track)
+  demandSink,
   // Buffer local
   (e) => {
     const events = storage.get<AnalyticsEvent[]>(STORAGE_KEYS.events, []);
@@ -41,6 +43,25 @@ const sinks: Sink[] = [
     storage.set(STORAGE_KEYS.events, events.slice(-MAX_EVENTS));
   }
 ];
+
+/** Eventos que alimentan el panel de Demanda del administrador (los leads se cuentan en el servidor). */
+const DEMAND: Partial<Record<AnalyticsEventName, string>> = {
+  course_viewed: 'view', compare_added: 'compare', favorite_added: 'favorite', outbound_click: 'outbound',
+  lead_form_opened: 'lead_open', share_clicked: 'share', institution_viewed: 'institution_view'
+};
+
+function demandSink(e: AnalyticsEvent): void {
+  const event = DEMAND[e.name];
+  if (!event || import.meta.env.DEV || window.location.pathname.replace(import.meta.env.BASE_URL, '/').startsWith('/admin')) return;
+  const p = e.props as unknown as Record<string, unknown>;
+  const a = getAttribution();
+  const body = JSON.stringify({ event, course_id: p.course_id, institution_id: p.institution_id, utm_source: a.utm_source, utm_medium: a.utm_medium, utm_campaign: a.utm_campaign, referrer: a.referrer });
+  const url = `${import.meta.env.BASE_URL}api/track`;
+  // sendBeacon no se pierde si la persona sale de la página (p. ej. clic al sitio de la institución).
+  if (!navigator.sendBeacon?.(url, new Blob([body], { type: 'application/json' }))) {
+    void fetch(url, { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true }).catch(() => {});
+  }
+}
 
 if (import.meta.env.DEV) sinks.push((e) => console.debug('[analytics]', e.name, e.props));
 
@@ -78,7 +99,9 @@ export function getStoredEvents(): AnalyticsEvent[] {
 export function courseContext(c: CourseWithInstitution): CourseContext {
   return {
     course_id: c.id,
+    course_name: c.name,
     institution_id: c.institution_id,
+    institution_name: c.institution.name,
     category: c.category,
     program_type: c.program_type,
     price: effectivePrice(c),

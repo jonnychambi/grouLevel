@@ -127,6 +127,13 @@ Interpreta lenguaje natural (`"maestría de inteligencia artificial"`, `"curso d
 - `GET /api/health` → `{ ok, db, blob, migrations }`.
 - Pruebas del API contra PostgreSQL real embebido (PGlite).
 
+## Rendimiento y origen de la demanda (`/admin` → Demanda → Rendimiento)
+
+- Conteo propio y anónimo (`POST /api/track`, tabla `demand_daily`, migración 006): vistas, comparaciones, favoritos, clics al sitio de la institución, formularios abiertos y fichas de institución, por programa/institución y día. Las solicitudes (leads) se cuentan en el servidor al guardarse. No guarda IP, sesión ni datos personales, por eso no depende del banner de cookies; ignora bots.
+- Origen: canal (búsqueda orgánica, pago, redes sociales, email, referido, asistentes de IA, directo) a partir de UTM y referrer; fuente y campaña; país y ciudad aproximados (headers de geolocalización de Vercel); dispositivo.
+- Panel: período (7/30/90 días), filtros por canal, país y área; totales y conversión; vistas por día; rankings de programas e instituciones ordenables y exportables a CSV.
+- GA4 recibe además el nombre del programa (`item_name`) y de la institución (`item_brand`).
+
 ## Agregar programas desde links (`/admin` → Agregar programas)
 
 1. Se pegan los links de los programas (uno por línea, hasta 200) y, opcionalmente, la institución; si no, se detecta por el dominio.

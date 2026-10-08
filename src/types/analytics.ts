@@ -21,7 +21,9 @@ export interface AnalyticsEventMap {
 
 export interface CourseContext {
   course_id: string;
+  course_name?: string;
   institution_id: string;
+  institution_name?: string;
   category: string;
   program_type: string;
   price: number | null;

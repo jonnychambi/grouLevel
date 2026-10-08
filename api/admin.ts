@@ -26,6 +26,7 @@
  *   POST /api/admin?action=refresh-check { course_id }              → revisa un programa leyendo su link → { result }
  *   POST /api/admin?action=refresh-apply { id, fields? }            → aplica la propuesta (todos o algunos campos) → { version, update }
  *   POST /api/admin?action=refresh-discard { id }                   → { ok }
+ *   GET  /api/admin?action=demand&days=30[&channel=&country=&category=] → panel de demanda (vistas, leads, origen)
  *   GET  /api/admin?action=summary                                  → pendientes por sección (insignias del panel)
  *   GET  /api/admin?action=import                                   → borradores de programas creados desde links
  *   POST /api/admin?action=import-add { links, institution_id? }    → { added, skipped }
@@ -46,6 +47,7 @@ import { getSql, isDbConfigured } from './_lib/db.js';
 import { dbStatus, importFromBlob } from './_lib/dbSync.js';
 import { getCurrentCatalog, listVersions, publishCatalog, readVersion, VersionConflictError } from './_lib/catalogRepo.js';
 import { legacyBlobSources } from './_lib/legacyBlob.js';
+import { demandReport } from './_lib/demand.js';
 import { adminSummary, enqueueLinks, listDrafts, processQueue, publishDrafts, PublishError, setDraftStatus, updateDraft } from './_lib/programImport.js';
 import { applyUpdate, checkOne, discardUpdate, refreshOverview, runRefresh, saveSettings, UpdateNotPendingError, type RefreshSettings } from './_lib/programRefresh.js';
 
@@ -194,6 +196,7 @@ async function handleGet(request: Request): Promise<Response> {
   if (act === 'refresh') return json(200, await refreshOverview());
   if (act === 'import') return json(200, await listDrafts());
   if (act === 'summary') return json(200, await adminSummary());
+  if (act === 'demand') return json(200, await demandReport({ days: Number(params.get('days')) || 30, channel: params.get('channel'), country: params.get('country'), category: params.get('category') }));
   if (act === 'reviews') return json(200, { reviews: await listAllReviews() });
   if (act === 'profiles') return json(200, await listProfiles(Math.min(2000, Math.max(1, Number(params.get('limit')) || 300))));
   if (act === 'profile' || act === 'profile-file') {

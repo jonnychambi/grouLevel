@@ -89,7 +89,7 @@ const clean = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(
 /** Traduce un evento interno a GA4 (eventos recomendados cuando existen). */
 export function toGA(e: AnalyticsEvent): [string, Record<string, unknown>] {
   const p = e.props as Record<string, unknown>;
-  const item = p.course_id ? [clean({ item_id: p.course_id, item_brand: p.institution_id, item_category: p.category, item_variant: p.program_type, price: p.price })] : undefined;
+  const item = p.course_id ? [clean({ item_id: p.course_id, item_name: p.course_name, item_brand: p.institution_name ?? p.institution_id, item_category: p.category, item_variant: p.program_type, price: p.price })] : undefined;
   const money = clean({ currency: p.currency, value: p.price ?? undefined });
   switch (e.name) {
     case 'search_performed': return ['search', clean({ search_term: p.query, results_count: p.results_count, search_source: p.source })];
