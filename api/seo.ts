@@ -31,6 +31,7 @@ async function getShell(origin: string): Promise<string> {
 /** Etapas con medición: si algo tarda, queda en el registro (y nunca bloquea la página). */
 async function step<T>(name: string, fn: () => Promise<T>): Promise<T> {
   const t = Date.now();
+  if (process.env.SEO_DEBUG || process.env.VERCEL_ENV === 'preview') console.log(`seo: inicio ${name}`);
   try {
     return await fn();
   } finally {
