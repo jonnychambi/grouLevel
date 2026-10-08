@@ -214,7 +214,7 @@ ${related.length ? `<h2>Programas similares de ${esc(cat?.name ?? '')}</h2><ul>$
     const reviewHtml = (r) => `<article><p>${'★'.repeat(Math.round(r.rating))} ${Number(r.rating).toFixed(1)}${r.verified ? ' · Reseña verificada' : ''}${r.incentivized ? ' · Incentivada' : ''}</p>
 ${r.best ? `<p><strong>Lo mejor:</strong> ${esc(r.best)}</p>` : ''}${r.improve ? `<p><strong>Debería mejorar:</strong> ${esc(r.improve)}</p>` : ''}${!r.best && !r.improve ? `<p>${esc(r.comment)}</p>` : ''}
 <p>${esc(r.author_name)} · ${r.student_status === 'estudiante' ? 'Estudiante' : 'Egresado'}${r.study_year ? ` (${r.study_year})` : ''} · ${esc(String(r.created_at).slice(0, 10))}</p></article>`;
-    const dimsHtml = (dims, labels) => `<ul>${Object.entries(labels).filter(([k]) => dims?.[k] != null).map(([k, l]) => `<li>${l}: ${Number(dims[k]).toFixed(1)} de 5</li>`).join('')}</ul>`;
+    const dimsHtml = (dims, labels) => !Object.keys(labels).some((k) => dims?.[k] != null) ? '' : `<ul>${Object.entries(labels).filter(([k]) => dims?.[k] != null).map(([k, l]) => `<li>${l}: ${Number(dims[k]).toFixed(1)} de 5</li>`).join('')}</ul>`;
     const INST_DIMS = { academic: 'Calidad académica', teachers: 'Docentes', experience: 'Experiencia educativa', compliance: 'Cumplimiento', value: 'Relación calidad-precio' };
     const PROG_DIMS = { content: 'Contenido', methodology: 'Metodología', tools: 'Herramientas', teacher: 'Docente' };
     const latest = (list) => list.map((r) => String(r.created_at).slice(0, 10)).sort().at(-1) ?? null;
@@ -227,7 +227,7 @@ ${r.best ? `<p><strong>Lo mejor:</strong> ${esc(r.best)}</p>` : ''}${r.improve ?
       routes.push({
         path, kind: 'catalog', index: items.length > 0, lastmod: latest(items),
         title: clip(`Opiniones de ${i.name}${r?.count ? ` (${Number(r.avg).toFixed(1)}★)` : ''}`, 58) + ' | Groulevel',
-        description: clip(r?.count ? `${r.count} opiniones de estudiantes y egresados sobre ${i.name}: calidad académica, docentes, cumplimiento y relación calidad-precio. ${r.recommend_pct != null ? `${r.recommend_pct}% la recomienda.` : ''}` : `Opiniones de estudiantes y egresados sobre ${i.name}.`, 300),
+        description: clip(r?.count ? `${r.count} ${r.count === 1 ? 'opinión' : 'opiniones'} de estudiantes y egresados sobre ${i.name}: calidad académica, docentes, cumplimiento y relación calidad-precio. ${r.recommend_pct != null ? `${r.recommend_pct}% la recomienda.` : ''}` : `Opiniones de estudiantes y egresados sobre ${i.name}.`, 300),
         jsonLd: [bc.ld, orgLd(i, items.length ? { review: items.slice(0, 10).map(reviewLd) } : {})],
         body: `${bc.html}<h1>Opiniones de ${esc(i.name)}</h1>
 ${r?.count ? `<p>Calificación: ${Number(r.avg).toFixed(1)} de 5 en ${r.count} ${r.count === 1 ? 'opinión' : 'opiniones'}${r.recommend_pct != null ? ` · ${r.recommend_pct}% la recomienda` : ''}.</p>${dimsHtml(r.dims, INST_DIMS)}` : '<p>Aún no hay opiniones publicadas.</p>'}
@@ -245,7 +245,7 @@ ${items.slice(0, 30).map(reviewHtml).join('')}
       routes.push({
         path, kind: 'catalog', index: items.length > 0, lastmod: latest(items),
         title: clip(`Opiniones: ${c.name} · ${inst?.short_name ?? inst?.name ?? ''}`, 58) + ' | Groulevel',
-        description: clip(r?.count ? `${r.count} opiniones de estudiantes sobre ${c.name} de ${inst?.name ?? ''}: contenido, metodología, herramientas y docente.` : `Opiniones sobre ${c.name} y la reputación de ${inst?.name ?? ''}.`, 300),
+        description: clip(r?.count ? `${r.count} ${r.count === 1 ? 'opinión' : 'opiniones'} de estudiantes sobre ${c.name} de ${inst?.name ?? ''}: contenido, metodología, herramientas y docente.` : `Opiniones sobre ${c.name} y la reputación de ${inst?.name ?? ''}.`, 300),
         jsonLd: [bc.ld, ...(base && items.length ? [{ ...base, review: items.slice(0, 10).map((x) => ({ ...reviewLd(x), reviewRating: { '@type': 'Rating', ratingValue: Number(x.program_rating ?? x.rating), bestRating: 5, worstRating: 1 } })) }] : [])],
         body: `${bc.html}<h1>Opiniones de ${esc(c.name)}</h1><p>${esc(inst?.name ?? '')}</p>
 ${r?.count ? `<p>Calificación del programa: ${Number(r.avg).toFixed(1)} de 5 en ${r.count} ${r.count === 1 ? 'opinión' : 'opiniones'}.</p>${dimsHtml(r.dims, PROG_DIMS)}` : '<p>Este programa aún no tiene reseñas propias.</p>'}
