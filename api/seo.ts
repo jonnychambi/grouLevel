@@ -15,28 +15,44 @@ const CACHE = 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400';
 const TTL = 60_000;
 
 let shell: { html: string; at: number } | null = null;
-let routes: { list: SeoRoute[]; byPath: Map<string, SeoRoute>; at: number } | null = null;
+type Routes = { list: SeoRoute[]; byPath: Map<string, SeoRoute>; at: number };
+let routes: Routes | null = null;
 
 async function getShell(origin: string): Promise<string> {
   if (shell && Date.now() - shell.at < 10 * TTL) return shell.html;
-  const res = await fetch(`${origin}/_shell.html`, { signal: AbortSignal.timeout(5000) });
+  const res = await withTimeout(fetch(`${origin}/_shell.html`, { signal: AbortSignal.timeout(5000) }), 6000, 'shell');
   if (!res.ok) throw new Error(`shell_${res.status}`);
   shell = { html: await res.text(), at: Date.now() };
   return shell.html;
 }
 
-async function getRoutes() {
-  if (routes && Date.now() - routes.at < TTL) return routes;
-  const current = await getCurrentCatalog();
+/** Etapas con medición: si algo tarda, queda en el registro (y nunca bloquea la página). */
+async function step<T>(name: string, fn: () => Promise<T>): Promise<T> {
+  const t = Date.now();
+  try {
+    return await fn();
+  } finally {
+    const ms = Date.now() - t;
+    if (ms > 2000) console.warn(`seo: ${name} tardó ${ms} ms`);
+  }
+}
+
+const withTimeout = <T>(p: Promise<T>, ms: number, label: string) =>
+  Promise.race([p, new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`timeout_${label}`)), ms))]);
+
+let building: Promise<Routes> | null = null;
+
+async function buildAll(): Promise<Routes> {
+  const current = await step('catalogo', () => getCurrentCatalog());
   if (!current) throw new Error('catalog_empty');
   const sql = getSql();
   const ratings = new Map(
-    (await sql`select course_id, avg_rating::float as avg, reviews_count::int as count from course_ratings where reviews_count > 0`).map((r) => [String(r.course_id), { avg: Number(r.avg), count: Number(r.count) }])
+    (await step('ratings', () => sql`select course_id, avg_rating::float as avg, reviews_count::int as count from course_ratings where reviews_count > 0`)).map((r) => [String(r.course_id), { avg: Number(r.avg), count: Number(r.count) }])
   );
   // Reseñas aprobadas (las más recientes primero) para las páginas de opiniones.
-  const summary = await publicSummary(sql);
+  const summary = await step('resumen', () => publicSummary(sql));
   const items = new Map<string, Record<string, unknown>[]>();
-  for (const r of await sql`select * from reviews where status = 'aprobada' order by created_at desc limit 5000`) {
+  for (const r of await step('resenas', () => sql`select * from reviews where status = 'aprobada' order by created_at desc limit 5000`)) {
     const pub = toPublic(r) as unknown as Record<string, unknown>;
     const push = (k: string) => { const l = items.get(k) ?? []; if (l.length < 30) l.push(pub); items.set(k, l); };
     if (pub.institution_id) push(`i:${pub.institution_id}`);
@@ -47,8 +63,17 @@ async function getRoutes() {
     courses: new Map(Object.entries(summary.courses)) as ReviewsData['courses'],
     items
   };
+  const t = Date.now();
   const list = buildRoutes(current.data, { siteUrl: SITE_URL, ratings, reviews });
-  routes = { list, byPath: new Map(list.map((r) => [r.path, r])), at: Date.now() };
+  if (Date.now() - t > 1000) console.warn(`seo: buildRoutes tardó ${Date.now() - t} ms`);
+  return { list, byPath: new Map(list.map((r) => [r.path, r])), at: Date.now() };
+}
+
+async function getRoutes() {
+  if (routes && Date.now() - routes.at < TTL) return routes;
+  // Una sola construcción a la vez; máximo 20 s (si no, la página sale con la app sin contenido previo).
+  const pending = (building ??= buildAll().finally(() => { building = null; }));
+  routes = await withTimeout(pending, 20_000, 'rutas');
   return routes;
 }
 
