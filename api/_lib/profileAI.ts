@@ -4,6 +4,7 @@
  * evalúa conocimientos por materia y habilidades, y arma la ruta con programas del catálogo.
  */
 import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from './anthropicClient.js';
 import type { ProfileDiagnosis, ProfileEvaluation, ProfileExtract, ProfilePreferences, StudyPlan, TrainingRoute } from '../../src/types/profile.js';
 import { LONG_TERM_TYPES, ROLE_LEVELS, SHORT_TERM_TYPES, SOFT_SKILLS, type RouteCategory, type RouteCourse } from '../../src/utils/profileAnalysis.js';
 
@@ -107,7 +108,7 @@ export async function analyzeWithAI(
   categories: RouteCategory[],
   courses: RouteCourse[]
 ): Promise<AiResult> {
-  const client = new Anthropic({ timeout: 200_000, maxRetries: 1 });
+  const client = anthropicClient({ timeout: 200_000, maxRetries: 1 });
   const prefs = input.preferences;
   const request = [
     `OBJETIVO DE FORMACIÓN:\n${input.objective}`,

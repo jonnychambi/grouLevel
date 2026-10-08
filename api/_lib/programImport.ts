@@ -8,6 +8,7 @@
  * Los programas publicados entran luego en la actualización automática (programRefresh).
  */
 import Anthropic from '@anthropic-ai/sdk';
+import { aiErrorMessage, anthropicClient } from './anthropicClient.js';
 import type { Sql } from './db.js';
 import { getSql } from './db.js';
 import { getCurrentCatalog, publishCatalog, VersionConflictError } from './catalogRepo.js';
@@ -223,7 +224,7 @@ export function missingFields(d: Rec): string[] {
 }
 
 export async function extractDraftWithAI(pageText: string, categories: Rec[]): Promise<{ data: Rec; usage: { input_tokens: number; output_tokens: number }; model: string }> {
-  const client = new Anthropic({ timeout: 90_000, maxRetries: 2 });
+  const client = anthropicClient({ timeout: 90_000, maxRetries: 2 });
   const model = refreshModel();
   const response = await client.messages.create({
     model,
@@ -269,7 +270,7 @@ async function processDraft(row: Rec, categories: Rec[], sql: Sql): Promise<'lis
       input_tokens = input_tokens + ${out.usage.input_tokens}, output_tokens = output_tokens + ${out.usage.output_tokens}, updated_at = now() where id = ${id}`;
     return 'listo';
   } catch (err) {
-    return fail(`Fallo de la IA: ${err instanceof Error ? err.message : 'error'}`, { usage: (err as { usage?: { input_tokens: number; output_tokens: number } }).usage });
+    return fail(`Fallo de la IA: ${aiErrorMessage(err)}`, { usage: (err as { usage?: { input_tokens: number; output_tokens: number } }).usage });
   }
 }
 

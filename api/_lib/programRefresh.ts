@@ -13,6 +13,7 @@
  */
 import { createHash } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
+import { aiErrorMessage, anthropicClient } from './anthropicClient.js';
 import type { Sql } from './db.js';
 import { getSql } from './db.js';
 import { extractCvText } from './cvText.js';
@@ -247,7 +248,7 @@ export function currentFacts(course: Rec): Omit<PageFacts, 'found'> {
 export interface AiUsage { input_tokens: number; output_tokens: number }
 
 export async function extractFactsWithAI(course: Rec, pageText: string): Promise<{ facts: PageFacts; usage: AiUsage; model: string }> {
-  const client = new Anthropic({ timeout: 60_000, maxRetries: 2 });
+  const client = anthropicClient({ timeout: 60_000, maxRetries: 2 });
   const model = refreshModel();
   const response = await client.messages.create({
     model,
@@ -399,7 +400,7 @@ export async function checkCourse(course: Rec, opts: { force?: boolean; sql?: Sq
     const u = (err as { usage?: AiUsage }).usage;
     if (u) Object.assign(usage, u);
     // Sin guardar la huella: se reintenta en la próxima ejecución.
-    return record({ ...base, ai_used: true, usage, error: `Fallo de la IA: ${err instanceof Error ? err.message : 'error'}` }, null);
+    return record({ ...base, ai_used: true, usage, error: `Fallo de la IA: ${aiErrorMessage(err)}` }, null);
   }
 
   if (!facts.found) {

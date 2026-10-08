@@ -111,7 +111,7 @@ Interpreta lenguaje natural (`"maestría de inteligencia artificial"`, `"curso d
   3. Plan por etapas, conocimientos por materia y datos del CV.
 - **Privacidad**: la página y la API pública no exponen correo, teléfono ni LinkedIn; esos datos solo los ve el administrador.
 - **Salarios**: rangos referenciales mensuales brutos para Lima por familia de puestos y nivel (`src/utils/profileAnalysis.ts`); con IA, Claude los estima para el país de la persona. Se muestran siempre como referenciales.
-- **Motor**: con `ANTHROPIC_API_KEY`, Claude (`claude-opus-5-5`, salida JSON estructurada; el PDF se le envía como documento). Sin clave, o si falla, el motor por reglas. El resultado siempre se sanea en el servidor (topes de puntaje, niveles, solo programas existentes y del tipo correcto).
+- **Motor**: con `ANTHROPIC_API_KEY` (si la key no pertenece a un workspace de Anthropic, agregar también `ANTHROPIC_WORKSPACE_ID`), Claude (`claude-opus-5-5`, salida JSON estructurada; el PDF se le envía como documento). Sin clave, o si falla, el motor por reglas. El resultado siempre se sanea en el servidor (topes de puntaje, niveles, solo programas existentes y del tipo correcto).
 - **Base de datos** (todo se guarda): `profiles` (datos extraídos, rol objetivo, salario esperado, preparación, rango salarial, preferencias, diagnóstico y estudios en jsonb, texto del CV), `profile_education`, `profile_experience`, `profile_scores`, `profile_route_courses`, `profile_suggested_roles`, `profile_gap_items` y `profile_studies`. El CV original va a Vercel Blob.
 - En `/admin` → **Perfiles**: rol objetivo, preparación, salario esperado, puestos sugeridos, estudios, descarga del CV, CSV, estado y borrado.
 - Límite: 6 diagnósticos por hora por IP. Evento GA: `generate_route`.
