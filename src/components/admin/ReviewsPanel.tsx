@@ -1,27 +1,56 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { deleteReviewRecord, fetchReviews, moderateReview, type StoredReview } from '../../services/adminApi';
+import {
+  blockReviewer, deleteReviewRecord, downloadReviewEvidence, fetchReviewIncentives, fetchReviewReports, fetchReviews, moderateReview, resolveReviewReport, updateReviewIncentive,
+  type ReviewIncentive, type ReviewReport, type StoredReview
+} from '../../services/adminApi';
 import type { ReviewStatus } from '../../types';
-import { RELATIONSHIP_LABELS } from '../../utils/reviews';
+import { INSTITUTION_DIMENSIONS, PROGRAM_DIMENSIONS, RELATIONSHIP_LABELS, STUDENT_STATUS_LABELS } from '../../utils/reviews';
 import { normalize } from '../../utils/text';
 import { Stars } from '../reviews/Stars';
 import { Icon } from '../ui/Icon';
 
-const STATUS_LABELS: Record<ReviewStatus, string> = { pendiente: 'Pendientes', aprobada: 'Aprobadas', rechazada: 'Rechazadas' };
+type Tab = ReviewStatus | 'reportes' | 'incentivos';
+const TABS: [Tab, string][] = [['pendiente', 'Pendientes'], ['aprobada', 'Publicadas'], ['rechazada', 'Rechazadas'], ['reportes', 'Reportes'], ['incentivos', 'Incentivos']];
 const when = (iso: string) => new Date(iso).toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-/** Moderación de reseñas: solo las aprobadas se publican y cuentan en los promedios. */
+/** Criterios objetivos de publicación (no dependen de si la opinión es positiva o negativa). */
+const CRITERIA: [string, string][] = [
+  ['experiencia_real', 'Describe una experiencia real y concreta'],
+  ['relevante', 'Es relevante para la institución/programa'],
+  ['sin_lenguaje_ofensivo', 'Sin insultos ni lenguaje ofensivo'],
+  ['sin_datos_personales', 'Sin datos personales de terceros'],
+  ['no_publicitaria', 'No es publicidad ni conflicto de interés']
+];
+const REJECT_REASONS = ['No describe una experiencia real', 'Lenguaje ofensivo', 'Publicidad o conflicto de interés', 'Expone datos personales', 'Duplicada', 'No corresponde a la institución/programa'];
+const FLAG_LABELS: Record<string, string> = {
+  evidencia_repetida: 'Constancia usada por otra persona',
+  texto_duplicado: 'Texto idéntico a otra reseña',
+  muchas_resenas_24h: 'Muchas reseñas en 24 h',
+  cuenta_de_pago_compartida: 'Cuenta de pago usada por otra persona',
+  incentivo_institucion_ya_otorgado: 'Ya recibió incentivo por esta institución',
+  incentivo_programa_ya_otorgado: 'Ya recibió incentivo por este programa'
+};
+const EVIDENCE_LABELS: Record<string, string> = { sin_evidencia: 'Sin constancia', pendiente: 'Constancia por revisar', aprobada: 'Constancia verificada', rechazada: 'Constancia rechazada' };
+const INCENTIVE_LABELS: Record<string, string> = { pendiente: 'Pendiente', aprobado: 'Aprobado', pagado: 'Pagado', rechazado: 'Rechazado' };
+
+/**
+ * Moderación de Groulevel Reviews: reseñas pendientes con criterios objetivos, verificación de constancias,
+ * señales de duplicados/fraude, reportes de usuarios e incentivos.
+ */
 export function ReviewsPanel({ onError, onNotice }: { onError: (e: unknown) => void; onNotice: (text: string) => void }) {
   const [reviews, setReviews] = useState<StoredReview[] | null>(null);
-  const [tab, setTab] = useState<ReviewStatus>('pendiente');
+  const [reports, setReports] = useState<ReviewReport[]>([]);
+  const [incentives, setIncentives] = useState<ReviewIncentive[]>([]);
+  const [tab, setTab] = useState<Tab>('pendiente');
   const [q, setQ] = useState('');
-  const [stars, setStars] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const [replying, setReplying] = useState<string | null>(null);
-  const [reply, setReply] = useState('');
 
   const load = useCallback(async () => {
     try {
-      setReviews((await fetchReviews()).reviews);
+      const [r, rep, inc] = await Promise.all([fetchReviews(), fetchReviewReports(), fetchReviewIncentives()]);
+      setReviews(r.reviews);
+      setReports(rep.reports);
+      setIncentives(inc.incentives);
     } catch (e) {
       onError(e);
       setReviews([]);
@@ -29,124 +58,204 @@ export function ReviewsPanel({ onError, onNotice }: { onError: (e: unknown) => v
   }, [onError]);
   useEffect(() => { void load(); }, [load]);
 
-  const counts = useMemo(() => {
-    const c: Record<ReviewStatus, number> = { pendiente: 0, aprobada: 0, rechazada: 0 };
-    (reviews ?? []).forEach((r) => c[r.status]++);
-    return c;
-  }, [reviews]);
+  const act = async (key: string, fn: () => Promise<unknown>, ok?: string) => {
+    setBusy(key);
+    try {
+      await fn();
+      if (ok) onNotice(ok);
+      await load();
+    } catch (e) {
+      onError(e);
+    } finally {
+      setBusy(null);
+    }
+  };
 
-  const rows = useMemo(() => {
-    const nq = normalize(q);
+  const counts = useMemo(() => ({
+    pendiente: reviews?.filter((r) => r.status === 'pendiente').length ?? 0,
+    aprobada: reviews?.filter((r) => r.status === 'aprobada').length ?? 0,
+    rechazada: reviews?.filter((r) => r.status === 'rechazada').length ?? 0,
+    reportes: reports.filter((r) => r.status === 'abierto').length,
+    incentivos: incentives.filter((i) => i.status === 'pendiente' || i.status === 'aprobado').length
+  }), [reviews, reports, incentives]);
+
+  const list = useMemo(() => {
+    const nq = normalize(q.trim());
     return (reviews ?? [])
-      .filter((r) => r.status === tab && (!stars || r.rating === Number(stars)) && (!nq || normalize(`${r.course_name} ${r.institution_name} ${r.author_name} ${r.author_email} ${r.comment} ${r.title}`).includes(nq)))
+      .filter((r) => r.status === tab && (!nq || normalize(`${r.course_name ?? ''} ${r.institution_name} ${r.author_name} ${r.author_email} ${r.best ?? ''} ${r.improve ?? ''} ${r.comment}`).includes(nq)))
       .sort((a, b) => (tab === 'pendiente' ? a.created_at.localeCompare(b.created_at) : b.created_at.localeCompare(a.created_at)));
-  }, [reviews, tab, q, stars]);
-
-  const act = async (r: StoredReview, patch: Parameters<typeof moderateReview>[1], message: string) => {
-    setBusy(r.pathname);
-    try {
-      const { review } = await moderateReview(r.pathname, patch);
-      setReviews((list) => (list ?? []).map((x) => (x.pathname === review.pathname ? review : x)));
-      onNotice(message);
-    } catch (e) {
-      onError(e);
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const reject = (r: StoredReview) => {
-    const reason = window.prompt('Motivo del rechazo (interno, opcional): ej. lenguaje ofensivo, spam, no es sobre el programa…', r.rejection_reason ?? '');
-    if (reason === null) return;
-    void act(r, { status: 'rechazada', rejection_reason: reason }, 'Reseña rechazada. No se mostrará en el sitio.');
-  };
-
-  const remove = async (r: StoredReview) => {
-    if (!window.confirm('¿Eliminar definitivamente esta reseña?')) return;
-    setBusy(r.pathname);
-    try {
-      await deleteReviewRecord(r.pathname);
-      setReviews((list) => (list ?? []).filter((x) => x.pathname !== r.pathname));
-      onNotice('Reseña eliminada.');
-    } catch (e) {
-      onError(e);
-    } finally {
-      setBusy(null);
-    }
-  };
+  }, [reviews, tab, q]);
+  const incentiveTotals = useMemo(() => {
+    const sum = (st: string) => incentives.filter((i) => i.status === st).reduce((a, i) => a + Number(i.amount), 0);
+    return { pendiente: sum('pendiente'), aprobado: sum('aprobado'), pagado: sum('pagado') };
+  }, [incentives]);
 
   return (
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl text-white">Reseñas</h1>
-          <p className="mt-1 text-sm text-gray">Valida las reseñas antes de publicarlas. Solo las aprobadas se muestran y cuentan en la valoración del programa y de la institución (el sitio se actualiza en ~1 minuto).</p>
+          <p className="mt-1 max-w-3xl text-sm text-gray">Aprueba según criterios objetivos: se publican opiniones positivas y críticas. La insignia de verificada solo se otorga con constancia válida. Las constancias nunca se publican.</p>
         </div>
-        <button className="btn btn-quiet btn-sm" onClick={() => { setReviews(null); void load(); }}><Icon name="history" size={15} /> Actualizar</button>
+        <button className="btn btn-quiet btn-sm" onClick={() => void load()}>Actualizar</button>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-full border border-line-strong p-1" role="tablist" aria-label="Estado">
-          {(Object.keys(STATUS_LABELS) as ReviewStatus[]).map((s) => (
-            <button key={s} role="tab" aria-selected={tab === s} onClick={() => setTab(s)} className={`rounded-full px-3 py-1.5 text-sm ${tab === s ? 'bg-white text-navy' : 'text-gray hover:text-white'}`}>
-              {STATUS_LABELS[s]} <span className="tnum opacity-70">({counts[s]})</span>
-            </button>
-          ))}
-        </div>
-        <div className="relative min-w-60 flex-1">
-          <Icon name="search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input aria-label="Buscar reseñas" className="input min-h-10 py-2 pl-9 text-sm" placeholder="Programa, institución, autor, texto…" value={q} onChange={(e) => setQ(e.target.value)} />
-        </div>
-        <select aria-label="Estrellas" className="input min-h-10 w-40 cursor-pointer py-2 text-sm" value={stars} onChange={(e) => setStars(e.target.value)}>
-          <option value="">Todas las estrellas</option>
-          {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} ★</option>)}
-        </select>
-      </div>
-
-      <ul className="mt-5 space-y-3">
-        {reviews === null && [0, 1].map((i) => <li key={i} className="skeleton h-36" />)}
-        {rows.map((r) => (
-          <li key={r.pathname} className="card p-5" aria-busy={busy === r.pathname}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-white">{r.course_name}</p>
-                <p className="text-xs text-muted">{r.institution_name} · {when(r.created_at)}</p>
-              </div>
-              <Stars value={r.rating} size={16} />
-            </div>
-            {r.title && <h3 className="mt-3 text-base font-medium text-white">{r.title}</h3>}
-            <p className="mt-1 whitespace-pre-line text-sm text-gray">{r.comment}</p>
-            <p className="mt-3 text-xs text-muted">
-              <span className="text-white">{r.author_name}</span> · {r.author_email} · {RELATIONSHIP_LABELS[r.relationship]}
-              {r.moderated_at && <> · moderada {when(r.moderated_at)}</>}
-              {r.rejection_reason && <> · motivo: <span className="text-warn">{r.rejection_reason}</span></>}
-            </p>
-            {r.reply && replying !== r.pathname && <p className="mt-2 rounded-lg border border-line bg-navy/60 p-2 text-xs text-gray"><span className="text-white">Respuesta publicada:</span> {r.reply}</p>}
-
-            {replying === r.pathname && (
-              <div className="mt-3">
-                <label htmlFor={`reply-${r.id}`} className="mb-1 block text-xs font-medium uppercase tracking-[0.08em] text-muted">Respuesta pública</label>
-                <textarea id={`reply-${r.id}`} rows={3} className="input py-2 text-sm" value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Ej. ¡Gracias por tu reseña! Compartimos tu comentario con la institución." />
-                <div className="mt-2 flex gap-2">
-                  <button className="btn btn-primary btn-sm" disabled={busy === r.pathname} onClick={() => { void act(r, { reply }, 'Respuesta guardada.'); setReplying(null); }}>Guardar respuesta</button>
-                  <button className="btn btn-quiet btn-sm" onClick={() => setReplying(null)}>Cancelar</button>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-3">
-              {r.status !== 'aprobada' && <button className="btn btn-accent btn-sm" disabled={busy === r.pathname} onClick={() => void act(r, { status: 'aprobada' }, 'Reseña aprobada y publicada.')}><Icon name="check" size={15} /> Aprobar</button>}
-              {r.status !== 'rechazada' && <button className="btn btn-ghost btn-sm" disabled={busy === r.pathname} onClick={() => reject(r)}>Rechazar</button>}
-              <button className="btn btn-quiet btn-sm" disabled={busy === r.pathname} onClick={() => { setReplying(r.pathname); setReply(r.reply ?? ''); }}>{r.reply ? 'Editar respuesta' : 'Responder'}</button>
-              <a className="btn btn-quiet btn-sm" href={r.page_url || '#'} target="_blank" rel="noreferrer">Ver programa <Icon name="external" size={13} /></a>
-              <button className="btn btn-quiet btn-sm ml-auto text-neg" disabled={busy === r.pathname} onClick={() => void remove(r)}><Icon name="trash" size={15} /> Eliminar</button>
-            </div>
-          </li>
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        {TABS.map(([t, label]) => (
+          <button key={t} onClick={() => setTab(t)} aria-pressed={tab === t} className={`rounded-full px-3 py-1.5 text-sm ${tab === t ? 'bg-raise text-white' : 'text-gray hover:text-white'}`}>
+            {label} <span className={`tnum ${counts[t] && (t === 'pendiente' || t === 'reportes' || t === 'incentivos') ? 'text-cyan' : 'text-muted'}`}>({counts[t]})</span>
+          </button>
         ))}
-        {reviews && rows.length === 0 && (
-          <li className="card p-8 text-center text-gray">{tab === 'pendiente' ? 'No hay reseñas pendientes de validación. 🎉' : 'No hay reseñas en este estado.'}</li>
-        )}
-      </ul>
+        {tab !== 'reportes' && tab !== 'incentivos' && <input className="input ml-auto min-h-9 w-64 py-1.5 text-sm" placeholder="Buscar institución, programa, autor o texto" value={q} onChange={(e) => setQ(e.target.value)} />}
+      </div>
+
+      {reviews === null ? <div className="skeleton mt-5 h-40" /> : tab === 'reportes' ? (
+        <ul className="mt-5 space-y-2">
+          {!reports.length && <li className="text-sm text-gray">Sin reportes.</li>}
+          {reports.map((p) => (
+            <li key={p.id} className="card flex flex-wrap items-center gap-3 p-4 text-sm">
+              <div className="min-w-0 flex-1">
+                <p className="text-white">{p.reason.replace(/_/g, ' ')} · <span className="text-gray">{p.institution_name}{p.course_name ? ` · ${p.course_name}` : ''} — {p.author_name}</span></p>
+                {p.details && <p className="mt-0.5 text-gray">“{p.details}”</p>}
+                <p className="mt-0.5 text-xs text-muted">{when(p.created_at)} · reseña {p.review_status} · reporte {p.status}</p>
+              </div>
+              <button className="btn btn-quiet btn-sm" onClick={() => { setTab(p.review_status as Tab); setQ(p.author_name); }}>Ver reseña</button>
+              {p.status === 'abierto' && (
+                <>
+                  <button className="btn btn-quiet btn-sm" disabled={!!busy} onClick={() => void act(`rep:${p.id}`, () => resolveReviewReport(p.id, 'resuelto'))}>Resuelto</button>
+                  <button className="btn btn-quiet btn-sm text-gray" disabled={!!busy} onClick={() => void act(`rep:${p.id}`, () => resolveReviewReport(p.id, 'descartado'))}>Descartar</button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : tab === 'incentivos' ? (
+        <div className="mt-5">
+          <dl className="grid grid-cols-3 gap-3">
+            {(['pendiente', 'aprobado', 'pagado'] as const).map((k) => (
+              <div key={k} className="card p-4"><dt className="text-xs text-gray">{INCENTIVE_LABELS[k]}</dt><dd className="tnum mt-1 text-2xl text-white">S/ {incentiveTotals[k].toFixed(0)}</dd></div>
+            ))}
+          </dl>
+          <p className="mt-3 text-xs text-muted">Se aprueba solo con la reseña publicada y la constancia verificada. El monto no depende de la calificación. Uno por persona e institución (S/ 50) y por persona y programa (S/ 50).</p>
+          <div className="mt-3 overflow-x-auto rounded-xl border border-line">
+            <table className="w-full min-w-[900px] text-left text-sm">
+              <thead className="bg-midnight text-xs text-gray"><tr><th className="px-3 py-2">Persona</th><th className="px-3 py-2">Reseña</th><th className="px-3 py-2">Tipo</th><th className="px-3 py-2 text-right">Monto</th><th className="px-3 py-2">Pago</th><th className="px-3 py-2">Estado</th><th className="px-3 py-2 text-right">Acciones</th></tr></thead>
+              <tbody>
+                {incentives.map((i) => (
+                  <tr key={i.id} className="border-t border-line align-top">
+                    <td className="px-3 py-2"><p className="text-white">{i.author_name}</p><p className="text-xs text-gray">{i.email}</p>{i.blocked && <p className="text-xs text-neg">Bloqueado</p>}</td>
+                    <td className="px-3 py-2 text-gray">{i.institution_name}{i.course_name ? ` · ${i.course_name}` : ''}<p className="text-xs">{i.review_status} · {i.verified ? <span className="text-pos">verificada</span> : 'sin verificar'}</p>{i.flags?.length > 0 && <p className="text-xs text-warn">{i.flags.map((f) => FLAG_LABELS[f] ?? f).join(' · ')}</p>}</td>
+                    <td className="px-3 py-2 text-gray">{i.kind === 'programa' ? 'Programa' : 'Institucional'}</td>
+                    <td className="tnum px-3 py-2 text-right text-white">S/ {Number(i.amount).toFixed(0)}</td>
+                    <td className="px-3 py-2 text-gray">{i.payout_method ?? '—'}<p className="font-mono text-xs">{i.payout_account}</p></td>
+                    <td className="px-3 py-2"><span className={i.status === 'pagado' ? 'text-pos' : i.status === 'rechazado' ? 'text-neg' : 'text-white'}>{INCENTIVE_LABELS[i.status]}</span>{i.note && <p className="text-xs text-muted">{i.note}</p>}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right">
+                      {i.status === 'pendiente' && <button className="btn btn-quiet btn-sm" disabled={!!busy} onClick={() => void act(`inc:${i.id}`, () => updateReviewIncentive(i.id, 'aprobado'), 'Incentivo aprobado.')}>Aprobar</button>}
+                      {i.status === 'aprobado' && <button className="btn btn-accent btn-sm" disabled={!!busy} onClick={() => void act(`inc:${i.id}`, () => updateReviewIncentive(i.id, 'pagado'), 'Incentivo marcado como pagado.')}>Marcar pagado</button>}
+                      {(i.status === 'pendiente' || i.status === 'aprobado') && <button className="btn btn-quiet btn-sm text-gray" disabled={!!busy} onClick={() => { const note = window.prompt('Motivo del rechazo (se guarda internamente):') ?? undefined; if (note !== undefined) void act(`inc:${i.id}`, () => updateReviewIncentive(i.id, 'rechazado', note)); }}>Rechazar</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!incentives.length && <p className="px-3 py-4 text-sm text-gray">Aún no hay incentivos solicitados.</p>}
+          </div>
+        </div>
+      ) : (
+        <ul className="mt-5 space-y-3">
+          {!list.length && <li className="text-sm text-gray">No hay reseñas en esta sección.</li>}
+          {list.map((r) => <ReviewItem key={r.pathname} r={r} busy={busy} act={act} onError={onError} />)}
+        </ul>
+      )}
     </div>
+  );
+}
+
+function ReviewItem({ r, busy, act, onError }: { r: StoredReview; busy: string | null; act: (key: string, fn: () => Promise<unknown>, ok?: string) => Promise<void>; onError: (e: unknown) => void }) {
+  const [criteria, setCriteria] = useState<Set<string>>(() => new Set(r.criteria));
+  const [reply, setReply] = useState(r.reply ?? '');
+  const [reason, setReason] = useState('');
+  const key = r.pathname;
+  const allCriteria = CRITERIA.every(([c]) => criteria.has(c));
+  const toggle = (c: string) => setCriteria((s) => { const n = new Set(s); if (n.has(c)) n.delete(c); else n.add(c); return n; });
+  const legacy = r.kind === 'programa';
+
+  return (
+    <li className="card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium text-white">{r.institution_name}{r.course_name ? <span className="text-gray"> · {r.course_name}</span> : ''}</p>
+          <p className="mt-0.5 text-xs text-gray">
+            <span className="text-white">{r.author_name}</span> · {r.author_email || '—'} · {r.student_status ? STUDENT_STATUS_LABELS[r.student_status] : RELATIONSHIP_LABELS[r.relationship]}{r.study_year ? ` (${r.study_year})` : ''} · {when(r.created_at)}
+            {r.email_verified ? <span className="text-pos"> · correo validado</span> : <span className="text-warn"> · correo sin validar</span>}
+            {legacy && <span className="text-muted"> · formato anterior</span>}
+          </p>
+        </div>
+        <div className="flex items-center gap-2"><Stars value={r.rating} size={15} /><span className="tnum text-white">{r.rating.toFixed(1)}</span></div>
+      </div>
+
+      {(r.flags.length > 0 || r.reports_count > 0) && (
+        <p className="mt-3 flex flex-wrap gap-1.5">
+          {r.flags.map((f) => <span key={f} className="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs text-warn">{FLAG_LABELS[f] ?? f}</span>)}
+          {r.reports_count > 0 && <span className="rounded-full border border-neg/40 bg-neg/10 px-2 py-0.5 text-xs text-neg">{r.reports_count} {r.reports_count === 1 ? 'reporte' : 'reportes'}</span>}
+        </p>
+      )}
+
+      {r.inst_scores && (
+        <p className="mt-3 text-xs text-gray">{INSTITUTION_DIMENSIONS.map((d) => `${d.label}: ${r.inst_scores![d.key]}`).join(' · ')}</p>
+      )}
+      {r.program_scores && <p className="mt-1 text-xs text-gray">Programa ★ {r.program_rating?.toFixed(1)} — {PROGRAM_DIMENSIONS.map((d) => `${d.label}: ${r.program_scores![d.key]}`).join(' · ')}</p>}
+      {r.best || r.improve ? (
+        <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div><p className="text-xs uppercase tracking-wider text-pos">Lo mejor</p><p className="mt-1 whitespace-pre-line text-gray">{r.best}</p></div>
+          <div><p className="text-xs uppercase tracking-wider text-warn">Debería mejorar</p><p className="mt-1 whitespace-pre-line text-gray">{r.improve}</p></div>
+        </div>
+      ) : <p className="mt-3 whitespace-pre-line text-sm text-gray">{r.title && <span className="text-white">{r.title}. </span>}{r.comment}</p>}
+      {r.recommend != null && <p className={`mt-2 text-sm ${r.recommend ? 'text-pos' : 'text-neg'}`}>{r.recommend ? 'Recomienda la institución' : 'No recomienda la institución'}</p>}
+      {r.incentivized && <p className="mt-1 text-xs text-gray">Solicitó incentivo (se muestra como “Incentivada”).</p>}
+
+      <div className="mt-4 grid gap-4 border-t border-line pt-4 lg:grid-cols-3">
+        <div>
+          <p className="label-mono">Constancia</p>
+          <p className={`mt-1 text-sm ${r.evidence_status === 'aprobada' ? 'text-pos' : r.evidence_status === 'rechazada' ? 'text-neg' : 'text-gray'}`}>{EVIDENCE_LABELS[r.evidence_status]}</p>
+          {r.evidence_name && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button className="btn btn-quiet btn-sm" onClick={() => void downloadReviewEvidence(r.pathname, r.evidence_name!).catch(onError)}><Icon name="file" size={14} /> Ver constancia</button>
+              {r.evidence_status !== 'aprobada' && <button className="btn btn-quiet btn-sm text-pos" disabled={!!busy} onClick={() => void act(`ev:${key}`, () => moderateReview(key, { evidence_status: 'aprobada' }), 'Constancia verificada: la reseña lleva la insignia.')}>Verificar</button>}
+              {r.evidence_status !== 'rechazada' && <button className="btn btn-quiet btn-sm text-gray" disabled={!!busy} onClick={() => void act(`ev:${key}`, () => moderateReview(key, { evidence_status: 'rechazada' }))}>No válida</button>}
+            </div>
+          )}
+        </div>
+        <div>
+          <p className="label-mono">Criterios de publicación</p>
+          <ul className="mt-2 space-y-1">
+            {CRITERIA.map(([c, label]) => <li key={c}><label className="flex items-center gap-2 text-xs text-gray"><input type="checkbox" className="accent-violet" checked={criteria.has(c)} onChange={() => toggle(c)} />{label}</label></li>)}
+          </ul>
+        </div>
+        <div className="space-y-2">
+          <p className="label-mono">Decisión</p>
+          {r.status !== 'aprobada' && (
+            <button className="btn btn-accent btn-sm w-full" disabled={!!busy || !allCriteria} title={allCriteria ? undefined : 'Marca los criterios para publicar'}
+              onClick={() => void act(`ok:${key}`, () => moderateReview(key, { status: 'aprobada', criteria: [...criteria], reply }), 'Reseña publicada.')}>Publicar</button>
+          )}
+          {r.status !== 'rechazada' && (
+            <div className="flex gap-2">
+              <select className="input min-h-9 flex-1 py-1 text-xs" value={reason} onChange={(e) => setReason(e.target.value)}>
+                <option value="">Motivo de rechazo…</option>
+                {REJECT_REASONS.map((x) => <option key={x}>{x}</option>)}
+              </select>
+              <button className="btn btn-quiet btn-sm" disabled={!!busy || !reason} onClick={() => void act(`no:${key}`, () => moderateReview(key, { status: 'rechazada', rejection_reason: reason }), 'Reseña rechazada.')}>Rechazar</button>
+            </div>
+          )}
+          {r.rejection_reason && <p className="text-xs text-neg">Rechazo: {r.rejection_reason}</p>}
+          <textarea rows={2} className="input py-1.5 text-xs" placeholder="Respuesta pública (opcional)" value={reply} onChange={(e) => setReply(e.target.value)} />
+          <div className="flex flex-wrap gap-2">
+            {reply !== (r.reply ?? '') && <button className="btn btn-quiet btn-sm" disabled={!!busy} onClick={() => void act(`rp:${key}`, () => moderateReview(key, { reply }), 'Respuesta guardada.')}>Guardar respuesta</button>}
+            {r.user_id && <button className="btn btn-quiet btn-sm text-gray" disabled={!!busy} onClick={() => { if (window.confirm(`¿Bloquear a ${r.author_email}? No podrá publicar más reseñas.`)) void act(`bl:${key}`, () => blockReviewer(r.user_id!, true), 'Persona bloqueada.'); }}>Bloquear persona</button>}
+            <button className="btn btn-quiet btn-sm text-neg" disabled={!!busy} onClick={() => { if (window.confirm('¿Eliminar la reseña definitivamente? También se borra la constancia.')) void act(`del:${key}`, () => deleteReviewRecord(key), 'Reseña eliminada.'); }}>Eliminar</button>
+          </div>
+        </div>
+      </div>
+    </li>
   );
 }

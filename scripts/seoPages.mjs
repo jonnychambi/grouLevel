@@ -30,14 +30,15 @@ const duration = (c) => c.duration_text || (c.duration_hours ? `${c.duration_hou
 const facts = (c) => [TYPE[c.program_type], MODALITY[c.modality], duration(c), priceText(c)].filter(Boolean).join(' · ');
 
 /** Páginas que dependen del catálogo (en Vercel las sirve api/seo.ts). */
-export const isCatalogPath = (path) => path === '/' || path === '/programas' || path === '/instituciones' || /^\/(programas|programa|institucion)\/[^/]+$/.test(path);
+export const isCatalogPath = (path) => path === '/' || path === '/programas' || path === '/instituciones' || /^\/(programas|programa|institucion)\/[^/]+$/.test(path) || /^\/(programa|institucion)\/[^/]+\/opiniones$/.test(path);
 
 /**
  * Construye todas las páginas indexables.
  * @param {{courses: any[], institutions: any[], categories: any[]}} catalog
- * @param {{siteUrl: string, base?: string, ratings?: Map<string, {avg: number, count: number}>}} opts
+ * @param {{siteUrl: string, base?: string, ratings?: Map<string, {avg: number, count: number}>, reviews?: ReviewsData}} opts
  */
-export function buildRoutes(catalog, { siteUrl, base = '', ratings = new Map() }) {
+export function buildRoutes(catalog, { siteUrl, base = '', ratings = new Map(), reviews = null }) {
+  const courseLd = new Map();
   const abs = (path) => `${siteUrl}${path === '/' ? '/' : path}`;
   const href = (path) => `${base}${path}`;
   const courses = catalog.courses.filter((c) => (c.status ?? 'publicado') === 'publicado');
@@ -151,7 +152,7 @@ export function buildRoutes(catalog, { siteUrl, base = '', ratings = new Map() }
       image: c.image || null,
       jsonLd: [
         bc.ld,
-        {
+        courseLd.set(c.id, {
           '@context': 'https://schema.org',
           '@type': 'Course',
           name: c.name,
@@ -167,7 +168,7 @@ export function buildRoutes(catalog, { siteUrl, base = '', ratings = new Map() }
             : { '@type': 'Offer', category: 'Paid', url: abs(`/programa/${c.slug}`) },
           hasCourseInstance: [instance],
           ...(rating ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(rating.avg), reviewCount: rating.count, bestRating: 5, worstRating: 1 } } : {})
-        }
+        }) && courseLd.get(c.id)
       ],
       body: `${bc.html}<h1>${esc(c.name)}</h1>
 <p>${esc(inst?.name ?? '')} · ${esc(facts(c))}</p>
@@ -183,6 +184,13 @@ ${related.length ? `<h2>Programas similares de ${esc(cat?.name ?? '')}</h2><ul>$
     });
   }
 
+  const instRating = (id) => reviews?.institutions.get(id) ?? null;
+  const orgLd = (i, extra = {}) => {
+    const r = instRating(i.id);
+    return { '@context': 'https://schema.org', '@type': 'EducationalOrganization', name: i.name, ...(i.website ? { url: i.website, sameAs: i.website } : {}), ...(i.city || i.country ? { address: { '@type': 'PostalAddress', ...(i.city ? { addressLocality: i.city } : {}), ...(i.country ? { addressCountry: i.country } : {}) } } : {}), ...(i.founded ? { foundingDate: String(i.founded) } : {}), description: clip(i.description, 500),
+      ...(r?.count ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(r.avg), reviewCount: r.count, bestRating: 5, worstRating: 1 } } : {}), ...extra };
+  };
+
   for (const i of institutions) {
     const list = courses.filter((c) => c.institution_id === i.id);
     const bc = breadcrumb([{ name: 'Inicio', path: '/' }, { name: 'Instituciones', path: '/instituciones' }, { name: i.name, path: `/institucion/${i.slug}` }]);
@@ -192,15 +200,68 @@ ${related.length ? `<h2>Programas similares de ${esc(cat?.name ?? '')}</h2><ul>$
       description: clip(`Programas de ${i.name} en tecnología y negocios: precios, duración, modalidad y fechas de inicio. ${i.description ?? ''}`, 300),
       jsonLd: [
         bc.ld,
-        { '@context': 'https://schema.org', '@type': 'EducationalOrganization', name: i.name, ...(i.website ? { url: i.website, sameAs: i.website } : {}), ...(i.city || i.country ? { address: { '@type': 'PostalAddress', ...(i.city ? { addressLocality: i.city } : {}), ...(i.country ? { addressCountry: i.country } : {}) } } : {}), ...(i.founded ? { foundingDate: String(i.founded) } : {}), description: clip(i.description, 500) },
+        orgLd(i),
         itemList(list)
       ],
       body: `${bc.html}<h1>${esc(i.name)}</h1><p>${esc(i.description)}</p><h2>Programas (${list.length})</h2><ul>${list.map(courseItem).join('')}</ul>`
     });
   }
 
+  // Páginas de opiniones: indexables solo con reseñas propias (contenido auténtico, no duplicado).
+  if (reviews) {
+    const reviewLd = (r) => ({ '@type': 'Review', author: { '@type': 'Person', name: r.author_name }, datePublished: String(r.created_at).slice(0, 10),
+      reviewRating: { '@type': 'Rating', ratingValue: Number(r.rating), bestRating: 5, worstRating: 1 }, reviewBody: clip([r.best, r.improve].filter(Boolean).join(' — ') || r.comment, 600) });
+    const reviewHtml = (r) => `<article><p>${'★'.repeat(Math.round(r.rating))} ${Number(r.rating).toFixed(1)}${r.verified ? ' · Reseña verificada' : ''}${r.incentivized ? ' · Incentivada' : ''}</p>
+${r.best ? `<p><strong>Lo mejor:</strong> ${esc(r.best)}</p>` : ''}${r.improve ? `<p><strong>Debería mejorar:</strong> ${esc(r.improve)}</p>` : ''}${!r.best && !r.improve ? `<p>${esc(r.comment)}</p>` : ''}
+<p>${esc(r.author_name)} · ${r.student_status === 'estudiante' ? 'Estudiante' : 'Egresado'}${r.study_year ? ` (${r.study_year})` : ''} · ${esc(String(r.created_at).slice(0, 10))}</p></article>`;
+    const dimsHtml = (dims, labels) => `<ul>${Object.entries(labels).filter(([k]) => dims?.[k] != null).map(([k, l]) => `<li>${l}: ${Number(dims[k]).toFixed(1)} de 5</li>`).join('')}</ul>`;
+    const INST_DIMS = { academic: 'Calidad académica', teachers: 'Docentes', experience: 'Experiencia educativa', compliance: 'Cumplimiento', value: 'Relación calidad-precio' };
+    const PROG_DIMS = { content: 'Contenido', methodology: 'Metodología', tools: 'Herramientas', teacher: 'Docente' };
+    const latest = (list) => list.map((r) => String(r.created_at).slice(0, 10)).sort().at(-1) ?? null;
+
+    for (const i of institutions) {
+      const items = reviews.items.get(`i:${i.id}`) ?? [];
+      const r = instRating(i.id);
+      const path = `/institucion/${i.slug}/opiniones`;
+      const bc = breadcrumb([{ name: 'Inicio', path: '/' }, { name: 'Instituciones', path: '/instituciones' }, { name: i.name, path: `/institucion/${i.slug}` }, { name: 'Opiniones', path }]);
+      routes.push({
+        path, kind: 'catalog', index: items.length > 0, lastmod: latest(items),
+        title: clip(`Opiniones de ${i.name}${r?.count ? ` (${Number(r.avg).toFixed(1)}★)` : ''}`, 58) + ' | Groulevel',
+        description: clip(r?.count ? `${r.count} opiniones de estudiantes y egresados sobre ${i.name}: calidad académica, docentes, cumplimiento y relación calidad-precio. ${r.recommend_pct != null ? `${r.recommend_pct}% la recomienda.` : ''}` : `Opiniones de estudiantes y egresados sobre ${i.name}.`, 300),
+        jsonLd: [bc.ld, orgLd(i, items.length ? { review: items.slice(0, 10).map(reviewLd) } : {})],
+        body: `${bc.html}<h1>Opiniones de ${esc(i.name)}</h1>
+${r?.count ? `<p>Calificación: ${Number(r.avg).toFixed(1)} de 5 en ${r.count} ${r.count === 1 ? 'opinión' : 'opiniones'}${r.recommend_pct != null ? ` · ${r.recommend_pct}% la recomienda` : ''}.</p>${dimsHtml(r.dims, INST_DIMS)}` : '<p>Aún no hay opiniones publicadas.</p>'}
+${items.slice(0, 30).map(reviewHtml).join('')}
+<p><a href="${href(`/opinar?institucion=${i.slug}`)}">Escribe una reseña</a> · <a href="${href(`/institucion/${i.slug}`)}">Ver programas de ${esc(i.name)}</a></p>`
+      });
+    }
+    for (const c of courses) {
+      const items = reviews.items.get(`c:${c.id}`) ?? [];
+      const inst = instById.get(c.institution_id);
+      const r = reviews.courses.get(c.id);
+      const path = `/programa/${c.slug}/opiniones`;
+      const bc = breadcrumb([{ name: 'Inicio', path: '/' }, { name: 'Programas', path: '/programas' }, { name: c.name, path: `/programa/${c.slug}` }, { name: 'Opiniones', path }]);
+      const base = courseLd.get(c.id);
+      routes.push({
+        path, kind: 'catalog', index: items.length > 0, lastmod: latest(items),
+        title: clip(`Opiniones: ${c.name} · ${inst?.short_name ?? inst?.name ?? ''}`, 58) + ' | Groulevel',
+        description: clip(r?.count ? `${r.count} opiniones de estudiantes sobre ${c.name} de ${inst?.name ?? ''}: contenido, metodología, herramientas y docente.` : `Opiniones sobre ${c.name} y la reputación de ${inst?.name ?? ''}.`, 300),
+        jsonLd: [bc.ld, ...(base && items.length ? [{ ...base, review: items.slice(0, 10).map((x) => ({ ...reviewLd(x), reviewRating: { '@type': 'Rating', ratingValue: Number(x.program_rating ?? x.rating), bestRating: 5, worstRating: 1 } })) }] : [])],
+        body: `${bc.html}<h1>Opiniones de ${esc(c.name)}</h1><p>${esc(inst?.name ?? '')}</p>
+${r?.count ? `<p>Calificación del programa: ${Number(r.avg).toFixed(1)} de 5 en ${r.count} ${r.count === 1 ? 'opinión' : 'opiniones'}.</p>${dimsHtml(r.dims, PROG_DIMS)}` : '<p>Este programa aún no tiene reseñas propias.</p>'}
+${items.slice(0, 30).map(reviewHtml).join('')}
+<p><a href="${href(`/opinar?institucion=${inst?.slug ?? ''}&programa=${c.slug}`)}">Escribe una reseña</a> · <a href="${href(`/institucion/${inst?.slug ?? ''}/opiniones`)}">Opiniones de ${esc(inst?.name ?? '')}</a></p>`
+      });
+    }
+  }
+
   return routes;
 }
+
+/**
+ * @typedef {{ institutions: Map<string, {avg: number, count: number, dims?: Record<string, number>, recommend_pct?: number | null}>,
+ *   courses: Map<string, {avg: number, count: number, dims?: Record<string, number>}>, items: Map<string, any[]> }} ReviewsData
+ */
 
 /** Páginas fijas (no dependen del catálogo). */
 export function staticRoutes(base = '') {

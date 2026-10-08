@@ -126,6 +126,14 @@
     {
       "source": "/sitemap.xml",
       "destination": "/api/seo?sitemap=1"
+    },
+    {
+      "source": "/programa/:slug/opiniones",
+      "destination": "/api/seo?path=/programa/:slug/opiniones"
+    },
+    {
+      "source": "/institucion/:slug/opiniones",
+      "destination": "/api/seo?path=/institucion/:slug/opiniones"
     }
   ],
   "functions": {

@@ -7,7 +7,8 @@
  */
 import { getSql, isDbConfigured } from './_lib/db.js';
 import { getCurrentCatalog } from './_lib/catalogRepo.js';
-import { buildRoutes, isCatalogPath, renderPage, sitemapXml, staticRoutes, type SeoRoute } from '../scripts/seoPages.mjs';
+import { buildRoutes, isCatalogPath, renderPage, sitemapXml, staticRoutes, type ReviewsData, type SeoRoute } from '../scripts/seoPages.mjs';
+import { publicSummary, toPublic } from './_lib/reviews.js';
 
 const SITE_URL = (process.env.VITE_SITE_URL ?? 'https://www.groulevel.com').replace(/\/$/, '');
 const CACHE = 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400';
@@ -32,7 +33,21 @@ async function getRoutes() {
   const ratings = new Map(
     (await sql`select course_id, avg_rating::float as avg, reviews_count::int as count from course_ratings where reviews_count > 0`).map((r) => [String(r.course_id), { avg: Number(r.avg), count: Number(r.count) }])
   );
-  const list = buildRoutes(current.data, { siteUrl: SITE_URL, ratings });
+  // Reseñas aprobadas (las más recientes primero) para las páginas de opiniones.
+  const summary = await publicSummary(sql);
+  const items = new Map<string, Record<string, unknown>[]>();
+  for (const r of await sql`select * from reviews where status = 'aprobada' order by created_at desc limit 5000`) {
+    const pub = toPublic(r) as unknown as Record<string, unknown>;
+    const push = (k: string) => { const l = items.get(k) ?? []; if (l.length < 30) l.push(pub); items.set(k, l); };
+    if (pub.institution_id) push(`i:${pub.institution_id}`);
+    if (pub.course_id && pub.program_rating != null) push(`c:${pub.course_id}`);
+  }
+  const reviews: ReviewsData = {
+    institutions: new Map(Object.entries(summary.institutions)) as ReviewsData['institutions'],
+    courses: new Map(Object.entries(summary.courses)) as ReviewsData['courses'],
+    items
+  };
+  const list = buildRoutes(current.data, { siteUrl: SITE_URL, ratings, reviews });
   routes = { list, byPath: new Map(list.map((r) => [r.path, r])), at: Date.now() };
   return routes;
 }

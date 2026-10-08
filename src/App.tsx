@@ -17,6 +17,8 @@ const RouteResultPage = lazy(() => import('./pages/RouteResultPage'));
 const MetricsPage = lazy(() => import('./pages/MetricsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
+const OpinarPage = lazy(() => import('./pages/OpinarPage'));
+const ReviewsPage = lazy(() => import('./pages/ReviewsPage'));
 
 export default function App() {
   return (
@@ -28,10 +30,13 @@ export default function App() {
         <Route path="programas" element={<ProgramsPage />} />
         <Route path="programas/:categoria" element={<ProgramsPage />} />
         <Route path="programa/:slug" element={<ProgramDetailPage />} />
+        <Route path="programa/:slug/opiniones" element={<ReviewsPage scope="programa" />} />
         <Route path="comparar" element={<ComparePage />} />
         <Route path="instituciones" element={<InstitutionsPage />} />
         <Route path="instituciones/partners" element={<PartnersPage />} />
         <Route path="institucion/:slug" element={<InstitutionDetailPage />} />
+        <Route path="institucion/:slug/opiniones" element={<ReviewsPage scope="institucion" />} />
+        <Route path="opinar" element={<OpinarPage />} />
         <Route path="nosotros" element={<AboutPage />} />
         <Route path="favoritos" element={<FavoritesPage />} />
         <Route path="mi-ruta" element={<RoutePage />} />

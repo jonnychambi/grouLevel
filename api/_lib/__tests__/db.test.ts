@@ -38,7 +38,7 @@ describe('base de datos', () => {
   it('aplica las migraciones una sola vez, con RLS en todas las tablas', async () => {
     const again = await migrate(sql, { log: () => {} });
     expect(again.pending).toEqual([]);
-    expect(again.applied).toEqual(['001_init.sql', '002_supabase_primary.sql', '003_profile_diagnosis.sql', '004_program_refresh.sql', '005_program_import.sql', '006_demand.sql']);
+    expect(again.applied).toEqual(['001_init.sql', '002_supabase_primary.sql', '003_profile_diagnosis.sql', '004_program_refresh.sql', '005_program_import.sql', '006_demand.sql', '007_reviews_v2.sql']);
     const noRls = await sql`select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity`;
     expect(noRls.map((r) => r.relname)).toEqual([]);
   });
@@ -111,6 +111,6 @@ describe('base de datos', () => {
     expect(status.last_sync.error).toBeNull();
     expect((await admin.GET(new Request('https://x/api/admin?action=db-status'))).status).toBe(401);
     const health = await (await import('../../health')).GET();
-    expect(await health.json()).toEqual({ ok: true, db: 'connected', blob: true, migrations: ['001_init.sql', '002_supabase_primary.sql', '003_profile_diagnosis.sql', '004_program_refresh.sql', '005_program_import.sql', '006_demand.sql'] });
+    expect(await health.json()).toEqual({ ok: true, db: 'connected', blob: true, migrations: ['001_init.sql', '002_supabase_primary.sql', '003_profile_diagnosis.sql', '004_program_refresh.sql', '005_program_import.sql', '006_demand.sql', '007_reviews_v2.sql'] });
   });
 });

@@ -99,8 +99,31 @@ export type StoredReview = Review & { pathname: string };
 
 export const fetchReviews = () => call<{ reviews: StoredReview[] }>('reviews');
 
-export const moderateReview = (pathname: string, patch: { status?: ReviewStatus; reply?: string; rejection_reason?: string }) =>
+export const moderateReview = (pathname: string, patch: { status?: ReviewStatus; reply?: string; rejection_reason?: string; evidence_status?: string; criteria?: string[] }) =>
   call<{ review: StoredReview }>('review', { method: 'POST', body: JSON.stringify({ pathname, ...patch }) });
+
+export interface ReviewIncentive {
+  id: number; review_id: string; user_id: string; institution_id: string; course_id: string; kind: 'institucion' | 'programa'; amount: string | number;
+  status: 'pendiente' | 'aprobado' | 'pagado' | 'rechazado'; note: string | null; created_at: string; decided_at: string | null; paid_at: string | null;
+  review_status: string; verified: boolean; author_name: string; institution_name: string; course_name: string | null; flags: string[];
+  email: string | null; payout_method: string | null; payout_account: string | null; blocked: boolean | null;
+}
+export interface ReviewReport { id: number; review_id: string; reason: string; details: string | null; status: string; created_at: string; institution_name: string; course_name: string | null; author_name: string; review_status: string }
+export const fetchReviewIncentives = () => call<{ incentives: ReviewIncentive[] }>('review-incentives');
+export const updateReviewIncentive = (id: number, status: string, note?: string) => call<{ incentive: ReviewIncentive }>('review-incentive', { method: 'POST', body: JSON.stringify({ id, status, note }) });
+export const fetchReviewReports = () => call<{ reports: ReviewReport[] }>('review-reports');
+export const resolveReviewReport = (id: number, status: 'resuelto' | 'descartado') => call<{ ok: true }>('review-report', { method: 'POST', body: JSON.stringify({ id, status }) });
+export const blockReviewer = (user_id: string, blocked: boolean) => call<{ ok: true }>('reviewer-block', { method: 'POST', body: JSON.stringify({ user_id, blocked }) });
+export async function downloadReviewEvidence(id: string, fileName: string): Promise<void> {
+  const session = getSession();
+  const res = await fetch(`${ENDPOINT}?action=review-evidence&id=${encodeURIComponent(id)}`, { headers: session ? { Authorization: `Bearer ${session.token}` } : {} });
+  if (!res.ok) throw new AdminApiError('No se pudo descargar la constancia.', res.status);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await res.blob());
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 export const deleteReviewRecord = (pathname: string) => call<{ ok: true }>('review-delete', { method: 'POST', body: JSON.stringify({ pathname }) });
 

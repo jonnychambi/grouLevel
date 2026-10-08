@@ -39,7 +39,7 @@ const SECTIONS: { group: string; items: { id: Tab; label: string; icon: IconName
     { id: 'rendimiento', label: 'Rendimiento', icon: 'chart' },
     { id: 'leads', label: 'Leads', icon: 'target', badge: 'leads', hint: 'Leads nuevos sin contactar' },
     { id: 'perfiles', label: 'Perfiles', icon: 'route' },
-    { id: 'resenas', label: 'Reseñas', icon: 'star', badge: 'reviews', hint: 'Reseñas por moderar' }
+    { id: 'resenas', label: 'Reseñas', icon: 'star', badge: 'reviews', hint: 'Reseñas por moderar y reportes abiertos' }
   ] },
   { group: 'Datos', items: [
     { id: 'importar', label: 'Importar Excel', icon: 'upload' },

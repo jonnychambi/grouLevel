@@ -1,6 +1,6 @@
 /** Constructores de Schema.org (JSON-LD). */
 import { SITE } from '../config/site';
-import type { CourseWithInstitution, Institution } from '../types';
+import type { CourseWithInstitution, Institution, PublicReview } from '../types';
 import { effectivePrice } from './format';
 import { MODALITY_LABELS } from './labels';
 
@@ -32,7 +32,7 @@ export function breadcrumbSchema(items: { name: string; path: string }[]) {
   };
 }
 
-export function courseSchema(c: CourseWithInstitution) {
+export function courseSchema(c: CourseWithInstitution, reviews: PublicReview[] = []) {
   const modeMap = { 'en-vivo': 'online', grabado: 'online', hibrido: 'blended', presencial: 'onsite' } as const;
   const price = effectivePrice(c);
   const hours = c.duration_hours;
@@ -60,12 +60,26 @@ export function courseSchema(c: CourseWithInstitution) {
       ...(c.start_date ? { startDate: c.start_date } : {}),
       ...(c.teachers.length ? { instructor: c.teachers.map((t) => ({ '@type': 'Person', name: t.name })) } : {})
     },
-    ...(c.rating != null && c.reviews_count ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: c.rating, reviewCount: c.reviews_count, bestRating: 5, worstRating: 1 } } : {})
+    ...(c.rating != null && c.reviews_count ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: c.rating, reviewCount: c.reviews_count, bestRating: 5, worstRating: 1 } } : {}),
+    ...(reviews.length ? { review: reviewsSchema(reviews, true) } : {})
   };
 }
 
-export function organizationSchema(i: Institution) {
+/** Reseñas en formato Schema.org (las más recientes). */
+export function reviewsSchema(reviews: PublicReview[], useProgramRating = false) {
+  return reviews.slice(0, 10).map((r) => ({
+    '@type': 'Review',
+    author: { '@type': 'Person', name: r.author_name },
+    datePublished: r.created_at.slice(0, 10),
+    reviewRating: { '@type': 'Rating', ratingValue: useProgramRating ? r.program_rating ?? r.rating : r.rating, bestRating: 5, worstRating: 1 },
+    reviewBody: [r.best, r.improve].filter(Boolean).join(' — ') || r.comment
+  }));
+}
+
+export function organizationSchema(i: Institution, reviews: PublicReview[] = []) {
   return {
+    ...(i.rating != null && i.reviews_count ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: i.rating, reviewCount: i.reviews_count, bestRating: 5, worstRating: 1 } } : {}),
+    ...(reviews.length ? { review: reviewsSchema(reviews) } : {}),
     '@context': 'https://schema.org',
     '@type': 'EducationalOrganization',
     name: i.name,

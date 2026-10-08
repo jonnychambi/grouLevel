@@ -28,17 +28,17 @@ export function Stars({ value, size = 16, className = '' }: { value: number; siz
 const LABELS = ['', 'Muy malo', 'Malo', 'Regular', 'Bueno', 'Excelente'];
 
 /** Selector de 1 a 5 estrellas (radiogroup accesible con teclado). */
-export function StarInput({ value, onChange, invalid, describedBy }: { value: number; onChange: (v: number) => void; invalid?: boolean; describedBy?: string }) {
+export function StarInput({ value, onChange, invalid, describedBy, label = 'Tu valoración', size = 32 }: { value: number; onChange: (v: number) => void; invalid?: boolean; describedBy?: string; label?: string; size?: number }) {
   const [hover, setHover] = useState(0);
   const name = useId();
   const shown = hover || value;
   return (
     <div className="flex items-center gap-3">
-      <div role="radiogroup" aria-label="Tu valoración" aria-invalid={invalid} aria-describedby={describedBy} className="flex" onMouseLeave={() => setHover(0)}>
+      <div role="radiogroup" aria-label={label} aria-invalid={invalid} aria-describedby={describedBy} className="flex" onMouseLeave={() => setHover(0)}>
         {[1, 2, 3, 4, 5].map((n) => (
           <label key={n} className="cursor-pointer p-0.5" onMouseEnter={() => setHover(n)}>
             <input type="radio" name={name} value={n} checked={value === n} onChange={() => onChange(n)} className="peer sr-only" aria-label={`${n} ${n === 1 ? 'estrella' : 'estrellas'}: ${LABELS[n]}`} />
-            <svg width={32} height={32} viewBox="0 0 24 24" aria-hidden="true" className="rounded-md transition-transform peer-focus-visible:ring-2 peer-focus-visible:ring-cyan hover:scale-110">
+            <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="rounded-md transition-transform peer-focus-visible:ring-2 peer-focus-visible:ring-cyan hover:scale-110">
               <path d={STAR} fill={n <= shown ? '#FFC65C' : 'rgb(157 170 189 / .22)'} />
             </svg>
           </label>

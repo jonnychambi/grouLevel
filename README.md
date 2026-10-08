@@ -93,13 +93,16 @@ Variables en Vercel: `POSTGRES_URL` y demás de Supabase (las crea la integraci�
 ## Buscador inteligente
 Interpreta lenguaje natural (`"maestría de inteligencia artificial"`, `"curso de Python barato"`, `"data analytics online"`): detecta tipo de programa, modalidad, nivel, gratis/barato; expande sinónimos (IA ⇄ inteligencia artificial, ML, BI…); pondera nombre, herramientas, categoría, institución, habilidades y temario; tolera errores de tipeo. Las intenciones se aplican como filtro solo si dejan resultados, y se muestran al usuario (“Interpretamos tu búsqueda como…”). Autocompletado con categorías, herramientas, programas e instituciones (combobox ARIA).
 
-## Reseñas y valoraciones (1–5 ★)
+## Groulevel Reviews — reputación de instituciones y programas
 
-- Cualquier visitante puede valorar un programa desde `/programa/<slug>#resenas` (estrellas, relación con el programa, título, comentario, nombre y email privado). Validación en cliente y servidor (`src/utils/reviews.ts`), honeypot y límite de 5 envíos/10 min por IP; un email solo puede reseñar una vez cada programa.
-- Las reseñas se guardan como **pendientes** en la tabla `reviews`. En `/admin` → **Reseñas** se aprueban, rechazan (con motivo), responden públicamente o eliminan.
-- Solo las **aprobadas** se publican y cuentan en los promedios por programa e institución (calculados con SQL; vistas `course_ratings` / `institution_ratings`).
-- El sitio lee `GET /api/reviews?summary=1` (caché CDN ~1 min) y muestra la valoración en cada tarjeta de programa, en la ficha (sección "Valoraciones") y en las tarjetas/fichas de institución.
-- Evento GA: `review_submitted`.
+- **Modelo**: la institución es la reputación principal (calidad académica, docentes, experiencia educativa, cumplimiento, relación calidad-precio); el programa cursado es complementario (contenido, metodología, herramientas, docente). Se muestran por separado; un programa sin reseñas muestra la reputación de su institución, identificada como tal (fichas, tarjetas y listado).
+- **Formulario** (`/opinar`, con `?institucion=&programa=`): acceso con correo validado (código o enlace de Supabase Auth, vía `/api/reviews?action=auth-start|auth-verify`), institución + programa opcional, estrellas por dimensión, ¿qué fue lo mejor?, ¿qué debería mejorar?, ¿la recomiendas?, año y estado (estudiante/egresado), constancia opcional (Blob privado, nunca pública) y solicitud de incentivo.
+- **Transparencia**: insignia "Reseña verificada" solo con constancia aprobada; nombre abreviado, fecha y antigüedad; reseñas incentivadas identificadas; reportes de reseñas sospechosas (`?action=report`); moderación con criterios objetivos (se publican opiniones positivas y críticas).
+- **Incentivos**: S/ 50 por reseña institucional verificada + S/ 50 por evaluación detallada del programa; no dependen de la calificación; uno por persona e institución/programa (índice único); señales antifraude (constancia o texto repetidos, cuenta de pago compartida, muchas reseñas en 24 h, bloqueo de personas).
+- **Admin → Demanda → Reseñas**: pendientes/publicadas/rechazadas, verificación de constancias, duplicados, criterios, respuesta pública, reportes e incentivos (aprobar → pagar).
+- **SEO**: `/institucion/:slug/opiniones` y `/programa/:slug/opiniones` servidas por `api/seo.ts` con contenido real y JSON-LD (`aggregateRating` + `Review`); indexables solo con reseñas propias; incluidas en el sitemap.
+- Migración 007 (`reviewers`, `review_reports`, `review_incentives`, columnas nuevas en `reviews`, vistas con dimensiones). Las reseñas anteriores siguen contando.
+- **Configuración en Supabase** (Authentication): Site URL `https://www.groulevel.com`, Redirect URL `https://www.groulevel.com/**`; para el código, agregar `{{ .Token }}` a la plantilla "Magic Link"; SMTP propio recomendado (el de Supabase tiene un límite bajo de correos por hora).
 
 ## Analiza mi perfil — diagnóstico y estudios (`/mi-ruta`)
 

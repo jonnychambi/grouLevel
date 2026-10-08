@@ -1,119 +1,112 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { CourseWithInstitution, PublicReview } from '../../types';
-import { fetchCourseReviews } from '../../services/reviewsService';
-import { formatDate } from '../../utils/format';
-import { RELATIONSHIP_LABELS, sortReviews, summarize } from '../../utils/reviews';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import type { CourseWithInstitution, Institution, PublicReview, ReviewsSummary } from '../../types';
+import { fetchCourseReviews, fetchInstitutionReviews, fetchReviewsSummary } from '../../services/reviewsService';
 import { Icon } from '../ui/Icon';
-import { ReviewModal } from './ReviewModal';
-import { Stars } from './Stars';
+import { RatingSummaryCard, ReviewList } from './ReviewParts';
 
-const PAGE = 5;
+export const writeReviewHref = (institutionSlug: string, courseSlug?: string) =>
+  `/opinar?institucion=${encodeURIComponent(institutionSlug)}${courseSlug ? `&programa=${encodeURIComponent(courseSlug)}` : ''}`;
 
-/** Valoraciones del programa: resumen, distribución, reseñas aprobadas y formulario. */
+function useSummary() {
+  const [s, setS] = useState<ReviewsSummary | null>(null);
+  useEffect(() => { fetchReviewsSummary().then(setS); }, []);
+  return s;
+}
+
+/**
+ * Valoraciones en la ficha del programa: evaluación del programa (complementaria) y reputación de la
+ * institución (principal), por separado. Si el programa no tiene reseñas, se muestra la de la institución.
+ */
 export function ReviewsSection({ course }: { course: CourseWithInstitution }) {
-  const [reviews, setReviews] = useState<PublicReview[] | null>(null);
-  const [order, setOrder] = useState<'recientes' | 'mejores' | 'peores'>('recientes');
-  const [shown, setShown] = useState(PAGE);
-  const [writing, setWriting] = useState(false);
+  const [data, setData] = useState<{ reviews: PublicReview[]; institution_reviews: PublicReview[] } | null>(null);
+  const summary = useSummary();
+  const inst = course.institution;
 
   useEffect(() => {
     let alive = true;
-    setReviews(null);
-    fetchCourseReviews(course.id).then((r) => alive && setReviews(r));
+    setData(null);
+    fetchCourseReviews(course.id).then((r) => alive && setData(r));
     return () => { alive = false; };
   }, [course.id]);
 
-  const summary = useMemo(() => summarize((reviews ?? []).map((r) => r.rating)), [reviews]);
-  const sorted = useMemo(() => sortReviews(reviews ?? [], order), [reviews, order]);
-  const inst = course.institution;
+  const cs = summary?.courses[course.id];
+  const is = summary?.institutions[inst.id];
+  const programReviews = data?.reviews ?? [];
+  const instReviews = data?.institution_reviews ?? [];
+  const fallback = !programReviews.length;
 
   return (
     <section id="resenas" aria-labelledby="resenas-t" className="scroll-mt-32 border-t border-line pt-10">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <h2 id="resenas-t" className="text-2xl text-white">Valoraciones</h2>
-        <button className="btn btn-ghost btn-sm" onClick={() => setWriting(true)}><Icon name="star" size={15} /> Escribir una reseña</button>
+        <div>
+          <h2 id="resenas-t" className="text-2xl text-white">Opiniones</h2>
+          <p className="mt-1 text-sm text-muted">Reseñas de estudiantes y egresados, moderadas por Groulevel. Publicamos opiniones positivas y críticas.</p>
+        </div>
+        <div className="flex gap-2">
+          {(programReviews.length > 0 || instReviews.length > 0) && <Link to={`/programa/${course.slug}/opiniones`} className="btn btn-quiet btn-sm">Ver todas</Link>}
+          <Link to={writeReviewHref(inst.slug, course.slug)} className="btn btn-ghost btn-sm"><Icon name="star" size={15} /> Escribir una reseña</Link>
+        </div>
       </div>
 
-      {reviews === null ? (
-        <div className="space-y-3" aria-busy="true"><div className="skeleton h-28" /><div className="skeleton h-24" /></div>
+      {data === null ? (
+        <div className="space-y-3" aria-busy="true"><div className="skeleton h-40" /><div className="skeleton h-24" /></div>
       ) : (
         <>
-          <div className="card grid gap-6 p-5 sm:grid-cols-[200px_1fr]">
-            <div className="text-center sm:border-r sm:border-line sm:pr-6 sm:text-left">
-              {summary.count ? (
-                <>
-                  <p className="tnum text-5xl font-semibold tracking-tight text-white">{summary.avg.toFixed(1)}</p>
-                  <Stars value={summary.avg} size={18} className="mt-1" />
-                  <p className="mt-1 text-sm text-muted">{summary.count} {summary.count === 1 ? 'reseña' : 'reseñas'} verificadas</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-lg font-medium text-white">Aún sin reseñas</p>
-                  <p className="mt-1 text-sm text-muted">¿Estudiaste este programa? Ayuda a otros a decidir.</p>
-                </>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              {[5, 4, 3, 2, 1].map((n) => {
-                const c = summary.distribution[n - 1];
-                return (
-                  <div key={n} className="flex items-center gap-3 text-sm">
-                    <span className="tnum w-6 text-gray">{n}★</span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-raise"><div className="h-full rounded-full bg-warn" style={{ width: summary.count ? `${(c / summary.count) * 100}%` : 0 }} /></div>
-                    <span className="tnum w-8 text-right text-muted">{c}</span>
-                  </div>
-                );
-              })}
-              {inst.rating != null && (inst.reviews_count ?? 0) > 0 && (
-                <p className="pt-2 text-xs text-muted">
-                  {inst.name}: <span className="text-white">★ {inst.rating.toFixed(1)}</span> en {inst.reviews_count} {inst.reviews_count === 1 ? 'reseña' : 'reseñas'} de sus programas.
-                </p>
-              )}
-            </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <RatingSummaryCard title="Valoración del programa" scope={course.name} kind="programa" summary={cs ?? null} dims={cs?.dims as Record<string, number> | undefined}
+              note={fallback ? 'Este programa aún no tiene reseñas propias. Mira la reputación de la institución.' : undefined} />
+            <RatingSummaryCard title="Reputación de la institución" scope={inst.name} kind="institucion" summary={is ?? null} dims={is?.dims as Record<string, number> | undefined} recommendPct={is?.recommend_pct} />
           </div>
-
-          {sorted.length > 0 && (
-            <>
-              <div className="mt-5 flex items-center justify-between">
-                <p className="text-sm text-muted">Reseñas validadas por el equipo de Groulevel.</p>
-                <label className="flex items-center gap-2 text-sm text-muted">
-                  Ordenar
-                  <select className="h-9 rounded-full border border-line-strong bg-midnight px-3 text-sm text-white" value={order} onChange={(e) => setOrder(e.target.value as typeof order)}>
-                    <option value="recientes">Más recientes</option>
-                    <option value="mejores">Mejor valoradas</option>
-                    <option value="peores">Peor valoradas</option>
-                  </select>
-                </label>
-              </div>
-              <ul className="mt-3 space-y-3">
-                {sorted.slice(0, shown).map((r) => (
-                  <li key={r.id} className="card p-5">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <Stars value={r.rating} size={15} />
-                      {r.title && <h3 className="text-base font-medium text-white">{r.title}</h3>}
-                    </div>
-                    <p className="mt-2 whitespace-pre-line text-gray">{r.comment}</p>
-                    <p className="mt-3 flex flex-wrap items-center gap-x-2 text-xs text-muted">
-                      <span className="text-white">{r.author_name}</span>·
-                      <span className={r.relationship === 'egresado' ? 'text-pos' : ''}>{RELATIONSHIP_LABELS[r.relationship]}</span>·
-                      <span>{formatDate(r.created_at.slice(0, 10), { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                    </p>
-                    {r.reply && (
-                      <div className="mt-3 rounded-xl border border-line bg-navy/60 p-3 text-sm">
-                        <p className="label-mono mb-1 text-[10px]">Respuesta</p>
-                        <p className="text-gray">{r.reply}</p>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {sorted.length > shown && <button className="btn btn-ghost btn-sm mt-4" onClick={() => setShown((s) => s + PAGE)}>Ver más reseñas ({sorted.length - shown})</button>}
-            </>
-          )}
+          <div className="mt-6">
+            {fallback ? (
+              instReviews.length > 0 && (
+                <>
+                  <p className="mb-3 text-sm text-gray">Opiniones sobre <span className="text-white">{inst.name}</span> (de este y otros programas):</p>
+                  <ReviewList reviews={instReviews} pageSize={4} />
+                </>
+              )
+            ) : (
+              <ReviewList reviews={programReviews} pageSize={4} showScope={false} />
+            )}
+            {!programReviews.length && !instReviews.length && (
+              <p className="card p-5 text-sm text-gray">¿Estudiaste en {inst.name}? Tu experiencia ayuda a otros profesionales a decidir. <Link to={writeReviewHref(inst.slug, course.slug)} className="text-cyan hover:underline">Escribe la primera reseña</Link>.</p>
+            )}
+          </div>
         </>
       )}
+    </section>
+  );
+}
 
-      {writing && <ReviewModal course={course} onClose={() => setWriting(false)} />}
+/** Reputación de la institución (principal) y sus reseñas, en la ficha de la institución. */
+export function InstitutionReviews({ institution, limit = 4 }: { institution: Institution; limit?: number }) {
+  const [reviews, setReviews] = useState<PublicReview[] | null>(null);
+  const summary = useSummary();
+  useEffect(() => {
+    let alive = true;
+    fetchInstitutionReviews(institution.id).then((r) => alive && setReviews(r));
+    return () => { alive = false; };
+  }, [institution.id]);
+  const is = summary?.institutions[institution.id];
+  return (
+    <section id="resenas" aria-labelledby="resenas-i" className="mt-12 scroll-mt-32">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 id="resenas-i" className="text-2xl text-white">Opiniones de estudiantes</h2>
+          <p className="mt-1 text-sm text-muted">Calidad académica, docentes, experiencia, cumplimiento y relación calidad-precio.</p>
+        </div>
+        <div className="flex gap-2">
+          {!!reviews?.length && <Link to={`/institucion/${institution.slug}/opiniones`} className="btn btn-quiet btn-sm">Ver todas</Link>}
+          <Link to={writeReviewHref(institution.slug)} className="btn btn-ghost btn-sm"><Icon name="star" size={15} /> Escribir una reseña</Link>
+        </div>
+      </div>
+      <RatingSummaryCard title="Reputación de la institución" scope={institution.name} kind="institucion" summary={is ?? null} dims={is?.dims as Record<string, number> | undefined} recommendPct={is?.recommend_pct} />
+      <div className="mt-5">
+        {reviews === null ? <div className="skeleton h-24" /> : reviews.length ? <ReviewList reviews={reviews} pageSize={limit} /> : (
+          <p className="card p-5 text-sm text-gray">¿Estudiaste aquí? <Link to={writeReviewHref(institution.slug)} className="text-cyan hover:underline">Escribe la primera reseña</Link> y ayuda a otros a decidir.</p>
+        )}
+      </div>
     </section>
   );
 }

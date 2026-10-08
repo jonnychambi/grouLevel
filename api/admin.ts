@@ -11,7 +11,12 @@
  *   POST /api/admin?action=lead      { pathname, status?, notes? }   → { lead }        (pathname = id del lead)
  *   POST /api/admin?action=lead-delete { pathname }                  → { ok }
  *   GET  /api/admin?action=reviews                                  → { reviews }
- *   POST /api/admin?action=review    { pathname, status?, reply?, rejection_reason? } → { review }   (pathname = id)
+ *   POST /api/admin?action=review    { pathname, status?, reply?, rejection_reason?, evidence_status?, criteria? } → { review }   (pathname = id)
+ *   GET  /api/admin?action=review-evidence&id=rev_…                 → constancia original (descarga; nunca pública)
+ *   GET  /api/admin?action=review-incentives | review-reports        → incentivos / reportes de reseñas
+ *   POST /api/admin?action=review-incentive { id, status, note? }    → aprobado | pagado | rechazado
+ *   POST /api/admin?action=review-report { id, status }              → resuelto | descartado
+ *   POST /api/admin?action=reviewer-block { user_id, blocked }       → bloquea a una persona (antifraude)
  *   POST /api/admin?action=review-delete { pathname }               → { ok }
  *   GET  /api/admin?action=profiles  [&limit=300]                    → { profiles, total }   (diagnósticos "Mi ruta")
  *   GET  /api/admin?action=profile&id=prf_…                         → { profile }   (completo)
@@ -41,7 +46,7 @@ import { checkPassword, isConfigured, issueToken, verifyRequest } from './_lib/a
 import { json, readJson } from './_lib/http.js';
 import { validateCatalog } from './_lib/validate.js';
 import { deleteLead, listLeads, updateLead } from './_lib/leads.js';
-import { deleteReview, listAllReviews, moderateReview } from './_lib/reviews.js';
+import { deleteReview, IncentiveError, listAllReviews, listIncentives, listReports, moderateReview, resolveReport, reviewEvidence, setReviewerBlocked, updateIncentive } from './_lib/reviews.js';
 import { deleteProfile, listProfiles, profileFile, readProfile, updateProfile } from './_lib/profiles.js';
 import { getSql, isDbConfigured } from './_lib/db.js';
 import { dbStatus, importFromBlob } from './_lib/dbSync.js';
@@ -81,6 +86,24 @@ async function handlePost(request: Request): Promise<Response> {
     if (!data) return json(404, { error: 'not_found', message: 'La versión no existe o ya no tiene contenido guardado.' });
     const restored = { ...data, meta: { ...(data.meta ?? {}), restored_from: body.pathname, saved_at: new Date().toISOString() } };
     return json(200, { version: await publishCatalog(restored, 'restaurado', null, { force: true }) });
+  }
+  if (act === 'review-incentive') {
+    const body = await readJson<{ id?: number; status?: string; note?: string }>(request);
+    try {
+      const row = await updateIncentive(Number(body?.id), String(body?.status ?? ''), body?.note?.trim() || null);
+      return row ? json(200, { incentive: row }) : json(404, { error: 'not_found' });
+    } catch (err) {
+      if (err instanceof IncentiveError) return json(409, { error: 'conflict', message: err.message });
+      throw err;
+    }
+  }
+  if (act === 'review-report') {
+    const body = await readJson<{ id?: number; status?: string }>(request);
+    return (await resolveReport(Number(body?.id), body?.status === 'descartado' ? 'descartado' : 'resuelto')) ? json(200, { ok: true }) : json(404, { error: 'not_found' });
+  }
+  if (act === 'reviewer-block') {
+    const body = await readJson<{ user_id?: string; blocked?: boolean }>(request);
+    return (await setReviewerBlocked(String(body?.user_id ?? ''), !!body?.blocked)) ? json(200, { ok: true }) : json(404, { error: 'not_found' });
   }
   if (act === 'review' || act === 'review-delete') {
     const body = await readJson<{ pathname?: string; status?: string; reply?: string; rejection_reason?: string }>(request);
@@ -198,6 +221,9 @@ async function handleGet(request: Request): Promise<Response> {
   if (act === 'summary') return json(200, await adminSummary());
   if (act === 'demand') return json(200, await demandReport({ days: Number(params.get('days')) || 30, channel: params.get('channel'), country: params.get('country'), category: params.get('category') }));
   if (act === 'reviews') return json(200, { reviews: await listAllReviews() });
+  if (act === 'review-incentives') return json(200, { incentives: await listIncentives() });
+  if (act === 'review-reports') return json(200, { reports: await listReports() });
+  if (act === 'review-evidence') return (await reviewEvidence(params.get('id') ?? '')) ?? json(404, { error: 'not_found', message: 'Esta reseña no tiene constancia.' });
   if (act === 'profiles') return json(200, await listProfiles(Math.min(2000, Math.max(1, Number(params.get('limit')) || 300))));
   if (act === 'profile' || act === 'profile-file') {
     const id = params.get('id') ?? '';

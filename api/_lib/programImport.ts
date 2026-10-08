@@ -418,7 +418,7 @@ export async function adminSummary(sql: Sql = getSql()) {
     (select count(*) from program_updates where status = 'pendiente')::int updates,
     (select count(*) from program_drafts where status = 'listo')::int drafts_ready,
     (select count(*) from program_drafts where status in ('en_cola', 'procesando'))::int drafts_queue,
-    (select count(*) from reviews where status = 'pendiente')::int reviews,
+    ((select count(*) from reviews where status = 'pendiente') + (select count(*) from review_reports where status = 'abierto'))::int reviews,
     (select count(*) from leads where status = 'nuevo')::int leads,
     (select count(*) from profiles where created_at > now() - interval '7 days')::int profiles_week`;
   return r;

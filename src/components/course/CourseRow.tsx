@@ -44,6 +44,10 @@ export function CourseRow({ course, source = 'listado' }: { course: CourseWithIn
               <Link to={`${href}#resenas`} className="inline-flex items-center gap-1 text-xs" aria-label={`Valoración ${course.rating.toFixed(1)} de 5, ${course.reviews_count} reseñas`}>
                 <Stars value={course.rating} size={12} /><span className="tnum text-white">{course.rating.toFixed(1)}</span><span className="tnum text-muted">({course.reviews_count})</span>
               </Link>
+            ) : course.institution.rating != null && course.institution.reviews_count ? (
+              <Link to={`${href}#resenas`} className="inline-flex items-center gap-1 text-xs text-muted" title="El programa aún no tiene reseñas: reputación de la institución">
+                <span className="text-warn">★</span><span className="tnum text-white">{course.institution.rating.toFixed(1)}</span> institución
+              </Link>
             ) : null}
           </div>
         </div>

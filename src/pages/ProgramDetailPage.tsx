@@ -185,6 +185,8 @@ export default function ProgramDetailPage() {
               <a href="#resenas" className="mt-4 inline-flex items-center gap-2 text-sm text-gray hover:text-white">
                 {course.rating != null && course.reviews_count ? (
                   <><Stars value={course.rating} size={16} /><span className="tnum font-medium text-white">{course.rating.toFixed(1)}</span><span>({course.reviews_count} {course.reviews_count === 1 ? 'reseña' : 'reseñas'})</span></>
+                ) : course.institution.rating != null && course.institution.reviews_count ? (
+                  <><Stars value={course.institution.rating} size={16} /><span className="tnum font-medium text-white">{course.institution.rating.toFixed(1)}</span><span>Reputación de {course.institution.short_name ?? course.institution.name} ({course.institution.reviews_count} {course.institution.reviews_count === 1 ? 'opinión' : 'opiniones'}) · el programa aún no tiene reseñas</span></>
                 ) : (
                   <><Icon name="star" size={15} className="text-warn" />Sé el primero en valorar este programa</>
                 )}

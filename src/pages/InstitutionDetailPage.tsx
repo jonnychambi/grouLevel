@@ -12,6 +12,7 @@ import { track } from '../services/analytics';
 import { coursesByInstitution } from '../services/catalogService';
 import { MODALITY_LABELS, PROGRAM_TYPE_LABELS } from '../utils/labels';
 import { breadcrumbSchema, organizationSchema } from '../utils/schema';
+import { InstitutionReviews } from '../components/reviews/ReviewsSection';
 
 export default function InstitutionDetailPage() {
   const { slug = '' } = useParams();
@@ -61,7 +62,7 @@ export default function InstitutionDetailPage() {
             </div>
           </div>
           {institution.rating != null && (institution.reviews_count ?? 0) > 0 && (
-            <p className="mt-5 flex items-center gap-2"><Stars value={institution.rating} size={18} /><span className="tnum text-lg font-semibold text-white">{institution.rating.toFixed(1)}</span><span className="text-sm text-muted">· {institution.reviews_count} {institution.reviews_count === 1 ? 'reseña' : 'reseñas'} de sus programas</span></p>
+            <p className="mt-5 flex items-center gap-2"><Stars value={institution.rating} size={18} /><span className="tnum text-lg font-semibold text-white">{institution.rating.toFixed(1)}</span><a href="#resenas" className="text-sm text-muted hover:text-white">· {institution.reviews_count} {institution.reviews_count === 1 ? 'opinión' : 'opiniones'} de estudiantes</a></p>
           )}
           <p className="mt-6 max-w-2xl text-lg text-gray">{institution.description}</p>
           <ul className="mt-5 flex flex-wrap gap-2">{institution.accreditations.map((a) => <li key={a} className="chip"><Icon name="shield" size={14} />{a}</li>)}</ul>
@@ -81,6 +82,8 @@ export default function InstitutionDetailPage() {
         <h2 id="progs" className="mb-6 text-2xl text-white">Programas disponibles</h2>
         <CourseGrid courses={programs} source="institucion" />
       </section>
+
+      <InstitutionReviews institution={institution} />
     </div>
   );
 }

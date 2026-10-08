@@ -19,8 +19,8 @@ const jsonLd = (html: string) => [...html.matchAll(/<script type="application\/l
 describe('SEO dinámico', () => {
   it('programa: título, canonical, contenido y datos estructurados de curso', async () => {
     const c = published[0];
-    await db.sql`insert into reviews (id, course_id, course_name, rating, title, comment, author_name, author_email, status, created_at, raw)
-      values ('rev_seo', ${c.id}, 'x', 5, 't', 'Comentario suficientemente largo.', 'Ana', 'a@x.com', 'aprobada', now(), '{}')`;
+    await db.sql`insert into reviews (id, course_id, institution_id, course_name, rating, title, comment, author_name, author_email, status, created_at, raw)
+      values ('rev_seo', ${c.id}, ${(c as unknown as { institution_id: string }).institution_id}, 'x', 5, 't', 'Comentario suficientemente largo.', 'Ana', 'a@x.com', 'aprobada', now(), '{}')`;
     const res = await get(`path=/programa/${c.slug}`);
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toContain('s-maxage');
@@ -50,6 +50,26 @@ describe('SEO dinámico', () => {
     expect(missing.status).toBe(404);
     expect(await missing.text()).toContain('noindex');
     expect((await get('path=/admin')).status).toBe(404);
+  });
+
+  it('páginas de opiniones: indexables solo con reseñas, con datos estructurados de reseñas', async () => {
+    const c = published[0] as unknown as { id: string; slug: string; institution_id: string };
+    const inst = (bundledCatalog().institutions as { id: string; slug: string }[]).find((i) => i.id === c.institution_id)!;
+    const res = await get(`path=/institucion/${inst.slug}/opiniones`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('index, follow');
+    expect(html).toContain('<h1>Opiniones de');
+    const org = jsonLd(html).find((o) => o['@type'] === 'EducationalOrganization');
+    expect(org.aggregateRating).toMatchObject({ ratingValue: 5, reviewCount: 1 });
+    expect(org.review[0]).toMatchObject({ '@type': 'Review', author: { name: 'Ana' }, reviewRating: { ratingValue: 5 } });
+    expect(html).not.toContain('a@x.com');
+    const other = published.find((p) => p.id !== c.id && (p as unknown as { institution_id: string }).institution_id !== c.institution_id)!;
+    const empty = await (await get(`path=/programa/${other.slug}/opiniones`)).text();
+    expect(empty).toContain('noindex');
+    const xml = await (await get('sitemap=1')).text();
+    expect(xml).toContain(`/institucion/${inst.slug}/opiniones</loc>`);
+    expect(xml).not.toContain(`/programa/${other.slug}/opiniones</loc>`);
   });
 
   it('sitemap con todas las páginas y su fecha de actualización', async () => {

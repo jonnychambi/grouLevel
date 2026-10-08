@@ -61,12 +61,18 @@ export function CourseCard({ course, source = 'listado' }: { course: CourseWithI
       </h3>
       <p className="mt-1.5 line-clamp-2 text-sm text-muted">{course.short_description}</p>
 
-      <Link to={`${href}#resenas`} className="mt-3 inline-flex items-center gap-1.5 self-start text-sm" aria-label={course.rating != null && course.reviews_count ? `Valoración ${course.rating.toFixed(1)} de 5, ${course.reviews_count} reseñas` : 'Sin reseñas aún'}>
+      <Link to={`${href}#resenas`} className="mt-3 inline-flex items-center gap-1.5 self-start text-sm" aria-label={course.rating != null && course.reviews_count ? `Valoración del programa ${course.rating.toFixed(1)} de 5, ${course.reviews_count} reseñas` : course.institution.rating != null && course.institution.reviews_count ? `Sin reseñas del programa; reputación de la institución ${course.institution.rating.toFixed(1)} de 5` : 'Sin reseñas aún'}>
         {course.rating != null && course.reviews_count ? (
           <>
             <Stars value={course.rating} size={14} />
             <span className="tnum font-medium text-white">{course.rating.toFixed(1)}</span>
             <span className="tnum text-muted">({course.reviews_count})</span>
+          </>
+        ) : course.institution.rating != null && course.institution.reviews_count ? (
+          <>
+            <Stars value={course.institution.rating} size={14} />
+            <span className="tnum font-medium text-white">{course.institution.rating.toFixed(1)}</span>
+            <span className="text-muted">Institución ({course.institution.reviews_count})</span>
           </>
         ) : (
           <>
