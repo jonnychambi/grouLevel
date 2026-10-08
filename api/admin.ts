@@ -26,6 +26,13 @@
  *   POST /api/admin?action=refresh-check { course_id }              → revisa un programa leyendo su link → { result }
  *   POST /api/admin?action=refresh-apply { id, fields? }            → aplica la propuesta (todos o algunos campos) → { version, update }
  *   POST /api/admin?action=refresh-discard { id }                   → { ok }
+ *   GET  /api/admin?action=summary                                  → pendientes por sección (insignias del panel)
+ *   GET  /api/admin?action=import                                   → borradores de programas creados desde links
+ *   POST /api/admin?action=import-add { links, institution_id? }    → { added, skipped }
+ *   POST /api/admin?action=import-process { ids? }                  → lee links en cola con IA → { processed, ready, errors, remaining }
+ *   POST /api/admin?action=import-update { id, data?, institution_id? } → { draft }
+ *   POST /api/admin?action=import-retry | import-discard { id }      → { ok }
+ *   POST /api/admin?action=import-publish { ids, status? }          → publica los borradores como programas → { version, published, skipped }
  *
  * Todas las acciones salvo login requieren Authorization: Bearer <token>.
  */
@@ -39,6 +46,7 @@ import { getSql, isDbConfigured } from './_lib/db.js';
 import { dbStatus, importFromBlob } from './_lib/dbSync.js';
 import { getCurrentCatalog, listVersions, publishCatalog, readVersion, VersionConflictError } from './_lib/catalogRepo.js';
 import { legacyBlobSources } from './_lib/legacyBlob.js';
+import { adminSummary, enqueueLinks, listDrafts, processQueue, publishDrafts, PublishError, setDraftStatus, updateDraft } from './_lib/programImport.js';
 import { applyUpdate, checkOne, discardUpdate, refreshOverview, runRefresh, saveSettings, UpdateNotPendingError, type RefreshSettings } from './_lib/programRefresh.js';
 
 const action = (request: Request) => new URL(request.url).searchParams.get('action') ?? '';
@@ -92,6 +100,42 @@ async function handlePost(request: Request): Promise<Response> {
     if (act === 'lead-delete') return (await deleteLead(body.pathname)) ? json(200, { ok: true }) : json(404, { error: 'not_found' });
     const lead = await updateLead(body.pathname, body);
     return lead ? json(200, { lead }) : json(404, { error: 'not_found', message: 'El lead no existe.' });
+  }
+  if (act === 'import-add') {
+    const body = await readJson<{ links?: string[] | string; institution_id?: string | null }>(request);
+    const links = Array.isArray(body?.links) ? body.links.map(String) : String(body?.links ?? '').split(/[\s,;]+/);
+    if (!links.some((l) => l.trim())) return json(400, { error: 'bad_request', message: 'Pega al menos un link.' });
+    try {
+      return json(200, await enqueueLinks(links, body?.institution_id || null));
+    } catch (err) {
+      return json(400, { error: 'bad_request', message: err instanceof Error ? err.message : 'Datos inválidos.' });
+    }
+  }
+  if (act === 'import-process') {
+    const body = await readJson<{ ids?: number[] }>(request);
+    return json(200, await processQueue({ timeBudgetMs: 75_000, ids: Array.isArray(body?.ids) ? body.ids.map(Number).filter(Number.isInteger) : undefined }));
+  }
+  if (act === 'import-update' || act === 'import-retry' || act === 'import-discard') {
+    const body = await readJson<{ id?: number; data?: Record<string, unknown>; institution_id?: string | null }>(request);
+    const id = Number(body?.id);
+    if (!Number.isInteger(id)) return json(400, { error: 'bad_request', message: 'Falta el borrador.' });
+    if (act !== 'import-update') return (await setDraftStatus(id, act === 'import-retry' ? 'retry' : 'discard')) ? json(200, { ok: true }) : json(409, { error: 'conflict', message: 'El borrador no admite esa acción en su estado actual.' });
+    const allowed = ['name', 'program_type', 'published_type', 'category', 'short_description', 'description', 'target_audience', 'level', 'modality', 'language', 'price', 'discount_price', 'currency',
+      'duration_hours', 'duration_weeks', 'duration_text', 'start_date', 'start_text', 'schedule', 'certificate', 'objectives', 'syllabus', 'tools', 'skills', 'requirements', 'financing', 'enrollment_open'];
+    const data = body?.data ? Object.fromEntries(Object.entries(body.data).filter(([k]) => allowed.includes(k))) : undefined;
+    const draft = await updateDraft(id, { data, institution_id: body?.institution_id });
+    return draft ? json(200, { draft }) : json(404, { error: 'not_found', message: 'El borrador no existe o ya fue publicado.' });
+  }
+  if (act === 'import-publish') {
+    const body = await readJson<{ ids?: number[]; status?: string }>(request);
+    const ids = Array.isArray(body?.ids) ? body.ids.map(Number).filter(Number.isInteger) : [];
+    if (!ids.length) return json(400, { error: 'bad_request', message: 'Elige al menos un borrador.' });
+    try {
+      return json(200, await publishDrafts(ids, body?.status === 'borrador' ? 'borrador' : 'publicado'));
+    } catch (err) {
+      if (err instanceof PublishError) return json(422, { error: 'invalid', message: err.message, errors: err.details });
+      throw err;
+    }
   }
   if (act === 'refresh-settings') {
     const body = await readJson<Partial<RefreshSettings>>(request);
@@ -148,6 +192,8 @@ async function handleGet(request: Request): Promise<Response> {
   }
   if (act === 'versions') return json(200, { versions: await listVersions() });
   if (act === 'refresh') return json(200, await refreshOverview());
+  if (act === 'import') return json(200, await listDrafts());
+  if (act === 'summary') return json(200, await adminSummary());
   if (act === 'reviews') return json(200, { reviews: await listAllReviews() });
   if (act === 'profiles') return json(200, await listProfiles(Math.min(2000, Math.max(1, Number(params.get('limit')) || 300))));
   if (act === 'profile' || act === 'profile-file') {
@@ -183,7 +229,7 @@ async function handlePut(request: Request): Promise<Response> {
 }
 
 /** Acciones que pueden tardar varios minutos (leen muchas páginas). */
-const LONG = new Set(['refresh-run', 'db-import', 'refresh-check']);
+const LONG = new Set(['refresh-run', 'db-import', 'refresh-check', 'import-process']);
 
 /**
  * Límite por acción: si algo se queda colgado (p. ej. una conexión a la base) se responde un error claro

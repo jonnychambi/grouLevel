@@ -181,3 +181,29 @@ export const runRefreshNow = () => call<{ summary: RefreshSummary }>('refresh-ru
 export const checkProgram = (course_id: string) => call<{ result: CheckResult }>('refresh-check', { method: 'POST', body: JSON.stringify({ course_id }) });
 export const applyProgramUpdate = (id: number, fields: string[]) => call<{ version: VersionInfo }>('refresh-apply', { method: 'POST', body: JSON.stringify({ id, fields }) });
 export const discardProgramUpdate = (id: number) => call<{ ok: true }>('refresh-discard', { method: 'POST', body: JSON.stringify({ id }) });
+
+/* ---------------------------------------------------- Alta de programas desde links */
+
+export interface DraftData {
+  name: string; program_type: string; published_type: string | null; category: string; short_description: string; description: string; target_audience: string | null;
+  level: string | null; modality: string | null; language: string; price: number | null; discount_price: number | null; currency: 'PEN' | 'USD';
+  duration_hours: number | null; duration_weeks: number | null; duration_text: string | null; start_date: string | null; start_text: string | null; schedule: string | null;
+  certificate: { type: string; description: string } | null; objectives: string[]; syllabus: { title: string; hours: number | null }[]; tools: string[]; skills: string[]; requirements: string[];
+  financing: { installments: number | null; installment_amount: number | null; methods: string[]; notes: string }; enrollment_open: boolean | null; institution_name: string | null; url: string;
+}
+export type DraftStatus = 'en_cola' | 'procesando' | 'listo' | 'error' | 'publicado' | 'descartado';
+export interface ProgramDraft {
+  id: number; url: string; status: DraftStatus; institution_id: string | null; data: DraftData | null; missing: string[]; error: string | null;
+  model: string | null; input_tokens: number; output_tokens: number; attempts: number; course_id: string | null; created_at: string; updated_at: string; published_at: string | null;
+}
+export interface AdminSummary { updates: number; drafts_ready: number; drafts_queue: number; reviews: number; leads: number; profiles_week: number }
+
+export const fetchSummary = () => call<AdminSummary>('summary');
+export const fetchDrafts = () => call<{ drafts: ProgramDraft[]; recent: ProgramDraft[]; ai: { configured: boolean; model: string } }>('import');
+export const addLinks = (links: string, institution_id: string | null) => call<{ added: number; skipped: { url: string; reason: string }[] }>('import-add', { method: 'POST', body: JSON.stringify({ links, institution_id }) });
+export const processDrafts = (ids?: number[]) => call<{ processed: number; ready: number; errors: number; remaining: number }>('import-process', { method: 'POST', body: JSON.stringify({ ids }) });
+export const updateDraft = (id: number, patch: { data?: Partial<DraftData>; institution_id?: string | null }) => call<{ draft: ProgramDraft }>('import-update', { method: 'POST', body: JSON.stringify({ id, ...patch }) });
+export const retryDraft = (id: number) => call<{ ok: true }>('import-retry', { method: 'POST', body: JSON.stringify({ id }) });
+export const discardDraft = (id: number) => call<{ ok: true }>('import-discard', { method: 'POST', body: JSON.stringify({ id }) });
+export const publishDrafts = (ids: number[], status: 'publicado' | 'borrador') =>
+  call<{ version: VersionInfo; published: number; skipped: { id: number; reason: string }[] }>('import-publish', { method: 'POST', body: JSON.stringify({ ids, status }) });

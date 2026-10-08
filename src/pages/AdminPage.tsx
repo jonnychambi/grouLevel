@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { CourseEditor, emptyCourse, STATUS_LABELS } from '../components/admin/CourseEditor';
 import { emptyInstitution, InstitutionEditor } from '../components/admin/InstitutionEditor';
 import { ImportPanel } from '../components/admin/ImportPanel';
 import { LeadsPanel } from '../components/admin/LeadsPanel';
 import { DatabasePanel } from '../components/admin/DatabasePanel';
 import { RefreshPanel } from '../components/admin/RefreshPanel';
+import { AddProgramsPanel } from '../components/admin/AddProgramsPanel';
 import { ProfilesPanel } from '../components/admin/ProfilesPanel';
 import { ReviewsPanel } from '../components/admin/ReviewsPanel';
 import { InstitutionLogo } from '../components/institution/InstitutionLogo';
-import { Icon } from '../components/ui/Icon';
+import { Icon, type IconName } from '../components/ui/Icon';
 import { Logo } from '../components/ui/Logo';
 import { useSeo } from '../hooks/useSeo';
 import {
-  AdminApiError, fetchCatalog, fetchVersions, getSession, loadBundledCatalog, login, logout, restoreVersion, saveCatalog,
+  AdminApiError, fetchCatalog, fetchSummary, type AdminSummary, fetchVersions, getSession, loadBundledCatalog, login, logout, restoreVersion, saveCatalog,
   type AdminCatalog, type VersionInfo
 } from '../services/adminApi';
 import type { Course, CourseStatus, Institution } from '../types';
@@ -22,7 +23,29 @@ import { effectivePrice, formatDate, formatMoney } from '../utils/format';
 import { PROGRAM_TYPE_LABELS } from '../utils/labels';
 import { normalize } from '../utils/text';
 
-type Tab = 'programas' | 'actualizaciones' | 'leads' | 'perfiles' | 'reseñas' | 'instituciones' | 'importar' | 'versiones' | 'base de datos';
+type Tab = 'programas' | 'agregar' | 'actualizaciones' | 'instituciones' | 'leads' | 'perfiles' | 'resenas' | 'importar' | 'versiones' | 'base-de-datos';
+type BadgeKey = keyof AdminSummary;
+
+/** Menú del administrador agrupado por tipo de tarea. Las insignias muestran pendientes. */
+const SECTIONS: { group: string; items: { id: Tab; label: string; icon: IconName; badge?: BadgeKey; hint?: string }[] }[] = [
+  { group: 'Catálogo', items: [
+    { id: 'programas', label: 'Programas', icon: 'book' },
+    { id: 'agregar', label: 'Agregar programas', icon: 'plus', badge: 'drafts_ready', hint: 'Borradores listos para revisar' },
+    { id: 'actualizaciones', label: 'Actualizaciones', icon: 'history', badge: 'updates', hint: 'Cambios detectados en los links' },
+    { id: 'instituciones', label: 'Instituciones', icon: 'building' }
+  ] },
+  { group: 'Demanda', items: [
+    { id: 'leads', label: 'Leads', icon: 'target', badge: 'leads', hint: 'Leads nuevos sin contactar' },
+    { id: 'perfiles', label: 'Perfiles', icon: 'route' },
+    { id: 'resenas', label: 'Reseñas', icon: 'star', badge: 'reviews', hint: 'Reseñas por moderar' }
+  ] },
+  { group: 'Datos', items: [
+    { id: 'importar', label: 'Importar Excel', icon: 'upload' },
+    { id: 'versiones', label: 'Versiones', icon: 'layers' },
+    { id: 'base-de-datos', label: 'Base de datos', icon: 'shield' }
+  ] }
+];
+const TABS = SECTIONS.flatMap((g) => g.items);
 type Editing = { kind: 'course'; course: Course; isNew: boolean } | { kind: 'institution'; institution: Institution; isNew: boolean } | null;
 type Notice = { tone: 'ok' | 'error' | 'info'; text: string; details?: string[] } | null;
 
@@ -75,7 +98,20 @@ export default function AdminPage() {
   const [initialized, setInitialized] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
-  const [tab, setTab] = useState<Tab>('programas');
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = TABS.some((t) => t.id === params.get('seccion')) ? (params.get('seccion') as Tab) : 'programas';
+  const setTab = useCallback((t: Tab) => setParams(t === 'programas' ? {} : { seccion: t }), [setParams]);
+  const [summary, setSummary] = useState<AdminSummary | null>(null);
+  const loadSummary = useCallback(async () => {
+    try {
+      setSummary(await fetchSummary());
+    } catch {
+      /* las insignias son opcionales */
+    }
+  }, []);
+  useEffect(() => {
+    if (authed) void loadSummary();
+  }, [authed, tab, loadSummary]);
   const [editing, setEditing] = useState<Editing>(null);
 
   const handleError = useCallback((e: unknown) => {
@@ -148,24 +184,57 @@ export default function AdminPage() {
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-40 border-b border-line bg-navy/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-4 px-4">
           <Link to="/" aria-label="Ir al sitio"><Logo size={18} /></Link>
           <span className="rounded-full border border-violet/40 px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.14em] text-violet-soft">Admin</span>
-          <nav className="scrollbar-none ml-2 flex min-w-0 gap-1 overflow-x-auto" aria-label="Secciones del administrador">
-            {(['programas', 'actualizaciones', 'leads', 'perfiles', 'reseñas', 'instituciones', 'importar', 'versiones', 'base de datos'] as Tab[]).map((t) => (
-              <button key={t} onClick={() => { setTab(t); setEditing(null); }} aria-current={tab === t ? 'page' : undefined} className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-sm first-letter:uppercase ${tab === t ? 'bg-raise text-white' : 'text-gray hover:text-white'}`}>
-                {t}
-              </button>
-            ))}
-          </nav>
+
           <div className="ml-auto flex items-center gap-2">
             {version && <span className="hidden text-xs text-muted md:inline">Última publicación: {new Date(version.uploaded_at).toLocaleString('es-PE')}</span>}
+            <Link to="/" className="btn btn-quiet btn-sm hidden sm:inline-flex">Ver sitio <Icon name="external" size={13} /></Link>
             <button className="btn btn-quiet btn-sm" onClick={() => { logout(); setAuthed(false); }}>Salir</button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <div className="mx-auto flex max-w-[1440px] gap-8 px-4">
+      <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-56 shrink-0 overflow-y-auto py-6 lg:block" aria-label="Secciones del administrador">
+        <nav className="space-y-6">
+          {SECTIONS.map((g) => (
+            <div key={g.group}>
+              <p className="label-mono px-3">{g.group}</p>
+              <ul className="mt-2 space-y-0.5">
+                {g.items.map((t) => {
+                  const n = t.badge && summary ? summary[t.badge] : 0;
+                  return (
+                    <li key={t.id}>
+                      <button onClick={() => { setTab(t.id); setEditing(null); }} aria-current={tab === t.id ? 'page' : undefined}
+                        className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${tab === t.id ? 'bg-raise text-white' : 'text-gray hover:bg-raise/50 hover:text-white'}`}>
+                        <Icon name={t.icon} size={16} className={tab === t.id ? 'text-cyan' : 'text-muted'} />
+                        <span className="flex-1">{t.label}</span>
+                        {n > 0 && <span className="tnum rounded-full bg-cyan/15 px-1.5 text-xs text-cyan" title={t.hint}>{n}</span>}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+      </aside>
+      <main className="min-w-0 flex-1 py-6">
+        <label className="mb-5 block lg:hidden">
+          <span className="sr-only">Sección</span>
+          <select className="input min-h-10 cursor-pointer py-2 text-sm" value={tab} onChange={(e) => { setTab(e.target.value as Tab); setEditing(null); }}>
+            {SECTIONS.map((g) => (
+              <optgroup key={g.group} label={g.group}>
+                {g.items.map((t) => {
+                  const n = t.badge && summary ? summary[t.badge] : 0;
+                  return <option key={t.id} value={t.id}>{t.label}{n ? ` (${n})` : ''}</option>;
+                })}
+              </optgroup>
+            ))}
+          </select>
+        </label>
         {notice && (
           <div role={notice.tone === 'error' ? 'alert' : 'status'} className={`mb-5 flex items-start gap-3 rounded-xl border p-3 text-sm ${notice.tone === 'ok' ? 'border-pos/40 bg-pos/10' : notice.tone === 'error' ? 'border-neg/40 bg-neg/10' : 'border-cyan/30 bg-cyan/5'}`}>
             <Icon name={notice.tone === 'ok' ? 'check' : notice.tone === 'error' ? 'alert' : 'info'} className={notice.tone === 'ok' ? 'text-pos' : notice.tone === 'error' ? 'text-neg' : 'text-cyan'} />
@@ -239,6 +308,18 @@ export default function AdminPage() {
             onBulkStatus={(ids, status) => void persist({ ...catalog, courses: catalog.courses.map((c) => (ids.has(c.id) ? { ...c, status } : c)) }, `estado ${status} ${ids.size}`, `${ids.size} programas marcados como ${STATUS_LABELS[status].toLowerCase()}.`)}
             saving={saving}
           />
+        ) : tab === 'agregar' ? (
+          <AddProgramsPanel
+            institutions={catalog.institutions}
+            categories={catalog.categories}
+            onError={handleError}
+            onNotice={(text) => { setNotice({ tone: 'ok', text }); void loadSummary(); }}
+            onPublished={async () => { await refreshCatalog(); await loadSummary(); }}
+            onManual={(url, institutionId) => {
+              const course = emptyCourse(institutionId ?? catalog.institutions[0]?.id ?? '', catalog.categories[0]?.id ?? '', new Set(catalog.courses.map((c) => c.id)));
+              setEditing({ kind: 'course', course: { ...course, url }, isNew: true });
+            }}
+          />
         ) : tab === 'actualizaciones' ? (
           <RefreshPanel
             courses={catalog.courses}
@@ -247,11 +328,11 @@ export default function AdminPage() {
             onApplied={refreshCatalog}
             onEdit={(course) => setEditing({ kind: 'course', course: catalog.courses.find((c) => c.id === course.id) ?? course, isNew: false })}
           />
-        ) : tab === 'base de datos' ? (
+        ) : tab === 'base-de-datos' ? (
           <DatabasePanel onError={handleError} onNotice={(text) => setNotice({ tone: 'ok', text })} />
         ) : tab === 'perfiles' ? (
           <ProfilesPanel onError={handleError} onNotice={(text) => setNotice({ tone: 'ok', text })} courseName={(id) => catalog?.courses.find((c) => c.id === id)?.name ?? id} />
-        ) : tab === 'reseñas' ? (
+        ) : tab === 'resenas' ? (
           <ReviewsPanel onError={handleError} onNotice={(text) => setNotice({ tone: 'ok', text })} />
         ) : tab === 'leads' ? (
           <LeadsPanel onError={handleError} />
@@ -291,6 +372,7 @@ export default function AdminPage() {
           />
         )}
       </main>
+      </div>
     </div>
   );
 }

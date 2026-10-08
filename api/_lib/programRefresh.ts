@@ -104,41 +104,58 @@ const RELEVANT = /(s\/\s?\d|us\$|\$\s?\d|usd|pen|soles|d[oó]lares|precio|invers
  * Texto relevante de la página: título, descripción, datos estructurados (JSON-LD de cursos/ofertas)
  * y las líneas visibles que hablan de precio, fechas, duración, modalidad u horario (con una línea de contexto).
  */
-export function extractRelevantText(html: string): string {
+function pageHeader(html: string): string[] {
   const parts: string[] = [];
   const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
   if (title) parts.push(`TÍTULO: ${decode(title).replace(/\s+/g, ' ').trim()}`);
   const desc = html.match(/<meta[^>]+(?:name|property)=["'](?:og:)?description["'][^>]*>/i)?.[0].match(/content=["']([^"']*)["']/i)?.[1];
   if (desc) parts.push(`DESCRIPCIÓN: ${decode(desc).replace(/\s+/g, ' ').trim().slice(0, 300)}`);
-
   for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
     const body = m[1].replace(/\s+/g, ' ').trim();
     if (/"@type"\s*:\s*"(Course|CourseInstance|Offer|Event|Product|EducationalOccupationalProgram)"/i.test(body)) parts.push(`DATOS: ${body.slice(0, 1500)}`);
   }
+  return parts;
+}
 
+function visibleLines(html: string): string[] {
   const visible = html
     .replace(/<(script|style|noscript|svg|template|iframe|nav|footer|head)\b[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<(br|\/p|\/div|\/li|\/h[1-6]|\/tr|\/td|\/th|\/section|\/article|\/span|\/a|\/button|\/label|\/option|\/dd|\/dt)\b[^>]*>/gi, '\n')
     .replace(/<[^>]+>/g, ' ');
-  const lines = decode(visible)
+  return decode(visible)
     .split('\n')
     .map((l) => l.replace(/\s+/g, ' ').trim())
     .filter((l) => l.length > 1 && l.length < 400);
+}
+
+const dedupe = (lines: string[]) => {
+  const seen = new Set<string>();
+  return lines.filter((l) => {
+    const k = l.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+};
+const joinParts = (head: string[], body: string[], max: number) => `${head.join('\n')}${head.length && body.length ? '\nTEXTO:\n' : ''}${body.join('\n')}`.slice(0, max);
+
+/**
+ * Texto relevante de la página: título, descripción, datos estructurados (JSON-LD de cursos/ofertas)
+ * y las líneas visibles que hablan de precio, fechas, duración, modalidad u horario (con una línea de contexto).
+ */
+export function extractRelevantText(html: string): string {
+  const lines = visibleLines(html);
   const keep = new Set<number>();
   lines.forEach((l, i) => {
     if (RELEVANT.test(l)) [i - 1, i, i + 1].forEach((j) => j >= 0 && j < lines.length && keep.add(j));
   });
-  const seen = new Set<string>();
-  const body: string[] = [];
-  for (const i of [...keep].sort((a, b) => a - b)) {
-    const key = lines[i].toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    body.push(lines[i]);
-  }
-  const head = parts.join('\n');
-  return `${head}${head && body.length ? '\nTEXTO:\n' : ''}${body.join('\n')}`.slice(0, MAX_TEXT);
+  return joinParts(pageHeader(html), dedupe([...keep].sort((a, b) => a - b).map((i) => lines[i])), MAX_TEXT);
+}
+
+/** Texto completo de la página (para dar de alta un programa: temario, objetivos, público…), sin repetidos. */
+export function extractFullText(html: string, max = 14_000): string {
+  return joinParts(pageHeader(html), dedupe(visibleLines(html).filter((l) => l.length > 2)), max);
 }
 
 export const contentHash = (text: string) => createHash('sha256').update(text.toLowerCase().replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 32);

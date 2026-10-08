@@ -69,6 +69,8 @@ Los programas se importan desde **`/admin` → Importar**, subiendo un `.xlsx` c
 
 ## Módulo de administración (`/admin`)
 
+Menú lateral por grupos: **Catálogo** (Programas, Agregar programas, Actualizaciones, Instituciones), **Demanda** (Leads, Perfiles, Reseñas) y **Datos** (Importar Excel, Versiones, Base de datos), con contadores de pendientes. La sección activa queda en la URL (`/admin?seccion=agregar`).
+
 - **Acceso:** contraseña única (`ADMIN_PASSWORD`, variable sensible en Vercel). Sesión firmada con HMAC (`ADMIN_SESSION_SECRET`), válida 12 h, guardada solo en la pestaña.
 - **Programas:** búsqueda y filtros (institución, categoría, estado, datos incompletos, sin precio, sin inicio), indicador de completitud, edición de todos los campos (precio y cuotas, duración, modalidad, inicio, certificación, temario por módulos, docentes, herramientas, “incluye”…), crear, duplicar, eliminar y cambiar estado en lote (**Publicado / Borrador / Oculto**).
 - **Instituciones:** crear y editar (nombre, tipo, país, web, descripción, color o logo).
@@ -124,6 +126,15 @@ Interpreta lenguaje natural (`"maestría de inteligencia artificial"`, `"curso d
 - **/admin → Base de datos**: estado, conteos e **importación de datos antiguos de Blob** (no destructiva: solo agrega lo que falte).
 - `GET /api/health` → `{ ok, db, blob, migrations }`.
 - Pruebas del API contra PostgreSQL real embebido (PGlite).
+
+## Agregar programas desde links (`/admin` → Agregar programas)
+
+1. Se pegan los links de los programas (uno por línea, hasta 200) y, opcionalmente, la institución; si no, se detecta por el dominio.
+2. Se descartan duplicados y links que ya están en el catálogo. Cada link se lee (HTML o PDF) y `claude-haiku-5-5` arma un borrador con salida estructurada: nombre, tipo, área, descripción, precio, duración, inicio, horario, modalidad, certificado, objetivos, temario, herramientas, requisitos y financiamiento. Solo datos que la página muestra; los faltantes quedan marcados.
+3. El administrador revisa y corrige los datos clave, y publica (o agrega como borrador oculto). Se crea una versión nueva del catálogo con ids y slugs únicos; desde ahí el programa entra en la actualización automática.
+4. Las páginas que bloquean lecturas o se cargan con JavaScript quedan en "No se pudieron leer", con opción de reintentar o agregar a mano.
+
+El panel procesa la cola en tandas mientras está abierto; la tarea diaria procesa lo que quede pendiente. Tabla `program_drafts` (migración 005).
 
 ## Actualización automática de programas (`/admin` → Actualizaciones)
 
