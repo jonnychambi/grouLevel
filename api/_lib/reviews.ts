@@ -284,13 +284,15 @@ async function walletTotals(userId: string, sql: Sql) {
 export async function myWallet(user: ReviewUser, sql: Sql = getSql()) {
   const me = await touchReviewer(user, {}, sql);
   const totals = await walletTotals(user.id, sql);
-  const referrals = await sql`select i.amount::float as amount, i.status, i.created_at, r.author_name from review_incentives i join reviews r on r.id = i.review_id
-    where i.user_id = ${user.id} and i.kind = 'referido' order by i.created_at desc`;
+  const credits = await sql`select i.kind, i.amount::float as amount, i.status, i.created_at, r.institution_name, r.course_name, r.author_name
+    from review_incentives i join reviews r on r.id = i.review_id where i.user_id = ${user.id} order by i.created_at desc`;
+  const referrals = credits.filter((c) => c.kind === 'referido');
   const redemptions = await sql`select code, course_id, course_name, institution_name, amount::float as amount, status, created_at from credit_redemptions
     where user_id = ${user.id} order by created_at desc`;
   return {
     ...totals, ref_code: me.ref_code, max_per_program: CREDITS.maxPerProgram, review_credit: CREDITS.review, referral_credit: CREDITS.referral,
-    referrals: referrals.map((r) => ({ ...r, created_at: iso(r.created_at) })),
+    credits: credits.map((c) => ({ kind: c.kind, amount: c.amount, status: c.status, created_at: iso(c.created_at), institution_name: c.institution_name, course_name: c.course_name, author_name: c.kind === 'referido' ? c.author_name : null })),
+    referrals: referrals.map((r) => ({ amount: r.amount, status: r.status, created_at: iso(r.created_at), author_name: r.author_name })),
     redemptions: redemptions.map((r) => ({ ...r, created_at: iso(r.created_at) }))
   };
 }

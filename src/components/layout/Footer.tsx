@@ -34,6 +34,7 @@ export function Footer() {
             <li><Link className="text-gray hover:text-white" to="/comparar">Comparador</Link></li>
             <li><Link className="text-gray hover:text-white" to="/instituciones">Instituciones</Link></li>
             <li><Link className="text-gray hover:text-white" to="/opinar">Opinar sobre tu institución</Link></li>
+            <li><Link className="text-gray hover:text-white" to="/mis-creditos">Mis créditos</Link></li>
             <li><Link className="text-gray hover:text-white" to="/favoritos">Favoritos</Link></li>
             <li><Link className="text-gray hover:text-white" to="/nosotros">Nosotros</Link></li>
           </ul>

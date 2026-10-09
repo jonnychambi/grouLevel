@@ -18,6 +18,7 @@ const MetricsPage = lazy(() => import('./pages/MetricsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const OpinarPage = lazy(() => import('./pages/OpinarPage'));
+const MisCreditosPage = lazy(() => import('./pages/MisCreditosPage'));
 const ReviewsPage = lazy(() => import('./pages/ReviewsPage'));
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="institucion/:slug" element={<InstitutionDetailPage />} />
         <Route path="institucion/:slug/opiniones" element={<ReviewsPage scope="institucion" />} />
         <Route path="opinar" element={<OpinarPage />} />
+        <Route path="mis-creditos" element={<MisCreditosPage />} />
         <Route path="nosotros" element={<AboutPage />} />
         <Route path="favoritos" element={<FavoritesPage />} />
         <Route path="mi-ruta" element={<RoutePage />} />

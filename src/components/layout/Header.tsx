@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useCompare } from '../../hooks/useCompare';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useReviewAccount } from '../../hooks/useReviewAccount';
 import { SearchBar } from '../search/SearchBar';
 import { Icon } from '../ui/Icon';
 import { Logo } from '../ui/Logo';
@@ -16,6 +17,8 @@ const NAV = [
 export function Header() {
   const { count } = useCompare();
   const favorites = useFavorites();
+  const { wallet } = useReviewAccount();
+  const accumulated = wallet ? wallet.earned + wallet.pending : null;
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -56,6 +59,11 @@ export function Header() {
               <Icon name={searchOpen ? 'x' : 'search'} size={19} />
             </button>
           )}
+          {accumulated != null && (
+            <Link to="/mis-creditos" className="tnum inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-pos/40 bg-pos/10 px-3 text-sm text-white hover:border-pos" title={`Disponible: S/ ${wallet!.available}`} aria-label={`Mis créditos: S/ ${accumulated} acumulados`}>
+              <Icon name="sparkle" size={14} className="hidden text-pos 2xl:block" />S/ {accumulated}
+            </Link>
+          )}
           <Link to="/favoritos" className="relative grid h-10 w-10 place-items-center rounded-full text-gray hover:bg-raise hover:text-white" aria-label={`Favoritos (${favorites.count})`}>
             <Icon name="heart" size={19} />
             {favorites.count > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-neg" aria-hidden="true" />}
@@ -90,10 +98,11 @@ export function Header() {
               <Link to="/mi-ruta" className="btn btn-accent w-full"><Icon name="sparkle" size={16} />Analiza mi perfil</Link>
             </div>
             <nav aria-label="Principal móvil" className="flex flex-col gap-1 p-4">
-              {[...NAV, { to: '/favoritos', label: 'Favoritos' }].map((n) => (
+              {[...NAV, { to: '/favoritos', label: 'Favoritos' }, ...(accumulated != null ? [{ to: '/mis-creditos', label: 'Mis créditos' }] : [])].map((n) => (
                 <NavLink key={n.to} to={n.to} className={({ isActive }) => `flex items-center justify-between rounded-xl px-4 py-3.5 text-lg ${isActive ? 'bg-raise text-white' : 'text-gray'}`}>
                   {n.label}
                   {n.to === '/comparar' && count > 0 && <span className="font-mono text-sm text-cyan">{count}/3</span>}
+                  {n.to === '/mis-creditos' && <span className="tnum font-mono text-sm text-pos">S/ {accumulated}</span>}
                 </NavLink>
               ))}
             </nav>

@@ -11,6 +11,9 @@ const ENDPOINT = `${import.meta.env.BASE_URL}api/reviews`;
 const EMPTY: ReviewsSummary = { courses: {}, institutions: {}, updated_at: '' };
 const SESSION_KEY = 'review-session';
 const REF_KEY = 'review-ref';
+/** Aviso a la interfaz (cabecera, páginas) de que cambió la sesión o el saldo de créditos. */
+export const ACCOUNT_EVENT = 'review-account';
+const notify = () => { try { window.dispatchEvent(new Event(ACCOUNT_EVENT)); } catch { /* sin ventana */ } };
 
 async function getJson<T>(url: string, timeoutMs = 4000, headers: Record<string, string> = {}): Promise<T | null> {
   try {
@@ -48,6 +51,7 @@ export function getReviewSession(): ReviewSession | null {
 }
 export function clearReviewSession() {
   storage.set(SESSION_KEY, null);
+  notify();
 }
 
 /** Si la persona llegó desde el enlace del correo (#access_token=…), guarda la sesión y limpia la URL. */
@@ -63,6 +67,7 @@ export function consumeLinkSession(): ReviewSession | null {
   }
   const session: ReviewSession = { access_token: token, expires_at: Number(hash.get('expires_at')) || Math.floor(Date.now() / 1000) + Number(hash.get('expires_in') || 3600), email };
   storage.set(SESSION_KEY, session);
+  notify();
   window.history.replaceState(null, '', window.location.pathname + window.location.search);
   return session;
 }
@@ -97,6 +102,7 @@ export const startReviewLogin = (email: string, next: string) =>
 export async function verifyReviewCode(email: string, code: string): Promise<ReviewSession> {
   const { session } = await send<{ session: ReviewSession }>(`${ENDPOINT}?action=auth-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, code }) });
   storage.set(SESSION_KEY, session);
+  notify();
   return session;
 }
 
@@ -104,6 +110,7 @@ export interface MyReview { id: string; institution_name: string; course_name: s
 export interface Redemption { code: string; course_id: string; course_name: string; institution_name: string; amount: number; status: 'solicitado' | 'aplicado' | 'anulado'; created_at: string }
 export interface Wallet {
   earned: number; pending: number; redeemed: number; available: number; ref_code: string; max_per_program: number; review_credit: number; referral_credit: number;
+  credits: { kind: string; amount: number; status: string; created_at: string; institution_name: string; course_name: string | null; author_name: string | null }[];
   referrals: { amount: number; status: string; created_at: string; author_name: string }[];
   redemptions: Redemption[];
 }
@@ -122,7 +129,9 @@ export async function fetchMyReviews(): Promise<{ reviews: MyReview[]; wallet: W
 export async function redeemCredits(courseId: string, amount: number): Promise<Redemption> {
   const s = getReviewSession();
   if (!s) throw new ReviewApiError('Tu sesión venció. Ingresa de nuevo con tu correo.', 401);
-  return (await send<{ redemption: Redemption }>(`${ENDPOINT}?action=redeem`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.access_token}` }, body: JSON.stringify({ course_id: courseId, amount }) })).redemption;
+  const r = (await send<{ redemption: Redemption }>(`${ENDPOINT}?action=redeem`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.access_token}` }, body: JSON.stringify({ course_id: courseId, amount }) })).redemption;
+  notify();
+  return r;
 }
 
 /* ─────────────────────────── Referidos ─────────────────────────── */
@@ -146,7 +155,9 @@ export async function submitReviewForm(v: ReviewSubmission, evidence: File | nul
   };
   for (const [k, val] of Object.entries(entries)) f.set(k, val);
   if (evidence) f.set('evidence', evidence);
-  return send<{ incentive: number }>(ENDPOINT, { method: 'POST', headers: { Authorization: `Bearer ${s.access_token}` }, body: f });
+  const res = await send<{ incentive: number }>(ENDPOINT, { method: 'POST', headers: { Authorization: `Bearer ${s.access_token}` }, body: f });
+  notify();
+  return res;
 }
 
 export const reportReview = (id: string, reason: string, details: string) =>
