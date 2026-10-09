@@ -4,12 +4,13 @@
  *   GET  /api/reviews?summary=1              → promedios y dimensiones por programa e institución (solo aprobadas)
  *   GET  /api/reviews?course=<id>            → { reviews (del programa), institution_reviews (de su institución) }
  *   GET  /api/reviews?institution=<id>       → { reviews }
- *   GET  /api/reviews?action=me              → { user, reviews }  (Authorization: Bearer <token>)
+ *   GET  /api/reviews?action=me              → { user, reviews, wallet }  (Authorization: Bearer <token>)
  *   GET  /api/reviews?action=status          → { auth: boolean }  (¿registro disponible?)
  *   POST /api/reviews?action=auth-start      { email, next? } → envía código/enlace de acceso por correo
  *   POST /api/reviews?action=auth-verify     { email, code }  → { session }
  *   POST /api/reviews?action=report          { id, reason, details? } → reporta una reseña sospechosa
- *   POST /api/reviews                        multipart (Bearer): campos del formulario + evidence (opcional)
+ *   POST /api/reviews?action=redeem          { course_id, amount } (Bearer) → canjea créditos como descuento en un programa
+ *   POST /api/reviews                        multipart (Bearer): campos del formulario + evidence (opcional) + ref (código de referido)
  *
  * Solo personas con correo validado pueden opinar. El correo y la evidencia nunca se publican; no se guarda la IP.
  */
@@ -17,7 +18,7 @@ import { rateLimited } from './_lib/guard.js';
 import { json, readJson } from './_lib/http.js';
 import { isDbConfigured } from './_lib/db.js';
 import { AuthError, isAuthConfigured, startEmailLogin, userFromRequest, verifyEmailCode } from './_lib/reviewAuth.js';
-import { myReviews, parseSubmission, publicSummary, reportReview, reviewsForCourse, reviewsForInstitution, submitReview, type EvidenceFile } from './_lib/reviews.js';
+import { CreditError, myReviews, myWallet, parseSubmission, redeemCredit, publicSummary, reportReview, reviewsForCourse, reviewsForInstitution, submitReview, type EvidenceFile } from './_lib/reviews.js';
 
 const CACHE = { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=600' };
 const REPORT_REASONS = ['falsa', 'ofensiva', 'publicidad', 'datos_personales', 'conflicto_interes', 'otro'];
@@ -29,7 +30,8 @@ export async function GET(request: Request): Promise<Response> {
   if (params.get('action') === 'me') {
     const user = await userFromRequest(request);
     if (!user) return json(401, { error: 'unauthorized', message: 'Tu sesión venció. Ingresa de nuevo con tu correo.' });
-    return json(200, { user: { email: user.email, email_verified: user.email_verified }, reviews: await myReviews(user) });
+    const reviews = await myReviews(user);
+    return json(200, { user: { email: user.email, email_verified: user.email_verified }, reviews, wallet: await myWallet(user) });
   }
   if (params.get('summary')) return json(200, await publicSummary(), CACHE);
   const course = params.get('course');
@@ -67,6 +69,19 @@ export async function POST(request: Request): Promise<Response> {
       : json(404, { error: 'not_found', message: 'La reseña no existe.' });
   }
 
+  if (action === 'redeem') {
+    if (rateLimited(request, 'review-redeem', 10, 60 * 60_000)) return json(429, { error: 'rate_limited', message: 'Demasiados intentos. Inténtalo más tarde.' });
+    const user = await userFromRequest(request);
+    if (!user) return json(401, { error: 'unauthorized', message: 'Tu sesión venció. Ingresa de nuevo con tu correo.' });
+    const body = await readJson<{ course_id?: string; amount?: number }>(request);
+    try {
+      return json(201, { redemption: await redeemCredit(user, String(body?.course_id ?? ''), Number(body?.amount)) });
+    } catch (err) {
+      if (err instanceof CreditError) return json(409, { error: 'credit', message: err.message });
+      throw err;
+    }
+  }
+
   // Envío de una reseña (requiere sesión con correo validado).
   if (rateLimited(request, 'reviews', 6, 60 * 60_000)) return json(429, { error: 'rate_limited', message: 'Demasiados envíos. Inténtalo más tarde.' });
   const user = await userFromRequest(request);
@@ -84,7 +99,7 @@ export async function POST(request: Request): Promise<Response> {
   const file: EvidenceFile | null = upload && typeof upload !== 'string' && upload.size > 0
     ? { name: upload.name || 'constancia', type: upload.type, bytes: new Uint8Array(await upload.arrayBuffer()) }
     : null;
-  const result = await submitReview(user, parseSubmission(fields), file, fields.page_url ?? '');
+  const result = await submitReview(user, parseSubmission(fields), file, { pageUrl: fields.page_url ?? '', ref: (fields.ref ?? '').slice(0, 20) });
   if (!result.ok) return json(result.status, { error: 'invalid', message: result.message, errors: result.errors });
   return json(201, { ok: true, id: result.review.id, status: 'pendiente', incentive: result.incentive });
 }

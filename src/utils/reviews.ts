@@ -97,8 +97,10 @@ export const PROGRAM_DIMENSIONS: { key: keyof ProgramScores; label: string; hint
 export const STUDENT_STATUS_LABELS: Record<StudentStatus, string> = { estudiante: 'Estudiante', egresado: 'Egresado' };
 
 export const REVIEW_TEXT = { min: 30, max: 1500, nameMax: 40 } as const;
-/** Evaluación "detallada" del programa (requisito del incentivo adicional). */
+/** Evaluación "detallada" del programa. */
 export const DETAILED_MIN = 80;
+/** Créditos de descuento: por reseña, por referido con reseña y tope de descuento por programa (S/). */
+export const CREDITS = { review: 100, referral: 100, maxPerProgram: 300 } as const;
 
 /** Envío de una reseña (formulario /opinar). */
 export interface ReviewSubmission {
@@ -113,8 +115,6 @@ export interface ReviewSubmission {
   student_status: StudentStatus | null;
   author_name: string;
   wants_incentive: boolean;
-  payout_method: 'yape' | 'plin' | 'transferencia' | null;
-  payout_account: string;
   consent: boolean;
 }
 
@@ -142,10 +142,6 @@ export function validateSubmission(v: Partial<ReviewSubmission>, now = new Date(
   const name = (v.author_name ?? '').trim();
   if (name.length < 2) e.author_name = 'Escribe tu nombre (se publica abreviado).';
   else if (name.length > REVIEW_TEXT.nameMax) e.author_name = `Máximo ${REVIEW_TEXT.nameMax} caracteres.`;
-  if (v.wants_incentive) {
-    if (!v.payout_method) e.payout_method = 'Elige cómo recibir el incentivo.';
-    if ((v.payout_account ?? '').trim().length < 6) e.payout_account = 'Indica el número o cuenta para el pago.';
-  }
   if (!v.consent) e.consent = 'Necesitamos tu autorización para publicar la reseña.';
   return e;
 }

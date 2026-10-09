@@ -7,16 +7,17 @@ import { useCatalog } from '../hooks/useCatalog';
 import { useSeo } from '../hooks/useSeo';
 import { courseContext, track } from '../services/analytics';
 import {
-  clearReviewSession, consumeLinkSession, fetchMyReviews, getReviewSession, reviewAuthAvailable, ReviewApiError, startReviewLogin, submitReviewForm, verifyReviewCode,
-  type MyReview, type ReviewSession
+  clearReviewSession, consumeLinkSession, fetchMyReviews, getReviewSession, redeemCredits, referralLink, rememberReferral, reviewAuthAvailable, ReviewApiError,
+  startReviewLogin, submitReviewForm, verifyReviewCode, type MyReview, type ReviewSession, type Wallet
 } from '../services/reviewsService';
 import type { InstitutionScores, ProgramScores, StudentStatus } from '../types';
-import {
-  DETAILED_MIN, displayName, INSTITUTION_DIMENSIONS, isDetailedProgramReview, PROGRAM_DIMENSIONS, REVIEW_TEXT, validateSubmission, type ReviewSubmission
-} from '../utils/reviews';
+
+type Catalog = ReturnType<typeof useCatalog>['catalog'];
+import { CREDITS, displayName, INSTITUTION_DIMENSIONS, PROGRAM_DIMENSIONS, REVIEW_TEXT, validateSubmission, type ReviewSubmission } from '../utils/reviews';
 
 const YEAR = new Date().getFullYear();
-const INCENTIVE_STATUS: Record<string, string> = { pendiente: 'en revisión', aprobado: 'aprobado', pagado: 'pagado', rechazado: 'no aplica' };
+const INCENTIVE_STATUS: Record<string, string> = { pendiente: 'por activar', aprobado: 'activo', pagado: 'pagado', rechazado: 'no aplica' };
+const REDEMPTION_STATUS: Record<string, string> = { solicitado: 'Por usar', aplicado: 'Aplicado', anulado: 'Anulado' };
 const REVIEW_STATUS: Record<string, string> = { pendiente: 'En revisión', aprobada: 'Publicada', rechazada: 'No publicada' };
 
 function Section({ n, title, hint, children }: { n: number; title: string; hint?: string; children: ReactNode }) {
@@ -97,10 +98,110 @@ function MyReviews({ list }: { list: MyReview[] }) {
           <li key={r.id} className="border-t border-line pt-3 first:border-0 first:pt-0">
             <p className="text-white">{r.institution_name}{r.course_name ? ` · ${r.course_name}` : ''}</p>
             <p className="text-xs text-gray">{REVIEW_STATUS[r.status] ?? r.status}{r.verified ? ' · verificada' : r.evidence_status === 'pendiente' ? ' · constancia en revisión' : ''}</p>
-            {r.incentives.map((i) => <p key={i.kind} className="text-xs text-gray">Incentivo {i.kind === 'programa' ? 'programa' : 'institucional'}: S/ {Number(i.amount).toFixed(0)} · {INCENTIVE_STATUS[i.status] ?? i.status}</p>)}
+            {r.incentives.map((i) => <p key={i.kind} className="text-xs text-gray">Crédito: S/ {Number(i.amount).toFixed(0)} · {INCENTIVE_STATUS[i.status] ?? i.status}</p>)}
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+/** Créditos de descuento: saldo, enlace de referido y canje en un programa (máximo S/ 300 por programa). */
+function Credits({ wallet, catalog, onChange }: { wallet: Wallet; catalog: Catalog | null; onChange: () => void }) {
+  const [instId, setInstId] = useState('');
+  const [courseId, setCourseId] = useState('');
+  const [amount, setAmount] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const link = referralLink(wallet.ref_code);
+  const institutions = useMemo(() => [...(catalog?.institutions ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'es')), [catalog]);
+  const programs = useMemo(() => (catalog?.courses ?? []).filter((c) => c.institution_id === instId).sort((a, b) => a.name.localeCompare(b.name, 'es')), [catalog, instId]);
+  const used = wallet.redemptions.filter((r) => r.course_id === courseId && r.status !== 'anulado').reduce((a, r) => a + r.amount, 0);
+  const room = Math.min(wallet.available, wallet.max_per_program - used);
+  const steps = [100, 200, 300].filter((v) => v <= wallet.max_per_program);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt('Copia tu enlace:', link);
+    }
+  };
+  const redeem = async () => {
+    if (!courseId || !amount) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await redeemCredits(courseId, amount);
+      setMsg({ ok: true, text: `Listo: S/ ${r.amount} de descuento en ${r.course_name}. Tu código es ${r.code}.` });
+      setAmount(null);
+      onChange();
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof ReviewApiError ? e.message : 'No pudimos aplicar el descuento.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="card p-5">
+      <h2 className="label-mono">Tus créditos de descuento</h2>
+      <p className="tnum mt-3 text-3xl text-white">S/ {wallet.available}</p>
+      <p className="text-xs text-gray">disponibles{wallet.pending > 0 ? ` · S/ ${wallet.pending} por activar` : ''}{wallet.redeemed > 0 ? ` · S/ ${wallet.redeemed} usados` : ''}</p>
+      <p className="mt-2 text-xs text-muted">Se activan cuando la reseña se publica y su constancia se verifica.</p>
+
+      <div className="mt-4 border-t border-line pt-4">
+        <p className="text-sm text-white">Invita y gana S/ {wallet.referral_credit}</p>
+        <p className="mt-1 text-xs text-gray">Por cada persona que opine con tu enlace (su primera reseña, publicada y verificada).</p>
+        <div className="mt-2 flex gap-2">
+          <input readOnly aria-label="Tu enlace de referido" className="input min-h-9 flex-1 py-1.5 font-mono text-xs" value={link} onFocus={(e) => e.currentTarget.select()} />
+          <button type="button" className="btn btn-quiet btn-sm" onClick={() => void copy()}>{copied ? 'Copiado' : 'Copiar'}</button>
+        </div>
+        {wallet.referrals.length > 0 && <p className="mt-2 text-xs text-gray">{wallet.referrals.length} referido{wallet.referrals.length === 1 ? '' : 's'} · {wallet.referrals.filter((r) => r.status === 'aprobado').length} activo{wallet.referrals.filter((r) => r.status === 'aprobado').length === 1 ? '' : 's'}</p>}
+      </div>
+
+      {(wallet.available > 0 || wallet.redemptions.length > 0) && (
+        <div className="mt-4 border-t border-line pt-4">
+          <p className="text-sm text-white">Usar como descuento</p>
+          <p className="mt-1 text-xs text-gray">Descuento adicional en el programa que elijas: hasta S/ {wallet.max_per_program} por programa.</p>
+          {wallet.available > 0 && (
+            <div className="mt-3 space-y-2">
+              <select aria-label="Institución" className="input min-h-10 cursor-pointer py-1.5 text-sm" value={instId} onChange={(e) => { setInstId(e.target.value); setCourseId(''); setAmount(null); }}>
+                <option value="">Institución</option>
+                {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+              </select>
+              <select aria-label="Programa" className="input min-h-10 cursor-pointer py-1.5 text-sm" value={courseId} disabled={!instId} onChange={(e) => { setCourseId(e.target.value); setAmount(null); }}>
+                <option value="">Programa</option>
+                {programs.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              {courseId && (room > 0 ? (
+                <div role="radiogroup" aria-label="Monto" className="flex flex-wrap gap-2">
+                  {steps.filter((v) => v <= room).map((v) => (
+                    <button key={v} type="button" role="radio" aria-checked={amount === v} onClick={() => setAmount(v)}
+                      className={`rounded-full border px-3 py-1.5 text-sm ${amount === v ? 'border-violet bg-violet/15 text-white' : 'border-line-strong text-gray hover:text-white'}`}>S/ {v}</button>
+                  ))}
+                </div>
+              ) : <p className="text-xs text-warn">Ya aplicaste el máximo de S/ {wallet.max_per_program} en este programa.</p>)}
+              <button type="button" className="btn btn-accent btn-sm w-full" disabled={busy || !courseId || !amount} onClick={() => void redeem()}>{busy ? 'Aplicando…' : 'Aplicar descuento'}</button>
+            </div>
+          )}
+          {msg && <p role="status" className={`mt-2 text-xs ${msg.ok ? 'text-pos' : 'text-neg'}`}>{msg.text}</p>}
+          {wallet.redemptions.length > 0 && (
+            <ul className="mt-3 space-y-2 text-xs">
+              {wallet.redemptions.map((r) => (
+                <li key={r.code} className="rounded-lg border border-line p-2">
+                  <p className="text-white">S/ {r.amount} · {r.course_name}</p>
+                  <p className="text-gray">{r.institution_name} · <span className="font-mono text-cyan">{r.code}</span> · {REDEMPTION_STATUS[r.status] ?? r.status}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          {wallet.redemptions.some((r) => r.status === 'solicitado') && <p className="mt-2 text-xs text-muted">Al matricularte, indica tu código a la institución o escríbenos y coordinamos el descuento.</p>}
+        </div>
+      )}
     </section>
   );
 }
@@ -114,6 +215,8 @@ export default function OpinarPage() {
   const [params] = useSearchParams();
   const [session, setSession] = useState<ReviewSession | null>(() => consumeLinkSession() ?? getReviewSession());
   const [mine, setMine] = useState<MyReview[]>([]);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [walletTick, setWalletTick] = useState(0);
   const [instId, setInstId] = useState('');
   const [courseId, setCourseId] = useState('');
   const [inst, setInst] = useState<Partial<InstitutionScores>>(emptyInst);
@@ -126,8 +229,6 @@ export default function OpinarPage() {
   const [name, setName] = useState('');
   const [evidence, setEvidence] = useState<File | null>(null);
   const [wantsIncentive, setWantsIncentive] = useState(false);
-  const [payoutMethod, setPayoutMethod] = useState<'yape' | 'plin' | 'transferencia' | null>(null);
-  const [payoutAccount, setPayoutAccount] = useState('');
   const [consent, setConsent] = useState(false);
   const [honeypot, setHoneypot] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
@@ -141,7 +242,11 @@ export default function OpinarPage() {
     const c = catalog.courses.find((x) => x.slug === params.get('programa'));
     if (c) { setInstId(c.institution_id); setCourseId(c.id); } else if (i) setInstId(i.id);
   }, [catalog, params]);
-  useEffect(() => { if (session) fetchMyReviews().then((r) => { if (r) setMine(r); else if (!getReviewSession()) setSession(null); }); }, [session, done]);
+  const referred = !!params.get('ref');
+  useEffect(() => { rememberReferral(params.get('ref')); }, [params]);
+  useEffect(() => {
+    if (session) fetchMyReviews().then((r) => { if (r) { setMine(r.reviews); setWallet(r.wallet); } else if (!getReviewSession()) setSession(null); });
+  }, [session, done, walletTick]);
 
   const institutions = useMemo(() => [...(catalog?.institutions ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'es')), [catalog]);
   const programs = useMemo(() => (catalog?.courses ?? []).filter((c) => c.institution_id === instId).sort((a, b) => a.name.localeCompare(b.name, 'es')), [catalog, instId]);
@@ -150,10 +255,8 @@ export default function OpinarPage() {
   const submission: ReviewSubmission = {
     institution_id: instId, course_id: courseId || null, inst_scores: inst, program_scores: courseId ? prog : null, best, improve,
     recommend: recommend == null ? null : recommend === 'si', study_year: year, student_status: status, author_name: name,
-    wants_incentive: wantsIncentive, payout_method: payoutMethod, payout_account: payoutAccount, consent
+    wants_incentive: wantsIncentive, consent
   };
-  const detailed = isDetailedProgramReview(submission);
-  const incentiveTotal = wantsIncentive ? 50 + (detailed ? 50 : 0) : 0;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -183,6 +286,7 @@ export default function OpinarPage() {
       <header className="mt-5 max-w-3xl">
         <h1 className="text-3xl text-white sm:text-4xl">Opina sobre tu institución</h1>
         <p className="mt-3 text-gray">Tu experiencia ayuda a otros profesionales a elegir dónde estudiar tecnología. Publicamos opiniones positivas y críticas por igual, sin sesgos.</p>
+        {referred && <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-violet/40 bg-violet/10 px-3 py-1 text-sm text-white"><Icon name="check" size={14} className="text-pos" />Te invitaron a opinar: tu reseña también suma créditos de descuento.</p>}
       </header>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_300px]">
@@ -191,7 +295,7 @@ export default function OpinarPage() {
             <section className="card p-6">
               <p className="flex items-center gap-2 text-lg text-white"><Icon name="check" className="text-pos" /> ¡Gracias! Recibimos tu reseña.</p>
               <p className="mt-2 text-sm text-gray">La revisaremos antes de publicarla (normalmente en 48 horas).{evidence ? ' Si tu constancia es válida, llevará la insignia de reseña verificada.' : ''}</p>
-              {done.incentive > 0 && <p className="mt-2 text-sm text-gray">Incentivo solicitado: <span className="text-white">S/ {done.incentive}</span>. Se paga cuando la reseña se publica y la constancia se verifica.</p>}
+              {done.incentive > 0 && <p className="mt-2 text-sm text-gray">Crédito solicitado: <span className="text-white">S/ {done.incentive}</span> de descuento. Se activa cuando la reseña se publica y la constancia se verifica.</p>}
               <div className="mt-5 flex flex-wrap gap-2">
                 <button className="btn btn-primary btn-sm" onClick={() => { setDone(null); setCourseId(''); setInst({}); setProg({}); setBest(''); setImprove(''); setRecommend(null); setEvidence(null); setWantsIncentive(false); setConsent(false); }}>Opinar sobre otro programa o institución</button>
                 <Link to="/programas" className="btn btn-quiet btn-sm">Explorar programas</Link>
@@ -300,34 +404,18 @@ export default function OpinarPage() {
                 <p className="mt-2 text-xs text-muted">Con una constancia válida tu reseña lleva la insignia <span className="text-pos">Reseña verificada</span>.</p>
               </Section>
 
-              <Section n={courseId ? 6 : 5} title="Incentivo por tu tiempo (opcional)">
+              <Section n={courseId ? 6 : 5} title="Crédito de descuento por tu tiempo (opcional)">
                 <label className="flex items-start gap-3 text-sm text-gray">
                   <input type="checkbox" className="mt-1 accent-violet" checked={wantsIncentive} onChange={(e) => setWantsIncentive(e.target.checked)} />
-                  <span>Quiero recibir el incentivo: <span className="text-white">S/ 50</span> por la reseña institucional verificada y <span className="text-white">S/ 50 adicionales</span> por la evaluación detallada del programa cursado.</span>
+                  <span>Quiero recibir <span className="text-white">S/ {CREDITS.review} de crédito</span> para usarlo como descuento adicional en el programa que elija.</span>
                 </label>
                 <ul className="mt-3 space-y-1 text-xs text-muted">
-                  <li>· El incentivo no depende de tu calificación: valoramos igual opiniones positivas y críticas.</li>
-                  <li>· Requiere constancia verificada y la reseña publicada. Máximo un incentivo por persona e institución/programa.</li>
-                  <li>· Las reseñas con incentivo se identifican públicamente como “Incentivada”.</li>
-                  <li>· Evaluación detallada: todas las dimensiones del programa y al menos {DETAILED_MIN} caracteres en “lo mejor” y “a mejorar”.</li>
+                  <li>· Se acumula por cada reseña y por cada persona que invites y opine (S/ {CREDITS.referral}). Hasta S/ {CREDITS.maxPerProgram} de descuento por programa.</li>
+                  <li>· No depende de tu calificación: valoramos igual opiniones positivas y críticas.</li>
+                  <li>· Se activa con la reseña publicada y la constancia verificada.</li>
+                  <li>· Las reseñas con crédito se identifican públicamente como “Incentivada”.</li>
                 </ul>
-                {wantsIncentive && (
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <p className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-muted">Recibir por</p>
-                      <Pills label="Medio de pago" value={payoutMethod} onChange={setPayoutMethod} options={[['yape', 'Yape'], ['plin', 'Plin'], ['transferencia', 'Transferencia']]} />
-                    </div>
-                    <label className="block text-sm">
-                      <span className="mb-1 block text-xs font-medium uppercase tracking-[0.08em] text-muted">{payoutMethod === 'transferencia' ? 'Banco y número de cuenta' : 'Número de celular'}</span>
-                      <input className="input min-h-11" maxLength={60} value={payoutAccount} onChange={(e) => setPayoutAccount(e.target.value)} />
-                    </label>
-                    <p className="text-sm text-gray sm:col-span-2">
-                      Incentivo estimado: <span className="text-white">S/ {incentiveTotal}</span>
-                      {!evidence && <span className="text-warn"> · adjunta una constancia: sin verificación no hay incentivo</span>}
-                      {courseId && !detailed && <span className="text-muted"> · completa la evaluación detallada del programa para sumar S/ 50</span>}
-                    </p>
-                  </div>
-                )}
+                {wantsIncentive && !evidence && <p className="mt-3 text-sm text-warn">Adjunta una constancia en el paso anterior: sin verificación el crédito no se activa.</p>}
               </Section>
 
               <label className="flex items-start gap-3 text-sm text-gray">
@@ -341,6 +429,7 @@ export default function OpinarPage() {
         </div>
 
         <aside className="space-y-4">
+          {session && wallet && <Credits wallet={wallet} catalog={catalog} onChange={() => setWalletTick((t) => t + 1)} />}
           {session && <MyReviews list={mine} />}
           <div className="card p-5 text-sm text-gray">
             <h2 className="label-mono">Cómo funcionan las reseñas</h2>
@@ -349,6 +438,7 @@ export default function OpinarPage() {
               <li><span className="text-white">Moderación objetiva:</span> se publican opiniones positivas y críticas; se rechaza solo lo falso, ofensivo, publicitario o con datos personales.</li>
               <li><span className="text-white">Verificación:</span> tu constancia es privada y solo sirve para otorgar la insignia.</li>
               <li><span className="text-white">Privacidad:</span> publicamos tu nombre abreviado; nunca tu correo.</li>
+              <li><span className="text-white">Créditos:</span> S/ {CREDITS.review} por reseña y S/ {CREDITS.referral} por referido, como descuento adicional (hasta S/ {CREDITS.maxPerProgram} por programa).</li>
             </ul>
           </div>
         </aside>

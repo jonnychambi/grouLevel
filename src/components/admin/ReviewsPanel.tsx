@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  blockReviewer, deleteReviewRecord, downloadReviewEvidence, fetchReviewIncentives, fetchReviewReports, fetchReviews, moderateReview, resolveReviewReport, updateReviewIncentive,
-  type ReviewIncentive, type ReviewReport, type StoredReview
+  blockReviewer, deleteReviewRecord, downloadReviewEvidence, fetchCreditRedemptions, fetchReviewIncentives, fetchReviewReports, fetchReviews, moderateReview, resolveReviewReport,
+  updateCreditRedemption, updateReviewIncentive, type CreditRedemption, type ReviewIncentive, type ReviewReport, type StoredReview
 } from '../../services/adminApi';
 import type { ReviewStatus } from '../../types';
 import { INSTITUTION_DIMENSIONS, PROGRAM_DIMENSIONS, RELATIONSHIP_LABELS, STUDENT_STATUS_LABELS } from '../../utils/reviews';
@@ -10,7 +10,7 @@ import { Stars } from '../reviews/Stars';
 import { Icon } from '../ui/Icon';
 
 type Tab = ReviewStatus | 'reportes' | 'incentivos';
-const TABS: [Tab, string][] = [['pendiente', 'Pendientes'], ['aprobada', 'Publicadas'], ['rechazada', 'Rechazadas'], ['reportes', 'Reportes'], ['incentivos', 'Incentivos']];
+const TABS: [Tab, string][] = [['pendiente', 'Pendientes'], ['aprobada', 'Publicadas'], ['rechazada', 'Rechazadas'], ['reportes', 'Reportes'], ['incentivos', 'Créditos']];
 const when = (iso: string) => new Date(iso).toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 /** Criterios objetivos de publicación (no dependen de si la opinión es positiva o negativa). */
@@ -28,29 +28,35 @@ const FLAG_LABELS: Record<string, string> = {
   muchas_resenas_24h: 'Muchas reseñas en 24 h',
   cuenta_de_pago_compartida: 'Cuenta de pago usada por otra persona',
   incentivo_institucion_ya_otorgado: 'Ya recibió incentivo por esta institución',
-  incentivo_programa_ya_otorgado: 'Ya recibió incentivo por este programa'
+  incentivo_programa_ya_otorgado: 'Ya recibió incentivo por este programa',
+  referida: 'Llegó con enlace de referido',
+  referido_mismo_dominio: 'Referido con el mismo dominio de correo que quien invitó'
 };
 const EVIDENCE_LABELS: Record<string, string> = { sin_evidencia: 'Sin constancia', pendiente: 'Constancia por revisar', aprobada: 'Constancia verificada', rechazada: 'Constancia rechazada' };
-const INCENTIVE_LABELS: Record<string, string> = { pendiente: 'Pendiente', aprobado: 'Aprobado', pagado: 'Pagado', rechazado: 'Rechazado' };
+const INCENTIVE_LABELS: Record<string, string> = { pendiente: 'Por aprobar', aprobado: 'Activo', pagado: 'Pagado', rechazado: 'Rechazado' };
+const KIND_LABELS: Record<string, string> = { resena: 'Reseña', referido: 'Referido', institucion: 'Institucional (anterior)', programa: 'Programa (anterior)' };
+const REDEMPTION_LABELS: Record<string, string> = { solicitado: 'Por aplicar', aplicado: 'Aplicado', anulado: 'Anulado' };
 
 /**
  * Moderación de Groulevel Reviews: reseñas pendientes con criterios objetivos, verificación de constancias,
- * señales de duplicados/fraude, reportes de usuarios e incentivos.
+ * señales de duplicados/fraude, reportes de usuarios, créditos de descuento (reseñas y referidos) y sus canjes.
  */
 export function ReviewsPanel({ onError, onNotice }: { onError: (e: unknown) => void; onNotice: (text: string) => void }) {
   const [reviews, setReviews] = useState<StoredReview[] | null>(null);
   const [reports, setReports] = useState<ReviewReport[]>([]);
   const [incentives, setIncentives] = useState<ReviewIncentive[]>([]);
+  const [redemptions, setRedemptions] = useState<CreditRedemption[]>([]);
   const [tab, setTab] = useState<Tab>('pendiente');
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [r, rep, inc] = await Promise.all([fetchReviews(), fetchReviewReports(), fetchReviewIncentives()]);
+      const [r, rep, inc, red] = await Promise.all([fetchReviews(), fetchReviewReports(), fetchReviewIncentives(), fetchCreditRedemptions()]);
       setReviews(r.reviews);
       setReports(rep.reports);
       setIncentives(inc.incentives);
+      setRedemptions(red.redemptions);
     } catch (e) {
       onError(e);
       setReviews([]);
@@ -76,8 +82,8 @@ export function ReviewsPanel({ onError, onNotice }: { onError: (e: unknown) => v
     aprobada: reviews?.filter((r) => r.status === 'aprobada').length ?? 0,
     rechazada: reviews?.filter((r) => r.status === 'rechazada').length ?? 0,
     reportes: reports.filter((r) => r.status === 'abierto').length,
-    incentivos: incentives.filter((i) => i.status === 'pendiente' || i.status === 'aprobado').length
-  }), [reviews, reports, incentives]);
+    incentivos: incentives.filter((i) => i.status === 'pendiente').length + redemptions.filter((c) => c.status === 'solicitado').length
+  }), [reviews, reports, incentives, redemptions]);
 
   const list = useMemo(() => {
     const nq = normalize(q.trim());
@@ -87,8 +93,9 @@ export function ReviewsPanel({ onError, onNotice }: { onError: (e: unknown) => v
   }, [reviews, tab, q]);
   const incentiveTotals = useMemo(() => {
     const sum = (st: string) => incentives.filter((i) => i.status === st).reduce((a, i) => a + Number(i.amount), 0);
-    return { pendiente: sum('pendiente'), aprobado: sum('aprobado'), pagado: sum('pagado') };
-  }, [incentives]);
+    const red = (st: string) => redemptions.filter((c) => c.status === st).reduce((a, c) => a + Number(c.amount), 0);
+    return { pendiente: sum('pendiente'), aprobado: sum('aprobado'), solicitado: red('solicitado'), aplicado: red('aplicado') };
+  }, [incentives, redemptions]);
 
   return (
     <div>
@@ -131,34 +138,57 @@ export function ReviewsPanel({ onError, onNotice }: { onError: (e: unknown) => v
         </ul>
       ) : tab === 'incentivos' ? (
         <div className="mt-5">
-          <dl className="grid grid-cols-3 gap-3">
-            {(['pendiente', 'aprobado', 'pagado'] as const).map((k) => (
-              <div key={k} className="card p-4"><dt className="text-xs text-gray">{INCENTIVE_LABELS[k]}</dt><dd className="tnum mt-1 text-2xl text-white">S/ {incentiveTotals[k].toFixed(0)}</dd></div>
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {([['pendiente', 'Créditos por aprobar'], ['aprobado', 'Créditos activos'], ['solicitado', 'Descuentos por aplicar'], ['aplicado', 'Descuentos aplicados']] as const).map(([k, label]) => (
+              <div key={k} className="card p-4"><dt className="text-xs text-gray">{label}</dt><dd className="tnum mt-1 text-2xl text-white">S/ {incentiveTotals[k].toFixed(0)}</dd></div>
             ))}
           </dl>
-          <p className="mt-3 text-xs text-muted">Se aprueba solo con la reseña publicada y la constancia verificada. El monto no depende de la calificación. Uno por persona e institución (S/ 50) y por persona y programa (S/ 50).</p>
+          <p className="mt-3 text-xs text-muted">S/ 100 por reseña y S/ 100 por referido (su primera reseña). Se aprueba solo con la reseña publicada y la constancia verificada; no depende de la calificación. El saldo se usa como descuento adicional: máximo S/ 300 por programa.</p>
+
+          <h2 className="mt-6 text-lg text-white">Canjes de descuento</h2>
+          <div className="mt-3 overflow-x-auto rounded-xl border border-line">
+            <table className="w-full min-w-[820px] text-left text-sm">
+              <thead className="bg-midnight text-xs text-gray"><tr><th className="px-3 py-2">Código</th><th className="px-3 py-2">Persona</th><th className="px-3 py-2">Programa</th><th className="px-3 py-2 text-right">Descuento</th><th className="px-3 py-2">Estado</th><th className="px-3 py-2 text-right">Acciones</th></tr></thead>
+              <tbody>
+                {redemptions.map((c) => (
+                  <tr key={c.id} className="border-t border-line align-top">
+                    <td className="px-3 py-2 font-mono text-cyan">{c.code}<p className="font-sans text-xs text-muted">{when(c.created_at)}</p></td>
+                    <td className="px-3 py-2"><p className="text-white">{c.display_name ?? '—'}</p><p className="text-xs text-gray">{c.email}</p>{c.blocked && <p className="text-xs text-neg">Bloqueado</p>}</td>
+                    <td className="px-3 py-2 text-gray">{c.course_name}<p className="text-xs">{c.institution_name}</p></td>
+                    <td className="tnum px-3 py-2 text-right text-white">S/ {Number(c.amount).toFixed(0)}</td>
+                    <td className="px-3 py-2"><span className={c.status === 'aplicado' ? 'text-pos' : c.status === 'anulado' ? 'text-neg' : 'text-white'}>{REDEMPTION_LABELS[c.status]}</span>{c.note && <p className="text-xs text-muted">{c.note}</p>}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right">
+                      {c.status === 'solicitado' && <button className="btn btn-accent btn-sm" disabled={!!busy} onClick={() => void act(`red:${c.id}`, () => updateCreditRedemption(c.id, 'aplicado'), 'Descuento marcado como aplicado.')}>Marcar aplicado</button>}
+                      {c.status !== 'anulado' && <button className="btn btn-quiet btn-sm text-gray" disabled={!!busy} onClick={() => { const note = window.prompt('Motivo de la anulación (el saldo vuelve a la persona):') ?? undefined; if (note !== undefined) void act(`red:${c.id}`, () => updateCreditRedemption(c.id, 'anulado', note), 'Canje anulado.'); }}>Anular</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!redemptions.length && <p className="px-3 py-4 text-sm text-gray">Aún no hay canjes.</p>}
+          </div>
+
+          <h2 className="mt-6 text-lg text-white">Créditos ganados</h2>
           <div className="mt-3 overflow-x-auto rounded-xl border border-line">
             <table className="w-full min-w-[900px] text-left text-sm">
-              <thead className="bg-midnight text-xs text-gray"><tr><th className="px-3 py-2">Persona</th><th className="px-3 py-2">Reseña</th><th className="px-3 py-2">Tipo</th><th className="px-3 py-2 text-right">Monto</th><th className="px-3 py-2">Pago</th><th className="px-3 py-2">Estado</th><th className="px-3 py-2 text-right">Acciones</th></tr></thead>
+              <thead className="bg-midnight text-xs text-gray"><tr><th className="px-3 py-2">Beneficiario</th><th className="px-3 py-2">Reseña</th><th className="px-3 py-2">Tipo</th><th className="px-3 py-2 text-right">Monto</th><th className="px-3 py-2">Estado</th><th className="px-3 py-2 text-right">Acciones</th></tr></thead>
               <tbody>
                 {incentives.map((i) => (
                   <tr key={i.id} className="border-t border-line align-top">
-                    <td className="px-3 py-2"><p className="text-white">{i.author_name}</p><p className="text-xs text-gray">{i.email}</p>{i.blocked && <p className="text-xs text-neg">Bloqueado</p>}</td>
-                    <td className="px-3 py-2 text-gray">{i.institution_name}{i.course_name ? ` · ${i.course_name}` : ''}<p className="text-xs">{i.review_status} · {i.verified ? <span className="text-pos">verificada</span> : 'sin verificar'}</p>{i.flags?.length > 0 && <p className="text-xs text-warn">{i.flags.map((f) => FLAG_LABELS[f] ?? f).join(' · ')}</p>}</td>
-                    <td className="px-3 py-2 text-gray">{i.kind === 'programa' ? 'Programa' : 'Institucional'}</td>
+                    <td className="px-3 py-2"><p className="text-white">{i.kind === 'referido' ? (i.display_name ?? '—') : i.author_name}</p><p className="text-xs text-gray">{i.email}</p>{i.blocked && <p className="text-xs text-neg">Bloqueado</p>}</td>
+                    <td className="px-3 py-2 text-gray">{i.institution_name}{i.course_name ? ` · ${i.course_name}` : ''}{i.kind === 'referido' && <p className="text-xs">Escrita por {i.author_name}{i.referred_email ? ` (${i.referred_email})` : ''}</p>}<p className="text-xs">{i.review_status} · {i.verified ? <span className="text-pos">verificada</span> : 'sin verificar'}</p>{i.flags?.length > 0 && <p className="text-xs text-warn">{i.flags.map((f) => FLAG_LABELS[f] ?? f).join(' · ')}</p>}</td>
+                    <td className="px-3 py-2 text-gray">{KIND_LABELS[i.kind] ?? i.kind}</td>
                     <td className="tnum px-3 py-2 text-right text-white">S/ {Number(i.amount).toFixed(0)}</td>
-                    <td className="px-3 py-2 text-gray">{i.payout_method ?? '—'}<p className="font-mono text-xs">{i.payout_account}</p></td>
-                    <td className="px-3 py-2"><span className={i.status === 'pagado' ? 'text-pos' : i.status === 'rechazado' ? 'text-neg' : 'text-white'}>{INCENTIVE_LABELS[i.status]}</span>{i.note && <p className="text-xs text-muted">{i.note}</p>}</td>
+                    <td className="px-3 py-2"><span className={i.status === 'aprobado' || i.status === 'pagado' ? 'text-pos' : i.status === 'rechazado' ? 'text-neg' : 'text-white'}>{INCENTIVE_LABELS[i.status]}</span>{i.note && <p className="text-xs text-muted">{i.note}</p>}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-right">
-                      {i.status === 'pendiente' && <button className="btn btn-quiet btn-sm" disabled={!!busy} onClick={() => void act(`inc:${i.id}`, () => updateReviewIncentive(i.id, 'aprobado'), 'Incentivo aprobado.')}>Aprobar</button>}
-                      {i.status === 'aprobado' && <button className="btn btn-accent btn-sm" disabled={!!busy} onClick={() => void act(`inc:${i.id}`, () => updateReviewIncentive(i.id, 'pagado'), 'Incentivo marcado como pagado.')}>Marcar pagado</button>}
+                      {i.status === 'pendiente' && <button className="btn btn-accent btn-sm" disabled={!!busy} onClick={() => void act(`inc:${i.id}`, () => updateReviewIncentive(i.id, 'aprobado'), 'Crédito activado.')}>Aprobar</button>}
                       {(i.status === 'pendiente' || i.status === 'aprobado') && <button className="btn btn-quiet btn-sm text-gray" disabled={!!busy} onClick={() => { const note = window.prompt('Motivo del rechazo (se guarda internamente):') ?? undefined; if (note !== undefined) void act(`inc:${i.id}`, () => updateReviewIncentive(i.id, 'rechazado', note)); }}>Rechazar</button>}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {!incentives.length && <p className="px-3 py-4 text-sm text-gray">Aún no hay incentivos solicitados.</p>}
+            {!incentives.length && <p className="px-3 py-4 text-sm text-gray">Aún no hay créditos solicitados.</p>}
           </div>
         </div>
       ) : (
@@ -212,7 +242,7 @@ function ReviewItem({ r, busy, act, onError }: { r: StoredReview; busy: string |
         </div>
       ) : <p className="mt-3 whitespace-pre-line text-sm text-gray">{r.title && <span className="text-white">{r.title}. </span>}{r.comment}</p>}
       {r.recommend != null && <p className={`mt-2 text-sm ${r.recommend ? 'text-pos' : 'text-neg'}`}>{r.recommend ? 'Recomienda la institución' : 'No recomienda la institución'}</p>}
-      {r.incentivized && <p className="mt-1 text-xs text-gray">Solicitó incentivo (se muestra como “Incentivada”).</p>}
+      {r.incentivized && <p className="mt-1 text-xs text-gray">Solicitó crédito de descuento (se muestra como “Incentivada”).</p>}
 
       <div className="mt-4 grid gap-4 border-t border-line pt-4 lg:grid-cols-3">
         <div>

@@ -6,6 +6,7 @@
  *   userFromRequest(request)     → usuario validado a partir de "Authorization: Bearer <access_token>".
  * Requiere SUPABASE_URL y SUPABASE_ANON_KEY (las crea la integración de Supabase en Vercel).
  */
+import { randomBytes } from 'node:crypto';
 import type { Sql } from './db.js';
 import { getSql } from './db.js';
 
@@ -80,15 +81,17 @@ export async function userFromRequest(request: Request): Promise<ReviewUser | nu
   return user;
 }
 
-/** Registra/actualiza a la persona en `reviewers`. */
-export async function touchReviewer(user: ReviewUser, extra: { display_name?: string | null; payout_method?: string | null; payout_account?: string | null } = {}, sql: Sql = getSql()) {
+/** Código de referido: 8 caracteres sin ambigüedades (sin 0/O ni 1/I). */
+export const newRefCode = () => Array.from(randomBytes(8), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
+
+/** Registra/actualiza a la persona en `reviewers` (con su código de referido). */
+export async function touchReviewer(user: ReviewUser, extra: { display_name?: string | null } = {}, sql: Sql = getSql()) {
   const [row] = await sql`
-    insert into reviewers (user_id, email, display_name, payout_method, payout_account)
-    values (${user.id}, ${user.email}, ${extra.display_name ?? null}, ${extra.payout_method ?? null}, ${extra.payout_account ?? null})
+    insert into reviewers (user_id, email, display_name, ref_code)
+    values (${user.id}, ${user.email}, ${extra.display_name ?? null}, ${newRefCode()})
     on conflict (user_id) do update set email = excluded.email, last_seen_at = now(),
       display_name = coalesce(excluded.display_name, reviewers.display_name),
-      payout_method = coalesce(excluded.payout_method, reviewers.payout_method),
-      payout_account = coalesce(excluded.payout_account, reviewers.payout_account)
-    returning blocked`;
-  return { blocked: !!row?.blocked };
+      ref_code = coalesce(reviewers.ref_code, excluded.ref_code)
+    returning blocked, ref_code, referred_by`;
+  return { blocked: !!row?.blocked, ref_code: String(row.ref_code), referred_by: (row.referred_by as string | null) ?? null };
 }

@@ -14,7 +14,9 @@
  *   POST /api/admin?action=review    { pathname, status?, reply?, rejection_reason?, evidence_status?, criteria? } → { review }   (pathname = id)
  *   GET  /api/admin?action=review-evidence&id=rev_…                 → constancia original (descarga; nunca pública)
  *   GET  /api/admin?action=review-incentives | review-reports        → incentivos / reportes de reseñas
- *   POST /api/admin?action=review-incentive { id, status, note? }    → aprobado | pagado | rechazado
+ *   POST /api/admin?action=review-incentive { id, status, note? }    → crédito aprobado | rechazado
+ *   GET  /api/admin?action=review-redemptions                        → canjes de créditos (descuentos por programa)
+ *   POST /api/admin?action=review-redemption { id, status, note? }   → aplicado | anulado
  *   POST /api/admin?action=review-report { id, status }              → resuelto | descartado
  *   POST /api/admin?action=reviewer-block { user_id, blocked }       → bloquea a una persona (antifraude)
  *   POST /api/admin?action=review-delete { pathname }               → { ok }
@@ -46,7 +48,7 @@ import { checkPassword, isConfigured, issueToken, verifyRequest } from './_lib/a
 import { json, readJson } from './_lib/http.js';
 import { validateCatalog } from './_lib/validate.js';
 import { deleteLead, listLeads, updateLead } from './_lib/leads.js';
-import { deleteReview, IncentiveError, listAllReviews, listIncentives, listReports, moderateReview, resolveReport, reviewEvidence, setReviewerBlocked, updateIncentive } from './_lib/reviews.js';
+import { deleteReview, IncentiveError, listAllReviews, listIncentives, listRedemptions, listReports, moderateReview, resolveReport, reviewEvidence, setReviewerBlocked, updateIncentive, updateRedemption } from './_lib/reviews.js';
 import { deleteProfile, listProfiles, profileFile, readProfile, updateProfile } from './_lib/profiles.js';
 import { getSql, isDbConfigured } from './_lib/db.js';
 import { dbStatus, importFromBlob } from './_lib/dbSync.js';
@@ -92,6 +94,16 @@ async function handlePost(request: Request): Promise<Response> {
     try {
       const row = await updateIncentive(Number(body?.id), String(body?.status ?? ''), body?.note?.trim() || null);
       return row ? json(200, { incentive: row }) : json(404, { error: 'not_found' });
+    } catch (err) {
+      if (err instanceof IncentiveError) return json(409, { error: 'conflict', message: err.message });
+      throw err;
+    }
+  }
+  if (act === 'review-redemption') {
+    const body = await readJson<{ id?: number; status?: string; note?: string }>(request);
+    try {
+      const row = await updateRedemption(Number(body?.id), String(body?.status ?? ''), body?.note?.trim() || null);
+      return row ? json(200, { redemption: row }) : json(404, { error: 'not_found' });
     } catch (err) {
       if (err instanceof IncentiveError) return json(409, { error: 'conflict', message: err.message });
       throw err;
@@ -223,6 +235,7 @@ async function handleGet(request: Request): Promise<Response> {
   if (act === 'reviews') return json(200, { reviews: await listAllReviews() });
   if (act === 'review-incentives') return json(200, { incentives: await listIncentives() });
   if (act === 'review-reports') return json(200, { reports: await listReports() });
+  if (act === 'review-redemptions') return json(200, { redemptions: await listRedemptions() });
   if (act === 'review-evidence') return (await reviewEvidence(params.get('id') ?? '')) ?? json(404, { error: 'not_found', message: 'Esta reseña no tiene constancia.' });
   if (act === 'profiles') return json(200, await listProfiles(Math.min(2000, Math.max(1, Number(params.get('limit')) || 300))));
   if (act === 'profile' || act === 'profile-file') {

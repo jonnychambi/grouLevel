@@ -103,11 +103,18 @@ export const moderateReview = (pathname: string, patch: { status?: ReviewStatus;
   call<{ review: StoredReview }>('review', { method: 'POST', body: JSON.stringify({ pathname, ...patch }) });
 
 export interface ReviewIncentive {
-  id: number; review_id: string; user_id: string; institution_id: string; course_id: string; kind: 'institucion' | 'programa'; amount: string | number;
-  status: 'pendiente' | 'aprobado' | 'pagado' | 'rechazado'; note: string | null; created_at: string; decided_at: string | null; paid_at: string | null;
+  id: number; review_id: string; user_id: string; institution_id: string; course_id: string; kind: 'institucion' | 'programa' | 'resena' | 'referido'; amount: string | number;
+  status: 'pendiente' | 'aprobado' | 'pagado' | 'rechazado'; note: string | null; created_at: string; decided_at: string | null;
   review_status: string; verified: boolean; author_name: string; institution_name: string; course_name: string | null; flags: string[];
-  email: string | null; payout_method: string | null; payout_account: string | null; blocked: boolean | null;
+  email: string | null; display_name: string | null; blocked: boolean | null; referred_email: string | null;
 }
+export interface CreditRedemption {
+  id: number; code: string; user_id: string; course_id: string; course_name: string; institution_id: string; institution_name: string; amount: number;
+  status: 'solicitado' | 'aplicado' | 'anulado'; note: string | null; created_at: string; decided_at: string | null; email: string | null; display_name: string | null; blocked: boolean | null;
+}
+export const fetchCreditRedemptions = () => call<{ redemptions: CreditRedemption[] }>('review-redemptions');
+export const updateCreditRedemption = (id: number, status: CreditRedemption['status'], note?: string) =>
+  call<{ redemption: CreditRedemption }>('review-redemption', { method: 'POST', body: JSON.stringify({ id, status, note }) });
 export interface ReviewReport { id: number; review_id: string; reason: string; details: string | null; status: string; created_at: string; institution_name: string; course_name: string | null; author_name: string; review_status: string }
 export const fetchReviewIncentives = () => call<{ incentives: ReviewIncentive[] }>('review-incentives');
 export const updateReviewIncentive = (id: number, status: string, note?: string) => call<{ incentive: ReviewIncentive }>('review-incentive', { method: 'POST', body: JSON.stringify({ id, status, note }) });

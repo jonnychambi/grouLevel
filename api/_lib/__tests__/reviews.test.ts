@@ -1,4 +1,4 @@
-/** Groulevel Reviews: correo validado, formulario por dimensiones, evidencia, moderación, reportes e incentivos (PGlite). */
+/** Groulevel Reviews: correo validado, formulario por dimensiones, evidencia, moderación, reportes, créditos y referidos (PGlite). */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { startTestDb } from './testDb';
 import courses from '../../../src/data/courses.json';
@@ -61,6 +61,9 @@ const getJson = async (qs: string) => (await api.GET(new Request(`https://x/api/
 let token = '';
 const authed = (method: string, action: string, b?: unknown) => new Request(`https://x/api/admin?action=${action}`, { method, headers: { authorization: `Bearer ${token}` }, body: b ? JSON.stringify(b) : undefined });
 const all = async () => ((await (await admin.GET(authed('GET', 'reviews'))).json()) as { reviews: Record<string, any>[] }).reviews;
+const wallet = async (email: string) => ((await (await api.GET(new Request('https://x/api/reviews?action=me', { headers: { authorization: `Bearer tok-${email}` } }))).json()) as { wallet: Record<string, any> }).wallet;
+const redeem = (email: string, course_id: string, amount: number) =>
+  api.POST(new Request('https://x/api/reviews?action=redeem', { method: 'POST', headers: { authorization: `Bearer tok-${email}`, 'x-forwarded-for': `10.3.0.${ip++}` }, body: JSON.stringify({ course_id, amount }) }));
 const pdf = () => new File([new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52, Math.floor(Math.random() * 255)])], 'certificado.pdf', { type: 'application/pdf' });
 
 beforeAll(async () => {
@@ -84,14 +87,14 @@ describe('acceso con correo validado', () => {
 
 describe('reseñas', () => {
   it('una reseña nueva queda pendiente, guarda la evidencia en privado y los incentivos solicitados', async () => {
-    const res = await submit('ana@mail.com', form({ wants_incentive: 'true', payout_method: 'yape', payout_account: '999888777' }, pdf()));
+    const res = await submit('ana@mail.com', form({ wants_incentive: 'true' }, pdf()));
     expect(res.status).toBe(201);
-    expect(await res.json()).toMatchObject({ status: 'pendiente', incentive: 100 }); // institucional + programa detallado
+    expect(await res.json()).toMatchObject({ status: 'pendiente', incentive: 100 }); // S/ 100 de crédito por reseña
     expect(await getJson(`course=${c1.id}`)).toEqual({ reviews: [], institution_reviews: [] });
     const [r] = await all();
     expect(r).toMatchObject({ status: 'pendiente', kind: 'institucion', rating: 4.2, program_rating: 4.5, evidence_status: 'pendiente', verified: false, incentivized: true, author_name: 'Ana María T.' });
     expect([...blobs.keys()][0]).toMatch(/^review-evidence\/rev_/);
-    expect((await sql`select kind, amount::int, status from review_incentives order by kind`)).toEqual([{ kind: 'institucion', amount: 50, status: 'pendiente' }, { kind: 'programa', amount: 50, status: 'pendiente' }]);
+    expect((await sql`select kind, amount::int, status from review_incentives order by kind`)).toEqual([{ kind: 'resena', amount: 100, status: 'pendiente' }]);
   });
 
   it('valida el formulario, la relación programa–institución y los duplicados', async () => {
@@ -129,17 +132,17 @@ describe('reseñas', () => {
     expect(ev.headers.get('content-disposition')).toContain('certificado.pdf');
   });
 
-  it('incentivos: solo con reseña verificada; luego pagado; no dependen de la calificación', async () => {
-    const list = ((await (await admin.GET(authed('GET', 'review-incentives'))).json()) as { incentives: { id: number; kind: string; review_id: string; payout_account: string }[] }).incentives;
-    const ana = list.filter((i) => i.payout_account === '999888777');
-    expect(ana).toHaveLength(2);
-    const pay = (id: number, status: string) => admin.POST(authed('POST', 'review-incentive', { id, status }));
-    expect((await pay(ana[0].id, 'pagado')).status).toBe(409); // primero aprobar
-    expect((await pay(ana[0].id, 'aprobado')).status).toBe(200);
-    expect((await pay(ana[0].id, 'pagado')).status).toBe(200);
-    // Reseña crítica (1★) con incentivo: igual de válida.
-    const res = await submit('eva@mail.com', form({ inst_scores: JSON.stringify({ academic: 1, teachers: 1, experience: 2, compliance: 1, value: 1 }), wants_incentive: 'true', payout_method: 'plin', payout_account: '911222333', best: `${LONG} Nada más.`, improve: 'La atención fue muy lenta y el certificado llegó tarde, no lo recomiendo.' }));
-    expect(((await res.json()) as { incentive: number }).incentive).toBe(50); // institucional (programa no detallado)
+  it('créditos: se activan solo con reseña verificada y no dependen de la calificación', async () => {
+    const list = ((await (await admin.GET(authed('GET', 'review-incentives'))).json()) as { incentives: { id: number; kind: string; email: string }[] }).incentives;
+    const ana = list.filter((i) => i.email === 'ana@mail.com');
+    expect(ana).toHaveLength(1);
+    const set = (id: number, status: string) => admin.POST(authed('POST', 'review-incentive', { id, status }));
+    expect((await set(ana[0].id, 'pagado')).status).toBe(409); // ya no hay pagos en efectivo
+    expect((await set(ana[0].id, 'aprobado')).status).toBe(200);
+    expect((await wallet('ana@mail.com'))).toMatchObject({ earned: 100, available: 100, pending: 0, max_per_program: 300 });
+    // Reseña crítica (1★) con crédito: igual de válida.
+    const res = await submit('eva@mail.com', form({ inst_scores: JSON.stringify({ academic: 1, teachers: 1, experience: 2, compliance: 1, value: 1 }), wants_incentive: 'true', best: `${LONG} Nada más.`, improve: 'La atención fue muy lenta y el certificado llegó tarde, no lo recomiendo.' }));
+    expect(((await res.json()) as { incentive: number }).incentive).toBe(100);
   });
 
   it('reportes, filtros de antigüedad y moderación con sesión', async () => {
@@ -157,6 +160,57 @@ describe('reseñas', () => {
     expect((await sql`select status from review_incentives where review_id = ${eva.pathname}`)[0].status).toBe('rechazado');
     const me = await api.GET(new Request('https://x/api/reviews?action=me', { headers: { authorization: 'Bearer tok-ana@mail.com' } }));
     expect(((await me.json()) as { reviews: unknown[] }).reviews).toHaveLength(2);
+  });
+
+  it('canje: descuento por programa con saldo disponible y tope de S/ 300 por programa', async () => {
+    expect((await redeem('ana@mail.com', c1.id, 200)).status).toBe(409); // saldo S/ 100
+    expect((await redeem('ana@mail.com', c1.id, 150)).status).toBe(409); // múltiplos de S/ 100
+    const ok = await redeem('ana@mail.com', c1.id, 100);
+    expect(ok.status).toBe(201);
+    expect(((await ok.json()) as { redemption: Record<string, unknown> }).redemption).toMatchObject({ course_id: c1.id, amount: 100, status: 'solicitado', code: expect.stringMatching(/^GL-[A-Z2-9]{6}$/) });
+    expect(await wallet('ana@mail.com')).toMatchObject({ available: 0, redeemed: 100 });
+    // Un crédito ya canjeado no se puede rechazar sin anular el canje.
+    const [inc] = await sql`select id from review_incentives where user_id = 'u-ana@mail.com' and kind = 'resena'`;
+    expect((await admin.POST(authed('POST', 'review-incentive', { id: inc.id, status: 'rechazado' }))).status).toBe(409);
+    // Más saldo: el tope por programa sigue siendo S/ 300.
+    const [r] = await sql`select id from reviews where user_id = 'u-ana@mail.com' and course_id is null`;
+    await sql`insert into review_incentives (review_id, user_id, institution_id, kind, amount, status) values (${r.id}, 'u-ana@mail.com', ${inst}, 'resena', 300, 'aprobado')`;
+    expect((await redeem('ana@mail.com', c1.id, 300)).status).toBe(409); // ya usó 100 en este programa
+    expect((await redeem('ana@mail.com', c1.id, 200)).status).toBe(201);
+    const full = await redeem('ana@mail.com', c1.id, 100);
+    expect(((await full.json()) as { message: string }).message).toContain('máximo');
+    expect((await redeem('ana@mail.com', otherInst.id, 100)).status).toBe(201); // otro programa
+    // El administrador anula un canje: el saldo vuelve.
+    const reds = ((await (await admin.GET(authed('GET', 'review-redemptions'))).json()) as { redemptions: { id: number; amount: number; course_id: string }[] }).redemptions;
+    expect(reds).toHaveLength(3);
+    const other = reds.find((x) => x.course_id === otherInst.id)!;
+    expect((await admin.POST(authed('POST', 'review-redemption', { id: other.id, status: 'anulado' }))).status).toBe(200);
+    expect(await wallet('ana@mail.com')).toMatchObject({ earned: 400, redeemed: 300, available: 100 });
+  });
+
+  it('referidos: S/ 100 por la primera reseña de cada persona invitada (no a uno mismo)', async () => {
+    const code = (await wallet('ana@mail.com')).ref_code as string;
+    expect(code).toMatch(/^[A-Z2-9]{8}$/);
+    const res = await submit('fede@mail.com', form({ institution_id: otherInst.institution_id, course_id: otherInst.id, ref: code.toLowerCase() }, pdf()));
+    expect(res.status).toBe(201);
+    const fede = (await all()).find((r) => r.author_email === 'fede@mail.com')!;
+    expect(fede.flags).toContain('referida');
+    expect(fede.incentivized).toBe(false); // la persona referida no pidió crédito
+    let refs = await sql`select user_id, referred_user_id, amount::int, status from review_incentives where kind = 'referido'`;
+    expect(refs).toEqual([{ user_id: 'u-ana@mail.com', referred_user_id: 'u-fede@mail.com', amount: 100, status: 'pendiente' }]);
+    // Segunda reseña de la misma persona y autoreferido: no suman.
+    await submit('fede@mail.com', form({ institution_id: otherInst.institution_id, course_id: '', program_scores: '', ref: code }));
+    await submit('eva@mail.com', form({ course_id: '', program_scores: '', ref: (await wallet('eva@mail.com')).ref_code }));
+    refs = await sql`select 1 from review_incentives where kind = 'referido'`;
+    expect(refs).toHaveLength(1);
+    // Se activa con la reseña de la persona referida publicada y verificada.
+    const [ref] = await sql`select id from review_incentives where kind = 'referido'`;
+    expect((await admin.POST(authed('POST', 'review-incentive', { id: ref.id, status: 'aprobado' }))).status).toBe(409);
+    await admin.POST(authed('POST', 'review', { pathname: fede.pathname, status: 'aprobada', evidence_status: 'aprobada' }));
+    expect((await admin.POST(authed('POST', 'review-incentive', { id: ref.id, status: 'aprobado' }))).status).toBe(200);
+    const w = await wallet('ana@mail.com');
+    expect(w).toMatchObject({ available: 200 });
+    expect(w.referrals).toEqual([expect.objectContaining({ amount: 100, status: 'aprobado', author_name: 'Ana María T.' })]);
   });
 
   it('las reseñas anteriores (solo de programa) siguen contando', async () => {

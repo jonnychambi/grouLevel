@@ -5,22 +5,21 @@
  *  · Moderación previa; se publican opiniones positivas y negativas por igual (criterios objetivos).
  *  · Evidencia opcional (certificado/constancia) en Blob privado: nunca se publica; si se aprueba, la reseña
  *    lleva la insignia "Reseña verificada".
- *  · Incentivos: S/ 50 por reseña institucional verificada + S/ 50 por evaluación detallada del programa;
- *    no dependen de la calificación; uno por persona e institución/programa; las reseñas incentivadas se
- *    identifican públicamente.
+ *  · Créditos de descuento: S/ 100 por cada reseña publicada y verificada, y S/ 100 por cada persona referida
+ *    que publique la suya; no dependen de la calificación; las reseñas incentivadas se identifican públicamente.
+ *    El saldo se canjea como descuento adicional en un programa (máximo S/ 300 por programa).
  * Para el administrador, `pathname` es el id de la reseña (compatibilidad con el cliente).
  */
 import { createHash } from 'node:crypto';
 import { del, get, put } from '@vercel/blob';
-import { average, displayName, isDetailedProgramReview, validateSubmission, type ReviewSubmission } from '../../src/utils/reviews.js';
+import { average, CREDITS, displayName, validateSubmission, type ReviewSubmission } from '../../src/utils/reviews.js';
 import type { EvidenceStatus, InstitutionScores, ProgramScores, PublicReview, RatingSummary, Review, ReviewsSummary, ReviewStatus } from '../../src/types/review.js';
 import type { Sql } from './db.js';
 import { getSql } from './db.js';
 import type { ReviewUser } from './reviewAuth.js';
-import { touchReviewer } from './reviewAuth.js';
+import { newRefCode, touchReviewer } from './reviewAuth.js';
 
 export const REVIEW_STATUSES: ReviewStatus[] = ['pendiente', 'aprobada', 'rechazada'];
-export const INCENTIVE = { institucion: 50, programa: 50 } as const;
 export type StoredReview = Review & { pathname: string };
 
 const REVIEW_ID = /^rev_[a-z0-9]{4,40}$/;
@@ -113,13 +112,12 @@ export function parseSubmission(fields: Record<string, string>): Partial<ReviewS
     student_status: (fields.student_status as ReviewSubmission['student_status']) || null,
     author_name: fields.author_name ?? '',
     wants_incentive: fields.wants_incentive === 'true',
-    payout_method: (['yape', 'plin', 'transferencia'].includes(fields.payout_method ?? '') ? fields.payout_method : null) as ReviewSubmission['payout_method'],
-    payout_account: (fields.payout_account ?? '').trim().slice(0, 60),
     consent: fields.consent === 'true'
   };
 }
 
-export async function submitReview(user: ReviewUser, input: Partial<ReviewSubmission>, file: EvidenceFile | null, pageUrl = '', sql: Sql = getSql()): Promise<SubmitResult> {
+export async function submitReview(user: ReviewUser, input: Partial<ReviewSubmission>, file: EvidenceFile | null, opts: { pageUrl?: string; ref?: string } = {}, sql: Sql = getSql()): Promise<SubmitResult> {
+  const pageUrl = opts.pageUrl ?? '';
   if (!user.email_verified) return { ok: false, status: 403, message: 'Valida tu correo antes de opinar.' };
   const errors = validateSubmission(input);
   if (file) {
@@ -137,7 +135,8 @@ export async function submitReview(user: ReviewUser, input: Partial<ReviewSubmis
     if (!course || course.institution_id !== inst.id) return { ok: false, status: 422, message: 'El programa no corresponde a la institución elegida.' };
   }
 
-  const { blocked } = await touchReviewer(user, { display_name: v.author_name.trim(), payout_method: v.wants_incentive ? v.payout_method : null, payout_account: v.wants_incentive ? v.payout_account : null }, sql);
+  const me = await touchReviewer(user, { display_name: v.author_name.trim() }, sql);
+  const { blocked } = me;
   if (blocked) return { ok: false, status: 403, message: 'Tu cuenta no puede publicar reseñas. Escríbenos si crees que es un error.' };
   const [dup] = await sql`select 1 from reviews where user_id = ${user.id} and institution_id = ${inst.id} and coalesce(course_id, '') = ${v.course_id ?? ''}`;
   if (dup) return { ok: false, status: 409, message: v.course_id ? 'Ya opinaste sobre este programa. ¡Gracias!' : 'Ya opinaste sobre esta institución. ¡Gracias!' };
@@ -165,9 +164,17 @@ export async function submitReview(user: ReviewUser, input: Partial<ReviewSubmis
   if (similar.some((r) => normText(`${r.best} ${r.improve}`) === text)) flags.push('texto_duplicado');
   const [recent] = await sql`select count(*)::int c from reviews where user_id = ${user.id} and created_at > now() - interval '24 hours'`;
   if (recent.c >= 3) flags.push('muchas_resenas_24h');
-  if (v.wants_incentive) {
-    const [shared] = await sql`select 1 from reviewers where payout_account = ${v.payout_account} and user_id <> ${user.id} limit 1`;
-    if (shared) flags.push('cuenta_de_pago_compartida');
+  // Referido: solo para quien opina por primera vez, con el código de otra persona.
+  const ref = (opts.ref ?? '').trim().toUpperCase();
+  let referrer: string | null = null;
+  if (ref && !me.referred_by && ref !== me.ref_code) {
+    const [prev] = await sql`select 1 from reviews where user_id = ${user.id} limit 1`;
+    const [owner] = prev ? [] : await sql`select user_id, email from reviewers where ref_code = ${ref} and not blocked and user_id <> ${user.id}`;
+    if (owner) {
+      referrer = String(owner.user_id);
+      flags.push('referida');
+      if (String(owner.email).split('@')[1] === user.email.split('@')[1] && !/^(gmail|hotmail|outlook|yahoo|icloud|live)\./.test(user.email.split('@')[1])) flags.push('referido_mismo_dominio');
+    }
   }
 
   const now = new Date().toISOString();
@@ -191,17 +198,17 @@ export async function submitReview(user: ReviewUser, input: Partial<ReviewSubmis
     throw err;
   }
 
-  // Incentivos solicitados: quedan pendientes hasta aprobar la reseña y verificar la evidencia.
+  // Créditos: quedan pendientes hasta publicar la reseña y verificar la constancia.
   let incentive = 0;
   if (v.wants_incentive) {
-    const wanted: { kind: 'institucion' | 'programa'; course: string; amount: number }[] = [{ kind: 'institucion', course: '', amount: INCENTIVE.institucion }];
-    if (isDetailedProgramReview(v)) wanted.push({ kind: 'programa', course: v.course_id!, amount: INCENTIVE.programa });
-    for (const w of wanted) {
-      const rows = await sql`insert into review_incentives (review_id, user_id, institution_id, course_id, kind, amount)
-        values (${id}, ${user.id}, ${pub.institution_id}, ${w.course}, ${w.kind}, ${w.amount}) on conflict do nothing returning id`;
-      if (rows.length) incentive += w.amount;
-      else await sql`update reviews set flags = array_append(flags, ${`incentivo_${w.kind}_ya_otorgado`}) where id = ${id}`;
-    }
+    const rows = await sql`insert into review_incentives (review_id, user_id, institution_id, course_id, kind, amount)
+      values (${id}, ${user.id}, ${pub.institution_id}, ${pub.course_id ?? ''}, 'resena', ${CREDITS.review}) on conflict do nothing returning id`;
+    if (rows.length) incentive = CREDITS.review;
+  }
+  if (referrer) {
+    await sql`update reviewers set referred_by = ${referrer} where user_id = ${user.id} and referred_by is null`;
+    await sql`insert into review_incentives (review_id, user_id, institution_id, course_id, kind, amount, referred_user_id)
+      values (${id}, ${referrer}, ${pub.institution_id}, ${pub.course_id ?? ''}, 'referido', ${CREDITS.referral}, ${user.id}) on conflict do nothing`;
   }
   return { ok: true, review: { ...pub, status: 'pendiente' } as PublicReview & { status: ReviewStatus }, incentive };
 }
@@ -264,10 +271,59 @@ export async function reportReview(request: Request, id: string, reason: string,
   return true;
 }
 
+/** Saldo de créditos: ganado (aprobado), por aprobar y canjeado (canjes no anulados). */
+async function walletTotals(userId: string, sql: Sql) {
+  const [w] = await sql`select
+      coalesce((select sum(amount) from review_incentives where user_id = ${userId} and status = 'aprobado'), 0)::float as earned,
+      coalesce((select sum(amount) from review_incentives where user_id = ${userId} and status = 'pendiente'), 0)::float as pending,
+      coalesce((select sum(amount) from credit_redemptions where user_id = ${userId} and status <> 'anulado'), 0)::float as redeemed`;
+  return { earned: Number(w.earned), pending: Number(w.pending), redeemed: Number(w.redeemed), available: Math.max(0, Number(w.earned) - Number(w.redeemed)) };
+}
+
+/** Créditos de la persona: saldo, código de referido, referidos y canjes. */
+export async function myWallet(user: ReviewUser, sql: Sql = getSql()) {
+  const me = await touchReviewer(user, {}, sql);
+  const totals = await walletTotals(user.id, sql);
+  const referrals = await sql`select i.amount::float as amount, i.status, i.created_at, r.author_name from review_incentives i join reviews r on r.id = i.review_id
+    where i.user_id = ${user.id} and i.kind = 'referido' order by i.created_at desc`;
+  const redemptions = await sql`select code, course_id, course_name, institution_name, amount::float as amount, status, created_at from credit_redemptions
+    where user_id = ${user.id} order by created_at desc`;
+  return {
+    ...totals, ref_code: me.ref_code, max_per_program: CREDITS.maxPerProgram, review_credit: CREDITS.review, referral_credit: CREDITS.referral,
+    referrals: referrals.map((r) => ({ ...r, created_at: iso(r.created_at) })),
+    redemptions: redemptions.map((r) => ({ ...r, created_at: iso(r.created_at) }))
+  };
+}
+
+export class CreditError extends Error {}
+
+/** Canje: aplica saldo como descuento adicional en un programa (múltiplos de S/ 100; máximo S/ 300 por programa). */
+export async function redeemCredit(user: ReviewUser, courseId: string, amount: number, sql: Sql = getSql()) {
+  if (!Number.isInteger(amount) || amount <= 0 || amount % CREDITS.review !== 0 || amount > CREDITS.maxPerProgram) throw new CreditError(`Elige un monto en múltiplos de S/ ${CREDITS.review}, hasta S/ ${CREDITS.maxPerProgram}.`);
+  const [course] = await sql`select c.id, c.name, c.institution_id, i.name as institution_name from courses c join institutions i on i.id = c.institution_id
+    where c.id = ${courseId} and c.status = 'publicado'`;
+  if (!course) throw new CreditError('Elige un programa del catálogo.');
+  return sql.begin(async (trx) => {
+    const tx = trx as unknown as Sql;
+    const [rv] = await tx`select blocked from reviewers where user_id = ${user.id} for update`;
+    if (!rv) throw new CreditError('Aún no tienes créditos.');
+    if (rv.blocked) throw new CreditError('Tu cuenta no puede canjear créditos. Escríbenos si crees que es un error.');
+    const w = await walletTotals(user.id, tx);
+    if (amount > w.available) throw new CreditError(w.available > 0 ? `Tu saldo disponible es S/ ${w.available}.` : 'Aún no tienes saldo disponible: los créditos se activan cuando tu reseña se publica y se verifica.');
+    const [u] = await tx`select coalesce(sum(amount), 0)::float as used from credit_redemptions where user_id = ${user.id} and course_id = ${course.id} and status <> 'anulado'`;
+    const room = CREDITS.maxPerProgram - Number(u.used);
+    if (amount > room) throw new CreditError(room > 0 ? `En este programa puedes aplicar hasta S/ ${room} más (máximo S/ ${CREDITS.maxPerProgram} por programa).` : `Ya aplicaste el máximo de S/ ${CREDITS.maxPerProgram} en este programa.`);
+    const [row] = await tx`insert into credit_redemptions (code, user_id, course_id, course_name, institution_id, institution_name, amount)
+      values (${`GL-${newRefCode().slice(0, 6)}`}, ${user.id}, ${course.id}, ${course.name}, ${course.institution_id}, ${course.institution_name}, ${amount})
+      returning code, course_id, course_name, institution_name, amount::float as amount, status, created_at`;
+    return { ...row, created_at: iso(row.created_at) };
+  });
+}
+
 /** Reseñas de la persona (estado e incentivos). */
 export async function myReviews(user: ReviewUser, sql: Sql = getSql()) {
   const rows = await sql`select r.id, r.institution_name, r.course_name, r.status, r.evidence_status, r.verified, r.created_at,
-      coalesce((select json_agg(json_build_object('kind', i.kind, 'amount', i.amount, 'status', i.status)) from review_incentives i where i.review_id = r.id), '[]') as incentives
+      coalesce((select json_agg(json_build_object('kind', i.kind, 'amount', i.amount, 'status', i.status)) from review_incentives i where i.review_id = r.id and i.user_id = r.user_id), '[]') as incentives
     from reviews r where r.user_id = ${user.id} order by r.created_at desc`;
   return rows.map((r) => ({ ...r, created_at: iso(r.created_at) }));
 }
@@ -321,22 +377,37 @@ export async function reviewEvidence(id: string, sql: Sql = getSql()): Promise<R
 
 export async function listIncentives(sql: Sql = getSql()) {
   return sql`select i.*, r.status as review_status, r.verified, r.author_name, r.institution_name, r.course_name, r.flags,
-      v.email, v.payout_method, v.payout_account, v.blocked
+      v.email, v.display_name, v.blocked, f.email as referred_email
     from review_incentives i join reviews r on r.id = i.review_id left join reviewers v on v.user_id = i.user_id
+      left join reviewers f on f.user_id = i.referred_user_id
     order by case i.status when 'pendiente' then 0 when 'aprobado' then 1 else 2 end, i.created_at desc limit 1000`;
 }
 
 export class IncentiveError extends Error {}
 
 export async function updateIncentive(id: number, status: string, note: string | null, sql: Sql = getSql()) {
-  const [i] = await sql`select i.status, r.status as review_status, r.verified from review_incentives i join reviews r on r.id = i.review_id where i.id = ${id}`;
+  const [i] = await sql`select i.status, i.user_id, i.amount::float as amount, r.status as review_status, r.verified from review_incentives i join reviews r on r.id = i.review_id where i.id = ${id}`;
   if (!i) return null;
-  if (status === 'aprobado' && !(i.review_status === 'aprobada' && i.verified)) throw new IncentiveError('Solo se aprueba con la reseña publicada y la evidencia verificada.');
-  if (status === 'pagado' && i.status !== 'aprobado') throw new IncentiveError('Primero aprueba el incentivo.');
-  if (!['aprobado', 'pagado', 'rechazado', 'pendiente'].includes(status)) throw new IncentiveError('Estado inválido.');
-  const [row] = await sql`update review_incentives set status = ${status}, note = coalesce(${note}, note), decided_at = now(),
-      paid_at = case when ${status} = 'pagado' then now() else paid_at end where id = ${id} returning *`;
+  if (!['aprobado', 'rechazado', 'pendiente'].includes(status)) throw new IncentiveError('Estado inválido.');
+  if (status === 'aprobado' && !(i.review_status === 'aprobada' && i.verified)) throw new IncentiveError('Solo se aprueba con la reseña publicada y la constancia verificada.');
+  if (i.status === 'aprobado' && status !== 'aprobado') {
+    const w = await walletTotals(String(i.user_id), sql);
+    if (w.earned - Number(i.amount) < w.redeemed) throw new IncentiveError('Este crédito ya se canjeó: anula primero el canje.');
+  }
+  const [row] = await sql`update review_incentives set status = ${status}, note = coalesce(${note}, note), decided_at = now() where id = ${id} returning *`;
   return row;
+}
+
+export async function listRedemptions(sql: Sql = getSql()) {
+  return sql`select c.*, c.amount::float as amount, v.email, v.display_name, v.blocked from credit_redemptions c left join reviewers v on v.user_id = c.user_id
+    order by case c.status when 'solicitado' then 0 else 1 end, c.created_at desc limit 1000`;
+}
+
+/** El administrador marca el canje como aplicado (la institución hizo el descuento) o lo anula (devuelve el saldo). */
+export async function updateRedemption(id: number, status: string, note: string | null, sql: Sql = getSql()) {
+  if (!['solicitado', 'aplicado', 'anulado'].includes(status)) throw new IncentiveError('Estado inválido.');
+  const [row] = await sql`update credit_redemptions set status = ${status}, note = coalesce(${note}, note), decided_at = now() where id = ${id} returning *`;
+  return row ?? null;
 }
 
 export async function listReports(sql: Sql = getSql()) {

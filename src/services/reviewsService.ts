@@ -1,6 +1,6 @@
 /**
  * Groulevel Reviews (cliente): lectura de reputación y reseñas aprobadas, acceso con correo validado
- * (Supabase Auth vía /api/reviews), envío del formulario y reportes.
+ * (Supabase Auth vía /api/reviews), envío del formulario, reportes, créditos de descuento y referidos.
  * Donde no hay API (GitHub Pages, desarrollo) el sitio funciona sin valoraciones.
  */
 import type { PublicReview, ReviewsSummary } from '../types';
@@ -10,6 +10,7 @@ import { storage } from './storage';
 const ENDPOINT = `${import.meta.env.BASE_URL}api/reviews`;
 const EMPTY: ReviewsSummary = { courses: {}, institutions: {}, updated_at: '' };
 const SESSION_KEY = 'review-session';
+const REF_KEY = 'review-ref';
 
 async function getJson<T>(url: string, timeoutMs = 4000, headers: Record<string, string> = {}): Promise<T | null> {
   try {
@@ -100,15 +101,38 @@ export async function verifyReviewCode(email: string, code: string): Promise<Rev
 }
 
 export interface MyReview { id: string; institution_name: string; course_name: string | null; status: string; evidence_status: string; verified: boolean; created_at: string; incentives: { kind: string; amount: number; status: string }[] }
-export async function fetchMyReviews(): Promise<MyReview[] | null> {
+export interface Redemption { code: string; course_id: string; course_name: string; institution_name: string; amount: number; status: 'solicitado' | 'aplicado' | 'anulado'; created_at: string }
+export interface Wallet {
+  earned: number; pending: number; redeemed: number; available: number; ref_code: string; max_per_program: number; review_credit: number; referral_credit: number;
+  referrals: { amount: number; status: string; created_at: string; author_name: string }[];
+  redemptions: Redemption[];
+}
+export async function fetchMyReviews(): Promise<{ reviews: MyReview[]; wallet: Wallet | null } | null> {
   const s = getReviewSession();
   if (!s) return null;
   try {
-    return (await send<{ reviews: MyReview[] }>(`${ENDPOINT}?action=me`, { headers: { Authorization: `Bearer ${s.access_token}` } })).reviews;
+    const r = await send<{ reviews: MyReview[]; wallet?: Wallet }>(`${ENDPOINT}?action=me`, { headers: { Authorization: `Bearer ${s.access_token}` } });
+    return { reviews: r.reviews, wallet: r.wallet ?? null };
   } catch {
     return null;
   }
 }
+
+/** Canjea créditos como descuento adicional en un programa. */
+export async function redeemCredits(courseId: string, amount: number): Promise<Redemption> {
+  const s = getReviewSession();
+  if (!s) throw new ReviewApiError('Tu sesión venció. Ingresa de nuevo con tu correo.', 401);
+  return (await send<{ redemption: Redemption }>(`${ENDPOINT}?action=redeem`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.access_token}` }, body: JSON.stringify({ course_id: courseId, amount }) })).redemption;
+}
+
+/* ─────────────────────────── Referidos ─────────────────────────── */
+
+/** Guarda el código de quien invitó (?ref=…) hasta que la persona envíe su reseña. */
+export function rememberReferral(code: string | null) {
+  const clean = (code ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+  if (clean) storage.set(REF_KEY, clean);
+}
+export const referralLink = (code: string) => `${window.location.origin}${import.meta.env.BASE_URL}opinar?ref=${encodeURIComponent(code)}`;
 
 export async function submitReviewForm(v: ReviewSubmission, evidence: File | null, honeypot: string): Promise<{ incentive: number }> {
   const s = getReviewSession();
@@ -117,7 +141,7 @@ export async function submitReviewForm(v: ReviewSubmission, evidence: File | nul
   const entries: Record<string, string> = {
     institution_id: v.institution_id, course_id: v.course_id ?? '', inst_scores: JSON.stringify(v.inst_scores), program_scores: v.course_id ? JSON.stringify(v.program_scores ?? {}) : '',
     best: v.best, improve: v.improve, recommend: v.recommend == null ? '' : v.recommend ? 'si' : 'no', study_year: String(v.study_year ?? ''), student_status: v.student_status ?? '',
-    author_name: v.author_name, wants_incentive: String(v.wants_incentive), payout_method: v.payout_method ?? '', payout_account: v.payout_account, consent: String(v.consent),
+    author_name: v.author_name, wants_incentive: String(v.wants_incentive), consent: String(v.consent), ref: storage.get<string>(REF_KEY, ''),
     page_url: window.location.href, website: honeypot
   };
   for (const [k, val] of Object.entries(entries)) f.set(k, val);
