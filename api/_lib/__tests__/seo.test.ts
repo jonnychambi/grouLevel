@@ -5,6 +5,8 @@ import { bundledCatalog, startTestDb } from './testDb';
 
 const SHELL = '<!doctype html><html lang="es-PE"><head><title>Groulevel</title><meta name="description" content="x" /><meta property="og:title" content="x" /><meta property="og:description" content="x" /></head><body><div id="root"></div>\n<noscript>js</noscript><script type="module" src="/a.js"></script></body></html>';
 const realFetch = globalThis.fetch;
+// Página de acceso que devuelven las URLs internas (protegidas) de un despliegue de Vercel.
+const LOGIN = '<!DOCTYPE html><html><head><title>Login – Vercel</title><meta property="og:title" content="Protected Deployment – Vercel"/></head><body><a href="#x">Skip to content</a></body></html>';
 globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) =>
   String(input).endsWith('/_shell.html') ? new Response(SHELL) : realFetch(input, init)) as typeof fetch;
 
@@ -70,6 +72,11 @@ describe('SEO dinámico', () => {
     const xml = await (await get('sitemap=1')).text();
     expect(xml).toContain(`/institucion/${inst.slug}/opiniones</loc>`);
     expect(xml).not.toContain(`/programa/${other.slug}/opiniones</loc>`);
+  });
+
+  it('solo usa la plantilla de Groulevel (nunca la página de acceso de Vercel)', () => {
+    expect(seo.isAppShell(SHELL)).toBe(true);
+    expect(seo.isAppShell(LOGIN)).toBe(false);
   });
 
   it('sitemap con todas las páginas y su fecha de actualización', async () => {

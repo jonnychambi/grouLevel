@@ -18,13 +18,19 @@ let shell: { html: string; at: number } | null = null;
 type Routes = { list: SeoRoute[]; byPath: Map<string, SeoRoute>; at: number };
 let routes: Routes | null = null;
 
+/** ¿Es la plantilla de Groulevel? (y no, por ejemplo, la página de acceso de un despliegue protegido de Vercel). */
+export const isAppShell = (html: string) => html.includes('<div id="root">') && html.includes('type="module"') && !/Protected Deployment|Log in to Vercel/.test(html);
+
 async function getShell(origin: string): Promise<string> {
   if (shell && Date.now() - shell.at < 10 * TTL) return shell.html;
-  // En vistas previas (protegidas) se usa la plantilla pública de producción.
-  const base = process.env.VERCEL_ENV === 'preview' ? SITE_URL : origin;
-  const res = await withTimeout(fetch(`${base}/_shell.html`, { signal: AbortSignal.timeout(5000) }), 6000, 'shell');
+  // En Vercel siempre desde el dominio público: las URLs internas del despliegue (*.vercel.app) están
+  // protegidas y devuelven la página de acceso de Vercel en lugar de la plantilla.
+  const base = process.env.VERCEL_ENV ? SITE_URL : origin;
+  const res = await withTimeout(fetch(`${base}/_shell.html`, { signal: AbortSignal.timeout(5000), cache: 'no-store' }), 6000, 'shell');
   if (!res.ok) throw new Error(`shell_${res.status}`);
-  shell = { html: await res.text(), at: Date.now() };
+  const html = await res.text();
+  if (!isAppShell(html)) throw new Error('shell_invalido');
+  shell = { html, at: Date.now() };
   return shell.html;
 }
 
