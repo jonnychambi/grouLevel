@@ -221,7 +221,8 @@ export function mapRow(r: ExcelRecord, opts: MapOptions): RowOutcome {
 
   const area = str(r.AREA_PRINCIPAL);
   const categoryIds = new Set(opts.categories.map((c) => c.id));
-  let category = NAME_CATEGORY_OVERRIDES[key(name)] ?? (area ? AREA_TO_CATEGORY[key(area)] : undefined);
+  // Área: nombre de la categoría tal como aparece en el sitio (lista de la plantilla), sinónimos o id.
+  let category = NAME_CATEGORY_OVERRIDES[key(name)] ?? (area ? (opts.categories.find((c) => key(c.name) === key(area))?.id ?? AREA_TO_CATEGORY[key(area)]) : undefined);
   if (!category && area && categoryIds.has(slugify(area))) category = slugify(area);
   if (!category || !categoryIds.has(category)) {
     if (opts.techOnly) return fail(area ? `Área fuera del foco tecnológico: ${area}` : 'Sin área');
