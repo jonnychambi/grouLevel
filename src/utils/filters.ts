@@ -17,7 +17,17 @@ export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'valoracion', label: 'Mejor valorado' }
 ];
 
+/**
+ * Formato de cursada. Groulevel se enfoca en cursos con clases en vivo: por defecto se muestran los online en
+ * vivo, híbridos y presenciales; los grabados (a tu ritmo) tienen su propia sección (?formato=grabados).
+ */
+export type CourseFormat = 'vivo' | 'grabado' | 'todos';
+export const FORMAT_PARAM: Record<CourseFormat, string | null> = { vivo: null, grabado: 'grabados', todos: 'todos' };
+export const isRecorded = (c: { modality: Modality | null }) => c.modality === 'grabado';
+export const matchesFormat = (c: { modality: Modality | null }, f: CourseFormat) => f === 'todos' || (f === 'grabado' ? isRecorded(c) : !isRecorded(c));
+
 export interface FilterState {
+  format: CourseFormat;
   q: string;
   categories: string[];
   types: ProgramType[];
@@ -33,7 +43,7 @@ export interface FilterState {
 }
 
 export const EMPTY_FILTERS: FilterState = {
-  q: '', categories: [], types: [], price: [], modalities: [], durations: [], institutions: [], levels: [], certificates: [],
+  format: 'vivo', q: '', categories: [], types: [], price: [], modalities: [], durations: [], institutions: [], levels: [], certificates: [],
   sort: null, page: 1, currency: 'PEN'
 };
 
@@ -217,7 +227,8 @@ const SORT_VALUES = new Set(SORT_OPTIONS.map((o) => o.value));
 
 export function filtersFromParams(params: URLSearchParams, routeCategory?: string): FilterState {
   const list = (k: string) => (params.get(k) ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  const state: FilterState = { ...EMPTY_FILTERS, q: params.get('q') ?? '' };
+  const formato = params.get('formato');
+  const state: FilterState = { ...EMPTY_FILTERS, q: params.get('q') ?? '', format: formato === 'grabados' ? 'grabado' : formato === 'todos' ? 'todos' : 'vivo' };
   for (const g of FILTER_GROUPS) (state[g.key] as string[]) = list(g.param);
   if (routeCategory && !state.categories.includes(routeCategory)) state.categories = [routeCategory, ...state.categories];
   const sort = params.get('orden') as SortKey | null;
@@ -229,6 +240,7 @@ export function filtersFromParams(params: URLSearchParams, routeCategory?: strin
 
 export function filtersToParams(state: FilterState, routeCategory?: string): URLSearchParams {
   const p = new URLSearchParams();
+  if (FORMAT_PARAM[state.format]) p.set('formato', FORMAT_PARAM[state.format]!);
   if (state.q) p.set('q', state.q);
   for (const g of FILTER_GROUPS) {
     let values = state[g.key] as string[];

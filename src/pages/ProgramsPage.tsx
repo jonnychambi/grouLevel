@@ -18,7 +18,9 @@ import { useSeo } from '../hooks/useSeo';
 import { track } from '../services/analytics';
 import { queryPrograms } from '../services/catalogService';
 import type { Currency } from '../types';
-import { activeFilterCount, EMPTY_FILTERS, FILTER_GROUPS, filtersFromParams, filtersToParams, type FacetKey, type FilterState, type SortKey } from '../utils/filters';
+import { activeFilterCount, EMPTY_FILTERS, FILTER_GROUPS, filtersFromParams, filtersToParams, type CourseFormat, type FacetKey, type FilterState, type SortKey } from '../utils/filters';
+
+const FORMAT_TABS: [CourseFormat, string, string][] = [['vivo', 'En vivo y presencial', 'En vivo'], ['grabado', 'Grabados', 'Grabados'], ['todos', 'Todos', 'Todos']];
 import { LEVEL_LABELS, MODALITY_LABELS, PROGRAM_TYPE_LABELS } from '../utils/labels';
 import { describeIntent } from '../utils/search';
 import { breadcrumbSchema, itemListSchema } from '../utils/schema';
@@ -78,7 +80,8 @@ export default function ProgramsPage() {
     if (result) track('filter_applied', { filter: key, value, active_filters: activeFilterCount(next), results_count: result.total });
   };
 
-  const clearFilters = () => update({ ...EMPTY_FILTERS, q: state.q, sort: state.sort, currency: state.currency, categories: routeCategory ? [routeCategory] : [] });
+  const clearFilters = () => update({ ...EMPTY_FILTERS, format: state.format, q: state.q, sort: state.sort, currency: state.currency, categories: routeCategory ? [routeCategory] : [] });
+  const setFormat = (format: CourseFormat) => update({ ...state, format, page: 1, modalities: format === 'grabado' ? [] : state.modalities.filter((m) => m !== 'grabado') });
   const setSort = (sort: SortKey) => update({ ...state, sort, page: 1 }, { replace: true });
   const setCurrency = (currency: Currency) => update({ ...state, currency }, { replace: true });
   const setPage = (page: number) => {
@@ -86,7 +89,10 @@ export default function ProgramsPage() {
     resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const title = category ? `Programas de ${category.name}` : state.q ? `Resultados para “${state.q}”` : 'Programas de tecnología';
+  const recordedOnly = state.format === 'grabado';
+  const title = category
+    ? `${recordedOnly ? 'Cursos grabados' : 'Programas'} de ${category.name}`
+    : state.q ? `Resultados para “${state.q}”` : recordedOnly ? 'Cursos grabados de tecnología' : 'Programas de tecnología';
   const path = category ? `/programas/${category.slug}` : '/programas';
   const crumbs = [{ label: 'Inicio', to: '/' }, { label: 'Programas', to: '/programas' }, ...(category ? [{ label: category.name }] : [])];
 
@@ -96,7 +102,7 @@ export default function ProgramsPage() {
       ? `Compara cursos, bootcamps, diplomados y maestrías de ${category.name}: precios, duración, modalidad y certificación. ${category.description}`
       : 'Explora programas de Data, IA, desarrollo de software, cloud, ciberseguridad y más. Filtra por precio, modalidad, duración y nivel.',
     path,
-    noindex: !!state.q || activeFilterCount(state) > (routeCategory ? 1 : 0),
+    noindex: !!state.q || activeFilterCount(state) > (routeCategory ? 1 : 0) || state.format !== 'vivo',
     jsonLd: result ? [breadcrumbSchema(crumbs.map((c) => ({ name: c.label, path: c.to ?? path }))), itemListSchema(result.items)] : undefined
   });
 
@@ -165,6 +171,14 @@ export default function ProgramsPage() {
         {panelProps && <FilterSidebar {...panelProps} />}
 
         <div className="min-w-0 flex-1" ref={resultsRef} style={{ scrollMarginTop: 90 }}>
+          <div role="tablist" aria-label="Formato de los cursos" className="mb-5 flex gap-1 rounded-full border border-line bg-midnight/60 p-1 sm:inline-flex">
+            {FORMAT_TABS.map(([f, label, short]) => (
+              <button key={f} type="button" role="tab" aria-selected={state.format === f} onClick={() => setFormat(f)}
+                className={`flex-1 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm transition-colors sm:flex-none ${state.format === f ? 'bg-white font-semibold text-navy' : 'text-gray hover:text-white'}`}>
+                <span className="hidden sm:inline">{label}</span><span className="sm:hidden">{short}</span>{result && <span className={`tnum ml-1.5 ${state.format === f ? 'text-navy/60' : 'text-muted'}`}>{result.formatCounts[f]}</span>}
+              </button>
+            ))}
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-gray" aria-live="polite">
               {loading ? 'Buscando programas…' : <><span className="tnum font-semibold text-white">{total}</span> {total === 1 ? 'programa encontrado' : 'programas encontrados'}</>}
@@ -177,6 +191,14 @@ export default function ProgramsPage() {
               {result && <SortSelector value={result.effectiveSort} onChange={setSort} hide={catalog?.courses.some((c) => c.rating != null) ? [] : ['valoracion']} />}
             </div>
           </div>
+
+          {result && state.format === 'vivo' && result.formatCounts.grabado > 0 && total > 0 && (
+            <p className="mt-2 text-sm text-muted">
+              Mostramos cursos con clases en vivo y presenciales. <button type="button" className="text-blue-soft hover:text-white" onClick={() => setFormat('grabado')}>
+                Ver {result.formatCounts.grabado} {result.formatCounts.grabado === 1 ? 'curso grabado' : 'cursos grabados'}
+              </button>
+            </p>
+          )}
 
           {activeChips.length > 0 && (
             <ul className="mt-4 flex flex-wrap gap-2" aria-label="Filtros activos">
@@ -200,7 +222,12 @@ export default function ProgramsPage() {
                 description={state.q ? `Prueba con otra palabra clave o quita algunos filtros. También puedes buscar por herramienta (ej. “Power BI”).` : 'Prueba quitando algunos filtros para ver más opciones.'}
                 action={
                   <>
-                    {filtersActive > 0 && <button className="btn btn-primary" onClick={clearFilters}>Limpiar filtros</button>}
+                    {state.format !== 'todos' && result.formatCounts.todos > 0 && (
+                      <button className="btn btn-primary" onClick={() => setFormat(state.format === 'vivo' ? 'grabado' : 'vivo')}>
+                        Ver {state.format === 'vivo' ? result.formatCounts.grabado : result.formatCounts.vivo} en {state.format === 'vivo' ? 'cursos grabados' : 'cursos en vivo'}
+                      </button>
+                    )}
+                    {filtersActive > 0 && <button className="btn btn-ghost" onClick={clearFilters}>Limpiar filtros</button>}
                     {state.q && <Link className="btn btn-ghost" to={category ? path : '/programas'}>Ver todos los programas</Link>}
                   </>
                 }

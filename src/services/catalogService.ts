@@ -7,7 +7,7 @@ import type { Category, CourseWithInstitution, Institution } from '../types';
 import { getDataSource } from './dataSource';
 import { fetchReviewsSummary } from './reviewsService';
 import { buildIndex, search, suggest, type QueryIntent, type SearchResult, type Suggestion } from '../utils/search';
-import { applyFilters, facetCounts, sortCourses, type FacetKey, type FilterContext, type FilterState, type SortKey } from '../utils/filters';
+import { applyFilters, facetCounts, matchesFormat, sortCourses, type CourseFormat, type FacetKey, type FilterContext, type FilterState, type SortKey } from '../utils/filters';
 import { relatedCourses } from '../utils/related';
 
 export interface Catalog {
@@ -17,6 +17,10 @@ export interface Catalog {
   bySlug: Map<string, CourseWithInstitution>;
   byId: Map<string, CourseWithInstitution>;
   index: ReturnType<typeof buildIndex>;
+  /** Cursos con clases en vivo (online en vivo, híbridos y presenciales): lo que el sitio muestra por defecto. */
+  live: CourseWithInstitution[];
+  /** Cursos grabados (a tu ritmo): sección propia. */
+  recorded: CourseWithInstitution[];
 }
 
 let catalogPromise: Promise<Catalog> | null = null;
@@ -45,7 +49,9 @@ export function loadCatalog(): Promise<Catalog> {
           categories,
           bySlug: new Map(joined.map((c) => [c.slug, c])),
           byId: new Map(joined.map((c) => [c.id, c])),
-          index: buildIndex(joined, categories)
+          index: buildIndex(joined, categories),
+          live: joined.filter((c) => matchesFormat(c, 'vivo')),
+          recorded: joined.filter((c) => matchesFormat(c, 'grabado'))
         };
       })
       .catch((err) => {
@@ -66,6 +72,8 @@ export interface ProgramQueryResult {
   search: SearchResult | null;
   effectiveSort: SortKey;
   appliedIntent: QueryIntent;
+  /** Resultados por formato con la misma búsqueda y filtros (para las pestañas En vivo / Grabados / Todos). */
+  formatCounts: Record<CourseFormat, number>;
 }
 
 export function queryPrograms(catalog: Catalog, state: FilterState, pageSize: number): ProgramQueryResult {
@@ -85,6 +93,12 @@ export function queryPrograms(catalog: Catalog, state: FilterState, pageSize: nu
     currency: state.currency
   };
 
+  const formatCounts: Record<CourseFormat, number> = { vivo: 0, grabado: 0, todos: 0 };
+  for (const c of applyFilters(pool, state)) {
+    formatCounts.todos++;
+    formatCounts[matchesFormat(c, 'grabado') ? 'grabado' : 'vivo']++;
+  }
+  pool = pool.filter((c) => matchesFormat(c, state.format));
   const filtered = applyFilters(pool, state);
   const effectiveSort: SortKey = state.sort ?? (result?.appliedIntent.cheap ? 'precio-asc' : 'relevancia');
   const sorted = sortCourses(filtered, effectiveSort, relevance);
@@ -100,7 +114,8 @@ export function queryPrograms(catalog: Catalog, state: FilterState, pageSize: nu
     filterContext,
     search: result,
     effectiveSort,
-    appliedIntent: result?.appliedIntent ?? {}
+    appliedIntent: result?.appliedIntent ?? {},
+    formatCounts
   };
 }
 
@@ -108,14 +123,16 @@ export function getSuggestions(catalog: Catalog, q: string): Suggestion[] {
   return suggest(q, { courses: catalog.courses, categories: catalog.categories });
 }
 
+/** Relacionados del mismo formato: a un curso en vivo se le sugieren cursos en vivo; a uno grabado, grabados. */
 export function getRelated(catalog: Catalog, course: CourseWithInstitution, limit = 4) {
-  return relatedCourses(course, catalog.courses, limit);
+  return relatedCourses(course, matchesFormat(course, 'grabado') ? catalog.recorded : catalog.live, limit);
 }
 
-export function coursesByInstitution(catalog: Catalog, institutionId: string) {
-  return catalog.courses.filter((c) => c.institution_id === institutionId);
+export function coursesByInstitution(catalog: Catalog, institutionId: string, format: CourseFormat = 'todos') {
+  return catalog.courses.filter((c) => c.institution_id === institutionId && matchesFormat(c, format));
 }
 
+/** Destacados: solo cursos con clases en vivo (el foco del sitio). */
 export function featuredCourses(catalog: Catalog, limit = 6) {
-  return sortCourses(catalog.courses, 'relevancia').slice(0, limit);
+  return sortCourses(catalog.live, 'relevancia').slice(0, limit);
 }

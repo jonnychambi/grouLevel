@@ -57,7 +57,7 @@ export default function HomePage() {
 
   const counts = useMemo(() => {
     const m = new Map<string, number>();
-    catalog?.courses.forEach((c) => m.set(c.category, (m.get(c.category) ?? 0) + 1));
+    catalog?.live.forEach((c) => m.set(c.category, (m.get(c.category) ?? 0) + 1));
     return m;
   }, [catalog]);
 
@@ -112,7 +112,7 @@ export default function HomePage() {
 
           <dl className="mt-14 grid max-w-3xl grid-cols-3 gap-4 border-t border-line pt-6">
             {[
-              { k: 'Programas', v: catalog?.courses.length },
+              { k: 'Programas en vivo', v: catalog?.live.length },
               { k: 'Instituciones', v: catalog?.institutions.length },
               { k: 'Áreas tech', v: catalog ? counts.size : undefined }
             ].map((s) => (

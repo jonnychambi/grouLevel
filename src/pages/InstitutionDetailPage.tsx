@@ -10,6 +10,7 @@ import { useCatalog } from '../hooks/useCatalog';
 import { useSeo } from '../hooks/useSeo';
 import { track } from '../services/analytics';
 import { coursesByInstitution } from '../services/catalogService';
+import { isRecorded } from '../utils/filters';
 import { MODALITY_LABELS, PROGRAM_TYPE_LABELS } from '../utils/labels';
 import { breadcrumbSchema, organizationSchema } from '../utils/schema';
 import { InstitutionReviews } from '../components/reviews/ReviewsSection';
@@ -19,6 +20,9 @@ export default function InstitutionDetailPage() {
   const { catalog, loading } = useCatalog();
   const institution = catalog?.institutions.find((i) => i.slug === slug);
   const programs = useMemo(() => (catalog && institution ? coursesByInstitution(catalog, institution.id) : []), [catalog, institution]);
+  // Primero los cursos con clases en vivo (foco del sitio); los grabados, aparte.
+  const live = useMemo(() => programs.filter((p) => !isRecorded(p)), [programs]);
+  const recorded = useMemo(() => programs.filter(isRecorded), [programs]);
 
   useEffect(() => {
     if (institution) track('institution_viewed', { institution_id: institution.id, programs_count: programs.length });
@@ -78,10 +82,26 @@ export default function InstitutionDetailPage() {
         </dl>
       </header>
 
-      <section className="mt-12" aria-labelledby="progs">
-        <h2 id="progs" className="mb-6 text-2xl text-white">Programas disponibles</h2>
-        <CourseGrid courses={programs} source="institucion" />
-      </section>
+      {live.length > 0 && (
+        <section className="mt-12" aria-labelledby="progs">
+          <h2 id="progs" className="mb-6 text-2xl text-white">Programas con clases en vivo</h2>
+          <CourseGrid courses={live} source="institucion" />
+        </section>
+      )}
+
+      {recorded.length > 0 && (
+        <section className="mt-12" aria-labelledby="progs-grabados">
+          <details open={!live.length} className="group">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-2xl text-white">
+              <span id="progs-grabados">Cursos grabados</span>
+              <span className="tnum text-base text-muted">({recorded.length})</span>
+              <Icon name="chevron-down" size={18} className="text-muted transition-transform group-open:rotate-180" />
+            </summary>
+            <p className="mt-2 text-sm text-muted">Cursos a tu ritmo, sin clases en vivo.</p>
+            <div className="mt-6"><CourseGrid courses={recorded} source="institucion" /></div>
+          </details>
+        </section>
+      )}
 
       <InstitutionReviews institution={institution} />
     </div>
