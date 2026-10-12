@@ -3,7 +3,7 @@
  * La usan el servidor (api/) y la interfaz; no depende del DOM ni de la red.
  */
 import type { InstitutionScores, ProgramScores, PublicReview, RatingSummary, ReviewRelationship, ReviewsSummary, StudentStatus } from '../types/review';
-import { looksLikeCode } from './text';
+import { looksLikeCode } from './text.js';
 
 export const RELATIONSHIP_LABELS: Record<ReviewRelationship, string> = {
   egresado: 'Egresado del programa',
