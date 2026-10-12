@@ -39,3 +39,9 @@ export function editDistance(a: string, b: string, max = 2): number {
   }
   return prev[b.length];
 }
+
+/** Texto con apariencia de código (etiquetas HTML, javascript:, manejadores on…=): no se acepta en campos de texto libres. */
+export const looksLikeCode = (v: string) => /<\s*\/?\s*[a-z!][^>]*>|javascript:|\bon[a-z]+\s*=/i.test(v);
+
+/** Quita correos y números largos (teléfonos, documentos) de un texto antes de enviarlo a analítica. */
+export const redactPII = (v: string) => v.replace(/[^\s@]+@[^\s@]+/g, '[correo]').replace(/\+?\d[\d\s-]{6,}\d/g, '[número]').slice(0, 100);

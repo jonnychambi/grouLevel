@@ -16,9 +16,9 @@ function pages(page: number, count: number): (number | '…')[] {
 
 export function Pagination({ page, pageCount, onChange }: Props) {
   if (pageCount <= 1) return null;
-  const btn = 'grid h-10 min-w-10 place-items-center rounded-full px-3 text-sm tnum transition-colors';
+  const btn = 'grid h-9 min-w-8 place-items-center rounded-full px-1.5 text-sm tnum transition-colors sm:h-10 sm:min-w-10 sm:px-3';
   return (
-    <nav aria-label="Paginación" className="mt-10 flex items-center justify-center gap-1.5">
+    <nav aria-label="Paginación" className="mt-10 flex flex-wrap items-center justify-center gap-1 sm:gap-1.5">
       <button className={`${btn} text-gray hover:bg-raise hover:text-white disabled:opacity-40`} onClick={() => onChange(page - 1)} disabled={page === 1} aria-label="Página anterior">
         <Icon name="chevron-left" />
       </button>

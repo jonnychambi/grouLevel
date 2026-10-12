@@ -32,6 +32,20 @@ describe('API de administración', () => {
     expect(token).toContain('.');
   });
 
+  it('limita los intentos de acceso y registra cada intento en la auditoría', async () => {
+    const tryLogin = (password: string) => admin.POST(new Request(url('login'), { method: 'POST', headers: { 'x-forwarded-for': '7.7.7.7' }, body: JSON.stringify({ password }) }));
+    const codes: number[] = [];
+    for (let i = 0; i < 9; i++) codes.push((await tryLogin('mala')).status);
+    expect(codes.slice(0, 8).every((c) => c === 401)).toBe(true);
+    expect(codes.at(-1)).toBe(429);
+    expect((await tryLogin('pw-test')).status).toBe(429); // bloqueado aunque la contraseña sea correcta
+    const rows = await db.sql`select action, ok, detail, ip_hash from admin_audit where action = 'login' and ok = false`;
+    expect(rows.length).toBeGreaterThanOrEqual(9);
+    expect(rows.find((r) => r.ip_hash)?.ip_hash).toMatch(/^[0-9a-f]{16}$/); // IP anonimizada, nunca la IP
+    const entries = ((await (await admin.GET(authed('GET', 'audit'))).json()) as { entries: unknown[] }).entries;
+    expect(entries.length).toBeGreaterThan(0);
+  });
+
   it('sin token no permite leer ni escribir', async () => {
     expect((await admin.GET(new Request(url('catalog')))).status).toBe(401);
     expect((await admin.PUT(new Request(url('catalog'), { method: 'PUT', body: '{}' }))).status).toBe(401);
@@ -77,5 +91,11 @@ describe('API de administración', () => {
     expect((await admin.POST(authed('POST', 'restore', { pathname: v1 }))).status).toBe(200);
     const latest = (await (await admin.GET(authed('GET', 'catalog'))).json()) as { catalog: { courses: { name: string }[] } };
     expect(latest.catalog.courses[1].name).toBe(courses[1].name);
+  });
+
+  it('las ediciones del catálogo quedan en la auditoría (sin copiar el contenido)', async () => {
+    const rows = await db.sql`select method, action, ok, target from admin_audit where method <> 'POST' or action <> 'login' order by at`;
+    expect(rows.some((r) => r.method === 'PUT' && r.action === 'catalog' && r.ok)).toBe(true);
+    expect(rows.every((r) => !String(r.target ?? '').includes('{'))).toBe(true);
   });
 });

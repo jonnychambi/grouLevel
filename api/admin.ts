@@ -45,6 +45,8 @@
  * Todas las acciones salvo login requieren Authorization: Bearer <token>.
  */
 import { checkPassword, isConfigured, issueToken, verifyRequest } from './_lib/auth.js';
+import { audit, auditTarget, listAudit } from './_lib/audit.js';
+import { rateLimited } from './_lib/guard.js';
 import { json, readJson } from './_lib/http.js';
 import { validateCatalog } from './_lib/validate.js';
 import { deleteLead, listLeads, updateLead } from './_lib/leads.js';
@@ -71,11 +73,17 @@ async function handlePost(request: Request): Promise<Response> {
   const act = action(request);
   if (act === 'login') {
     if (!isConfigured()) return json(503, { error: 'not_configured', message: 'Falta configurar ADMIN_PASSWORD en Vercel.' });
+    if (rateLimited(request, 'admin-login', 8, 15 * 60_000)) {
+      await audit(request, 'login', null, false, 'demasiados intentos');
+      return json(429, { error: 'rate_limited', message: 'Demasiados intentos. Espera 15 minutos.' });
+    }
     const body = await readJson<{ password?: string }>(request);
     if (!checkPassword(body?.password)) {
       await new Promise((r) => setTimeout(r, 600)); // frena ataques de fuerza bruta
+      await audit(request, 'login', null, false, 'contraseña incorrecta');
       return json(401, { error: 'invalid_password', message: 'Contraseña incorrecta.' });
     }
+    await audit(request, 'login', null, true);
     return json(200, issueToken());
   }
   const denied = guard(request);
@@ -244,6 +252,7 @@ async function handleGet(request: Request): Promise<Response> {
     const profile = await readProfile(id);
     return profile ? json(200, { profile }) : json(404, { error: 'not_found' });
   }
+  if (act === 'audit') return json(200, { entries: await listAudit(Math.min(1000, Math.max(1, Number(params.get('limit')) || 300))) });
   if (act === 'leads') return json(200, await listLeads(Math.min(5000, Math.max(1, Number(params.get('limit')) || 500))));
   return json(404, { error: 'unknown_action' });
 }
@@ -282,6 +291,9 @@ function withTimeout(handler: (request: Request) => Promise<Response>) {
     const act = action(request);
     const ms = LONG.has(act) ? 285_000 : 45_000;
     const started = Date.now();
+    // Auditoría de toda operación que modifica datos (el acceso se registra en el propio login).
+    const mutating = request.method !== 'GET' && act !== 'login';
+    const target = mutating ? auditTarget(request.clone()) : null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<Response>((resolve) => {
       timer = setTimeout(() => {
@@ -293,10 +305,14 @@ function withTimeout(handler: (request: Request) => Promise<Response>) {
       const res = await Promise.race([handler(request), timeout]);
       const took = Date.now() - started;
       if (took > 10_000) console.log(`admin: ${request.method} ${act} ${res.status} en ${took} ms`);
+      if (mutating && res.status !== 401) await audit(request, act || 'catalog', await target, res.ok, res.ok ? null : `HTTP ${res.status}`, res.status);
       return res;
     } catch (err) {
-      console.error(`admin: ${request.method} ${act} falló`, err);
-      return json(500, { error: 'server_error', message: `Error del servidor: ${err instanceof Error ? err.message : 'desconocido'}` });
+      // El detalle técnico queda en el registro del servidor; al navegador solo un mensaje genérico.
+      const ref = Math.random().toString(36).slice(2, 8);
+      console.error(`admin: ${request.method} ${act} falló [${ref}]`, err);
+      if (mutating) await audit(request, act || 'catalog', await target, false, `error ${ref}`, 500);
+      return json(500, { error: 'server_error', message: `Error del servidor (ref. ${ref}). Intenta de nuevo; si persiste, revisa el registro de Vercel.` });
     } finally {
       clearTimeout(timer);
     }

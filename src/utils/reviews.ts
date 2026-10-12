@@ -3,6 +3,7 @@
  * La usan el servidor (api/) y la interfaz; no depende del DOM ni de la red.
  */
 import type { InstitutionScores, ProgramScores, PublicReview, RatingSummary, ReviewRelationship, ReviewsSummary, StudentStatus } from '../types/review';
+import { looksLikeCode } from './text';
 
 export const RELATIONSHIP_LABELS: Record<ReviewRelationship, string> = {
   egresado: 'Egresado del programa',
@@ -142,6 +143,7 @@ export function validateSubmission(v: Partial<ReviewSubmission>, now = new Date(
   const name = (v.author_name ?? '').trim();
   if (name.length < 2) e.author_name = 'Escribe tu nombre (se publica abreviado).';
   else if (name.length > REVIEW_TEXT.nameMax) e.author_name = `Máximo ${REVIEW_TEXT.nameMax} caracteres.`;
+  if ([best, improve, name].some(looksLikeCode)) e.code = 'Los textos no pueden contener código ni etiquetas HTML.';
   if (!v.consent) e.consent = 'Necesitamos tu autorización para publicar la reseña.';
   return e;
 }

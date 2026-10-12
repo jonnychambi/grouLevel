@@ -5,6 +5,7 @@
 import { getSql } from './db.js';
 import { upsertLead } from './dbSync.js';
 import { DEFAULT_SCORING_CONFIG, scoreLead } from '../../src/utils/leadScoring.js';
+import { looksLikeCode } from '../../src/utils/text.js';
 import type { Lead, LeadObjective, LeadSource, LeadStatus, StartTimeline } from '../../src/types/lead.js';
 
 export const LEAD_STATUSES: LeadStatus[] = ['nuevo', 'contactado', 'enviado', 'matriculado', 'descartado'];
@@ -33,6 +34,7 @@ export function buildLeadFromRequest(body: Body, course: { id: string; name: str
   const objective = s(input.objective, 40) as LeadObjective;
   if (!first_name) errors.push('Falta el nombre.');
   if (!last_name) errors.push('Falta el apellido.');
+  if ([first_name, last_name, country].some(looksLikeCode)) errors.push('Los datos no pueden contener código ni etiquetas HTML.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) errors.push('Email inválido.');
   const digits = whatsapp.replace(/\D/g, '');
   if (digits.length < 8 || digits.length > 15) errors.push('WhatsApp inválido.');
@@ -77,6 +79,13 @@ export function buildLeadFromRequest(body: Body, course: { id: string; name: str
       notes: ''
     }
   };
+}
+
+/** Lead del mismo correo para el mismo programa en las últimas 24 h (doble clic, reenvío): no se duplica. */
+export async function findRecentLead(email: string, courseId: string): Promise<Lead | null> {
+  const [row] = await getSql()`select raw from leads where lower(email) = ${email.toLowerCase()} and course_id = ${courseId}
+    and created_at > now() - interval '24 hours' order by created_at desc limit 1`;
+  return row ? (row.raw as Lead) : null;
 }
 
 export async function saveLead(lead: Lead): Promise<string> {

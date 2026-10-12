@@ -1,3 +1,4 @@
+import { redactPII } from '../utils/text';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { CourseGrid } from '../components/course/CourseGrid';
@@ -66,7 +67,7 @@ export default function ProgramsPage() {
     if (!result || !state.q || lastTracked.current === state.q) return;
     lastTracked.current = state.q;
     const intent = result.search ? describeIntent(result.appliedIntent, { type: PROGRAM_TYPE_LABELS, modality: MODALITY_LABELS, level: LEVEL_LABELS }) : [];
-    track('search_performed', { query: state.q, results_count: result.total, source: (location.state as { searchSource?: 'home' | 'header' | 'listado' } | null)?.searchSource ?? 'listado', intent });
+    track('search_performed', { query: redactPII(state.q), results_count: result.total, source: (location.state as { searchSource?: 'home' | 'header' | 'listado' } | null)?.searchSource ?? 'listado', intent });
   }, [result, state.q, location.state]);
 
   const toggle = (key: FacetKey, value: string) => {

@@ -214,3 +214,26 @@ export async function profileFile(id: string): Promise<Response | null> {
     }
   });
 }
+
+/** Días que se conservan los CV y las constancias de reseñas (variable FILE_RETENTION_DAYS; por defecto 180). */
+export const retentionDays = () => Math.max(30, Number(process.env.FILE_RETENTION_DAYS) || 180);
+
+/**
+ * Política de conservación: borra los CV (archivo y texto extraído) y las constancias de reseñas con más de
+ * `retentionDays()` días. El diagnóstico y la reseña se mantienen; solo se eliminan los documentos originales.
+ */
+export async function purgeOldFiles(days = retentionDays()): Promise<{ cvs: number; evidences: number }> {
+  const sql = getSql();
+  const cvs = await sql`select id, cv_blob_path from profiles where (cv_blob_path is not null or cv_text is not null) and created_at < now() - make_interval(days => ${days}) limit 200`;
+  for (const p of cvs) {
+    if (p.cv_blob_path) await del(String(p.cv_blob_path)).catch((err) => console.error('cv_delete_failed', err instanceof Error ? err.message : err));
+    await sql`update profiles set cv_blob_path = null, cv_file_name = null, cv_file_type = null, cv_file_size = null, cv_text = null,
+      raw = jsonb_set(raw, '{file}', 'null'::jsonb) where id = ${p.id}`;
+  }
+  const evidences = await sql`select id, evidence_path from reviews where evidence_path is not null and created_at < now() - make_interval(days => ${days}) limit 200`;
+  for (const r of evidences) {
+    await del(String(r.evidence_path)).catch((err) => console.error('evidence_delete_failed', err instanceof Error ? err.message : err));
+    await sql`update reviews set evidence_path = null, evidence_name = null where id = ${r.id}`;
+  }
+  return { cvs: cvs.length, evidences: evidences.length };
+}

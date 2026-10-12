@@ -8,7 +8,7 @@
  * Opcional: LEAD_WEBHOOK_URL reenvía cada lead (p. ej. a Zapier/Make → Google Sheets o un CRM).
  */
 import { json, readJson } from './_lib/http.js';
-import { buildLeadFromRequest, saveLead } from './_lib/leads.js';
+import { buildLeadFromRequest, findRecentLead, saveLead } from './_lib/leads.js';
 import { findCourse, rateLimited } from './_lib/guard.js';
 import { isDbConfigured } from './_lib/db.js';
 import { deviceOf, geoOf, recordDemand } from './_lib/demand.js';
@@ -17,9 +17,11 @@ async function forwardWebhook(lead: unknown) {
   const url = process.env.LEAD_WEBHOOK_URL;
   if (!url) return;
   try {
-    await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lead), signal: AbortSignal.timeout(4000) });
-  } catch {
-    /* el lead ya está guardado; el webhook es best-effort */
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lead), signal: AbortSignal.timeout(4000) });
+    if (!res.ok) console.error('lead_webhook_failed', (lead as { id?: string }).id, `HTTP ${res.status}`);
+  } catch (err) {
+    // El lead ya está guardado en la base (se ve en /admin); la falla del reenvío queda registrada.
+    console.error('lead_webhook_failed', (lead as { id?: string }).id, err instanceof Error ? err.message : err);
   }
 }
 
@@ -36,6 +38,12 @@ export async function POST(request: Request): Promise<Response> {
   const result = buildLeadFromRequest(body, course);
   if (!result.ok) return json(422, { error: 'invalid', message: 'Revisa los datos del formulario.', errors: result.errors });
 
+  // Envío repetido (doble clic, recarga): se responde con el lead ya registrado, sin duplicarlo.
+  const previous = await findRecentLead(result.lead.email, result.lead.course_id);
+  if (previous) {
+    const { id, lead_score, lead_tier, lead_segment, created_at, course_id, course_name, institution_id, institution_name, source } = previous;
+    return json(200, { id, lead_score, lead_tier, lead_segment, created_at, course_id, course_name, institution_id, institution_name, source, duplicate: true });
+  }
   await saveLead(result.lead);
   // Panel de Demanda: el lead se cuenta aquí (no depende del navegador ni del consentimiento de cookies).
   const l = result.lead as unknown as Record<string, string | null>;

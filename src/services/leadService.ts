@@ -116,8 +116,11 @@ export class ApiLeadService implements LeadService {
     } catch {
       throw new LeadSubmitError('No pudimos conectarnos. Revisa tu conexión e inténtalo nuevamente.');
     }
-    // Sin API en este entorno → registro local (mismo comportamiento que antes).
-    if (res.status === 404 || !(res.headers.get('content-type') ?? '').includes('application/json')) return this.fallback.submit(submission);
+    const isJson = (res.headers.get('content-type') ?? '').includes('application/json');
+    // Sin API en este entorno (GitHub Pages, desarrollo) → registro local. En producción nunca se simula
+    // un envío exitoso: cualquier otra respuesta sin JSON (error o caída del servidor) se informa como error.
+    if (res.status === 404 && !isJson && !/(^|\.)groulevel\.com$/.test(window.location.hostname)) return this.fallback.submit(submission);
+    if (!isJson) throw new LeadSubmitError('No pudimos registrar tu solicitud en este momento. Inténtalo nuevamente en unos minutos.');
     const body = (await res.json()) as Partial<Lead> & { message?: string; errors?: string[] };
     if (!res.ok) throw new LeadSubmitError(body.errors?.length ? `${body.message ?? 'Revisa los datos.'} ${body.errors.join(' ')}` : body.message ?? 'No pudimos enviar tu solicitud. Inténtalo nuevamente.');
     const lead: Lead = { ...local, ...body, status: 'nuevo' } as Lead;

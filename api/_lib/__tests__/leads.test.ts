@@ -65,9 +65,27 @@ describe('POST /api/leads', () => {
 
   it('limita envíos repetidos desde la misma IP', async () => {
     const codes: number[] = [];
-    for (let i = 0; i < 10; i++) codes.push((await post(valid(), '9.9.9.9')).status);
+    for (let i = 0; i < 10; i++) codes.push((await post(valid({ input: { ...valid().input, email: `p${i}@empresa.pe` } }), '9.9.9.9')).status);
     expect(codes.slice(0, 8).every((c) => c === 201)).toBe(true);
     expect(codes.at(-1)).toBe(429);
+  });
+
+  it('no duplica el lead por doble clic o reenvío (mismo correo y programa en 24 h)', async () => {
+    const one = valid({ input: { ...valid().input, email: 'doble@empresa.pe' } });
+    const first = await post(one, '4.4.4.1');
+    expect(first.status).toBe(201);
+    const again = await post(one, '4.4.4.2');
+    expect(again.status).toBe(200);
+    const [a, b] = [(await first.json()) as { id: string }, (await again.json()) as { id: string; duplicate: boolean }];
+    expect(b).toMatchObject({ id: a.id, duplicate: true });
+    expect((await db.sql`select count(*)::int n from leads where email = 'doble@empresa.pe'`)[0].n).toBe(1);
+  });
+
+  it('rechaza código o etiquetas HTML en los campos de texto', async () => {
+    const res = await post(valid({ input: { ...valid().input, email: 'x@empresa.pe', first_name: '<script>alert(1)</script>' } }), '4.4.4.3');
+    expect(res.status).toBe(422);
+    expect(((await res.json()) as { errors: string[] }).errors.join(' ')).toContain('código');
+    expect((await post(valid({ input: { ...valid().input, email: 'y@empresa.pe', last_name: '<img src=x onerror=alert(1)>' } }), '4.4.4.4')).status).toBe(422);
   });
 });
 

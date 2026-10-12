@@ -222,3 +222,21 @@ describe('reseñas', () => {
     expect(s.courses[c1.id].count).toBe(2);
   });
 });
+
+describe('seguridad y conservación', () => {
+  it('rechaza código en los textos de la reseña', async () => {
+    const res = await submit('zoe@mail.com', form({ best: `${LONG} <script>alert(1)</script>` }));
+    expect(res.status).toBe(422);
+  });
+
+  it('borra las constancias con más días que la política de conservación (la reseña se mantiene)', async () => {
+    const { purgeOldFiles } = await import('../profiles');
+    const [r] = await sql`select id, evidence_path from reviews where evidence_path is not null limit 1`;
+    await sql`update reviews set created_at = now() - interval '400 days' where id = ${r.id}`;
+    const out = await purgeOldFiles(180);
+    expect(out.evidences).toBeGreaterThanOrEqual(1);
+    expect(blobs.has(String(r.evidence_path))).toBe(false);
+    const [after] = await sql`select evidence_path, status from reviews where id = ${r.id}`;
+    expect(after.evidence_path).toBeNull();
+  });
+});
