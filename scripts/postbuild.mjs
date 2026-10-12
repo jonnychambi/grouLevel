@@ -93,7 +93,18 @@ const indexable = routes.filter((r) => r.index !== false).length;
 if (!dynamic) writeFileSync(join(dist, 'sitemap.xml'), sitemapXml(routes, SITE_URL));
 // Respaldo para api/seo.ts si la base no responde al pedir el sitemap.
 else writeFileSync(join(dist, 'sitemap-build.xml'), sitemapXml(routes, SITE_URL));
-writeFileSync(join(dist, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: ${new URL(SITE_URL + '/').pathname}interno/\nDisallow: ${new URL(SITE_URL + '/').pathname}admin\nDisallow: ${new URL(SITE_URL + '/').pathname}mi-ruta/\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+// Rastreadores que copian contenido para entrenar modelos o armar bases de datos: no entran.
+// Se permiten los buscadores (Google, Bing) y los asistentes que citan y enlazan la fuente
+// (OAI-SearchBot, ChatGPT-User, PerplexityBot, Claude-SearchBot), porque traen visitas.
+const AI_TRAINING_BOTS = ['GPTBot', 'CCBot', 'ClaudeBot', 'anthropic-ai', 'Google-Extended', 'Applebot-Extended', 'Bytespider', 'meta-externalagent',
+  'FacebookBot', 'Diffbot', 'cohere-ai', 'cohere-training-data-crawler', 'Amazonbot', 'omgili', 'omgilibot', 'ImagesiftBot', 'Timpibot', 'img2dataset', 'AI2Bot', 'PetalBot'];
+const base = new URL(SITE_URL + '/').pathname;
+writeFileSync(join(dist, 'robots.txt'), [
+  'User-agent: *', 'Allow: /', `Disallow: ${base}interno/`, `Disallow: ${base}admin`, `Disallow: ${base}mi-ruta/`, `Disallow: ${base}mis-creditos`, `Disallow: ${base}api/`,
+  `Allow: ${base}api/seo`, '',
+  ...AI_TRAINING_BOTS.map((b) => `User-agent: ${b}`), 'Disallow: /', '',
+  `Sitemap: ${SITE_URL}/sitemap.xml`, ''
+].join('\n'));
 writeFileSync(join(dist, '.nojekyll'), '');
 
 console.log(`postbuild: ${written} páginas pre-generadas${dynamic ? ` (las ${catalogRoutes.length} del catálogo y el sitemap se sirven desde /api/seo)` : ''}, ${indexable} URLs indexables, 404.html, robots.txt`);

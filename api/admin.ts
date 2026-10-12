@@ -47,6 +47,8 @@
 import { checkPassword, isConfigured, issueToken, verifyRequest } from './_lib/auth.js';
 import { audit, auditTarget, listAudit } from './_lib/audit.js';
 import { rateLimited } from './_lib/guard.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { json, readJson } from './_lib/http.js';
 import { validateCatalog } from './_lib/validate.js';
 import { deleteLead, listLeads, updateLead } from './_lib/leads.js';
@@ -251,6 +253,11 @@ async function handleGet(request: Request): Promise<Response> {
     if (act === 'profile-file') return (await profileFile(id)) ?? json(404, { error: 'not_found', message: 'Este diagnóstico no tiene CV.' });
     const profile = await readProfile(id);
     return profile ? json(200, { profile }) : json(404, { error: 'not_found' });
+  }
+  // Catálogo incluido en el build (completo): solo para el administrador; ya no se publica en el sitio.
+  if (act === 'bundled-catalog') {
+    const read = (f: string) => JSON.parse(readFileSync(join(process.cwd(), 'src/data', f), 'utf8'));
+    return json(200, { catalog: { courses: read('courses.json'), institutions: read('institutions.json'), categories: read('categories.json') } });
   }
   if (act === 'audit') return json(200, { entries: await listAudit(Math.min(1000, Math.max(1, Number(params.get('limit')) || 300))) });
   if (act === 'leads') return json(200, await listLeads(Math.min(5000, Math.max(1, Number(params.get('limit')) || 500))));

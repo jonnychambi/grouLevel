@@ -17,6 +17,7 @@ import { PriceDisplay } from '../components/ui/PriceDisplay';
 import { useLeadModal } from '../context/LeadModalContext';
 import { useToast } from '../context/ToastContext';
 import { useCatalog } from '../hooks/useCatalog';
+import { useCourseDetails } from '../hooks/useCourseDetails';
 import { useCompare } from '../hooks/useCompare';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { useSeo } from '../hooks/useSeo';
@@ -97,7 +98,7 @@ export default function ProgramDetailPage() {
   const { count: compareCount } = useCompare();
   const openLead = useLeadModal();
   const notify = useToast();
-  const course = catalog?.bySlug.get(slug);
+  const [course] = useCourseDetails([catalog?.bySlug.get(slug)]);
 
   // Enlaces con ancla (p. ej. #resenas desde la tarjeta): desplazar cuando el contenido ya existe.
   const { hash } = useLocation();
@@ -105,13 +106,16 @@ export default function ProgramDetailPage() {
     if (!course || !hash) return;
     const t = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
     return () => clearTimeout(t);
-  }, [course, hash]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [course?.id, hash]);
 
   useEffect(() => {
     if (!course) return;
     push(course.id);
     track('course_viewed', courseContext(course));
-  }, [course, push]);
+    // Una vez por programa (al llegar el detalle completo no se vuelve a contar).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [course?.id, push]);
 
   const category = course && catalog?.categories.find((c) => c.id === course.category);
   const crumbs = course

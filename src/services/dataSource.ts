@@ -13,10 +13,15 @@ export interface DataSource {
   getCategories(): Promise<Category[]>;
 }
 
-/** Implementación con los JSON de /src/data (se cargan como chunk separado). */
+/**
+ * Implementación con los JSON de /src/data (se cargan como chunk separado). En producción solo se incluye la
+ * versión liviana del catálogo (sin temarios completos, docentes ni descripciones largas), para no publicar
+ * el catálogo completo como un archivo descargable.
+ */
 export class JsonDataSource implements DataSource {
   async getCourses() {
-    return (await import('../data/courses.json')).default as Course[];
+    if (import.meta.env.DEV) return (await import('../data/courses.json')).default as Course[];
+    return (await import('../data/courses.lite.json')).default as unknown as Course[];
   }
   async getInstitutions() {
     return (await import('../data/institutions.json')).default as Institution[];

@@ -149,7 +149,8 @@
       "maxDuration": 300
     },
     "api/admin.ts": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "includeFiles": "src/data/*.json"
     },
     "api/cron.ts": {
       "maxDuration": 300

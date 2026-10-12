@@ -72,14 +72,9 @@ export const fetchVersions = () => call<{ versions: VersionInfo[] }>('versions')
 
 export const restoreVersion = (pathname: string) => call<{ version: VersionInfo }>('restore', { method: 'POST', body: JSON.stringify({ pathname }) });
 
-/** Catálogo incluido en el build (el que se generó desde el Excel). */
+/** Catálogo incluido en el build (el que se generó desde el Excel). Lo entrega el servidor con sesión: el sitio público ya no lo publica completo. */
 export async function loadBundledCatalog(): Promise<AdminCatalog> {
-  const [courses, institutions, categories] = await Promise.all([
-    import('../data/courses.json').then((m) => m.default as Course[]),
-    import('../data/institutions.json').then((m) => m.default as Institution[]),
-    import('../data/categories.json').then((m) => m.default as Category[])
-  ]);
-  return { courses, institutions, categories };
+  return (await call<{ catalog: AdminCatalog }>('bundled-catalog')).catalog;
 }
 
 /* ------------------------------------------------------------------ Leads */

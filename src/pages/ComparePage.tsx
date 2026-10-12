@@ -9,6 +9,7 @@ import { Icon } from '../components/ui/Icon';
 import { PriceDisplay } from '../components/ui/PriceDisplay';
 import { useToast } from '../context/ToastContext';
 import { useCatalog } from '../hooks/useCatalog';
+import { useCourseDetails } from '../hooks/useCourseDetails';
 import { useCompare } from '../hooks/useCompare';
 import { useSeo } from '../hooks/useSeo';
 import { track } from '../services/analytics';
@@ -57,7 +58,8 @@ export default function ComparePage() {
     setParams({}, { replace: true });
   }, [catalog, params, replace, setParams]);
 
-  const courses = useMemo(() => (catalog ? ids.map((id) => catalog.byId.get(id)).filter((c): c is CourseWithInstitution => !!c) : []), [catalog, ids]);
+  const listed = useMemo(() => (catalog ? ids.map((id) => catalog.byId.get(id)).filter((c): c is CourseWithInstitution => !!c) : []), [catalog, ids]);
+  const courses = useCourseDetails(listed);
 
   const trackedKey = useRef('');
   useEffect(() => {

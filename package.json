@@ -6,7 +6,7 @@
   "description": "Groulevel — comparador y marketplace de formación tecnológica (MVP)",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/migrate.mjs && tsc -p tsconfig.json && tsc -p tsconfig.api.json && vite build && node scripts/postbuild.mjs",
+    "build": "node scripts/migrate.mjs && node scripts/catalogLite.mjs && tsc -p tsconfig.json && tsc -p tsconfig.api.json && vite build && node scripts/postbuild.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.api.json",
     "test": "vitest run",

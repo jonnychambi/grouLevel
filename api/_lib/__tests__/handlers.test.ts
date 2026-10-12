@@ -10,6 +10,7 @@ const db = await startTestDb();
 afterAll(() => db.stop());
 const admin = await import('../../admin');
 const pub = await import('../../catalog');
+const site = (q = '', h: Record<string, string> = { 'sec-fetch-site': 'same-origin' }) => new Request(`https://www.groulevel.com/api/catalog${q}`, { headers: h });
 const catalog = () => JSON.parse(JSON.stringify({ courses, institutions, categories }));
 const url = (action: string) => `https://x/api/admin?action=${action}`;
 let token = '';
@@ -52,7 +53,7 @@ describe('API de administración', () => {
   });
 
   it('catálogo vacío → el sitio público recibe 404 (usa el JSON del build)', async () => {
-    expect((await pub.GET()).status).toBe(404);
+    expect((await pub.GET(site())).status).toBe(404);
     const res = await admin.GET(authed('GET', 'catalog'));
     expect(await res.json()).toEqual({ catalog: null, version: null });
   });
@@ -64,11 +65,34 @@ describe('API de administración', () => {
     const res = await admin.PUT(authed('PUT', 'catalog', { catalog: c, baseVersion: null, note: 'inicializacion' }));
     expect(res.status).toBe(200);
     v1 = ((await res.json()) as { version: { pathname: string } }).version.pathname;
-    const pubRes = await pub.GET();
+    const pubRes = await pub.GET(site());
     const data = (await pubRes.json()) as { courses: { id: string }[] };
     expect(pubRes.status).toBe(200);
     expect(data.courses).toHaveLength(courses.length - 1);
     expect(data.courses.some((x) => x.id === c.courses[0].id)).toBe(false);
+  });
+
+  it('catálogo público: solo para la propia web, listado liviano y detalle por programa', async () => {
+    // Descargas directas (sin encabezados del navegador) o desde otro sitio: 403.
+    expect((await pub.GET(site('', {}))).status).toBe(403);
+    expect((await pub.GET(site('', { 'sec-fetch-site': 'cross-site' }))).status).toBe(403);
+    expect((await pub.GET(site('', { referer: 'https://scraper.example/x' }))).status).toBe(403);
+    expect((await pub.GET(site('', { referer: 'https://www.groulevel.com/programas' }))).status).toBe(200);
+    const res = await pub.GET(site());
+    expect(res.headers.get('vary')).toContain('Sec-Fetch-Site');
+    const list = ((await res.json()) as { courses: Record<string, any>[] }).courses;
+    const rich = courses.find((c) => c.status === 'publicado' && c.syllabus.some((m) => m.topics.length || m.description) && c.teachers.some((t) => t.profile))!;
+    const lite = list.find((c) => c.id === rich.id)!;
+    expect(lite).toMatchObject({ lite: true, objectives: [], requirements: [], target_audience: null });
+    expect(lite.syllabus.every((m: { topics: string[]; description: string }) => !m.topics.length && !m.description)).toBe(true);
+    expect(lite.teachers.every((t: { profile: string; linkedin: null }) => !t.profile && !t.linkedin)).toBe(true);
+    expect(lite.price).toBe(rich.price); // lo necesario para listar y filtrar se mantiene
+    // Detalle completo: máximo 4 programas por consulta, solo publicados.
+    const ids = list.slice(0, 6).map((c) => c.id);
+    const detail = ((await (await pub.GET(site(`?ids=${[rich.id, ...ids].join(',')}`))).json()) as { courses: Record<string, any>[] }).courses;
+    expect(detail).toHaveLength(4);
+    expect(detail[0].syllabus).toEqual(rich.syllabus);
+    expect(detail[0].lite).toBeUndefined();
   });
 
   it('rechaza datos inválidos (422) y conflictos de versión (409)', async () => {
