@@ -25,6 +25,9 @@ export function Footer() {
           <h2 className="label-mono mb-4">Explorar</h2>
           <ul className="space-y-2.5 text-sm">
             {EXPLORE.map((c) => <li key={c.slug}><Link className="text-gray hover:text-white" to={`/programas/${c.slug}`}>{c.name}</Link></li>)}
+            <li><Link className="text-gray hover:text-white" to="/cursos">Cursos por habilidad</Link></li>
+            <li><Link className="text-gray hover:text-white" to="/diplomados">Diplomados</Link></li>
+            <li><Link className="text-gray hover:text-white" to="/maestrias">Maestrías</Link></li>
           </ul>
         </nav>
         <nav aria-label="Groulevel">
@@ -32,6 +35,10 @@ export function Footer() {
           <ul className="space-y-2.5 text-sm">
             <li><Link className="text-gray hover:text-white" to="/programas">Todos los programas</Link></li>
             <li><Link className="text-gray hover:text-white" to="/comparar">Comparador</Link></li>
+            <li><Link className="text-gray hover:text-white" to="/carreras">Carreras tecnológicas</Link></li>
+            <li><Link className="text-gray hover:text-white" to="/habilidades">Habilidades</Link></li>
+            <li><Link className="text-gray hover:text-white" to="/guias">Guías y comparaciones</Link></li>
+            <li><Link className="text-gray hover:text-white" to="/analizar-perfil">Analizar mi perfil</Link></li>
             <li><Link className="text-gray hover:text-white" to="/instituciones">Instituciones</Link></li>
             <li><Link className="text-gray hover:text-white" to="/programas?formato=grabados">Cursos grabados</Link></li>
             <li><Link className="text-gray hover:text-white" to="/opinar">Opinar sobre tu institución</Link></li>

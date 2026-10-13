@@ -3,6 +3,9 @@ import { Route, Routes } from 'react-router-dom';
 import { Layout, PageFallback } from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 
+// Rutas por tipo de programa (mismas que TYPE_PATHS en src/content/seoModel.mjs; aquí literales para no cargar el contenido en el bundle inicial).
+const TYPE_ROUTES = [['diplomado', 'diplomados'], ['bootcamp', 'bootcamps'], ['maestria', 'maestrias'], ['especializacion', 'especializaciones']] as const;
+
 // Code-splitting por ruta: el home carga primero; el resto bajo demanda.
 const ProgramsPage = lazy(() => import('./pages/ProgramsPage'));
 const ProgramDetailPage = lazy(() => import('./pages/ProgramDetailPage'));
@@ -20,6 +23,11 @@ const AdminPage = lazy(() => import('./pages/AdminPage'));
 const OpinarPage = lazy(() => import('./pages/OpinarPage'));
 const MisCreditosPage = lazy(() => import('./pages/MisCreditosPage'));
 const ReviewsPage = lazy(() => import('./pages/ReviewsPage'));
+const CareersPage = lazy(() => import('./pages/CareersPage'));
+const SkillsPage = lazy(() => import('./pages/SkillsPage'));
+const GuidesPage = lazy(() => import('./pages/GuidesPage'));
+const CatalogLandingPage = lazy(() => import('./pages/CatalogLandingPage'));
+const AnalyzerLandingPage = lazy(() => import('./pages/AnalyzerLandingPage'));
 
 export default function App() {
   return (
@@ -33,6 +41,20 @@ export default function App() {
         <Route path="programa/:slug" element={<ProgramDetailPage />} />
         <Route path="programa/:slug/opiniones" element={<ReviewsPage scope="programa" />} />
         <Route path="comparar" element={<ComparePage />} />
+        <Route path="comparar/:slug" element={<GuidesPage comparison />} />
+        <Route path="carreras" element={<CareersPage />} />
+        <Route path="carreras/:slug" element={<CareersPage />} />
+        <Route path="habilidades" element={<SkillsPage />} />
+        <Route path="habilidades/:slug" element={<SkillsPage />} />
+        <Route path="guias" element={<GuidesPage />} />
+        <Route path="guias/:slug" element={<GuidesPage />} />
+        <Route path="cursos" element={<CatalogLandingPage />} />
+        <Route path="cursos/:slug" element={<CatalogLandingPage />} />
+        {TYPE_ROUTES.map(([t, seg]) => [
+          <Route key={t} path={seg} element={<CatalogLandingPage key={t} type={t} />} />,
+          <Route key={`${t}-area`} path={`${seg}/:slug`} element={<CatalogLandingPage key={`${t}-area`} type={t} />} />
+        ])}
+        <Route path="analizar-perfil" element={<AnalyzerLandingPage />} />
         <Route path="instituciones" element={<InstitutionsPage />} />
         <Route path="instituciones/partners" element={<PartnersPage />} />
         <Route path="institucion/:slug" element={<InstitutionDetailPage />} />

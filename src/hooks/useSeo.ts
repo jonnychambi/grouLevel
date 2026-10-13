@@ -31,7 +31,8 @@ export function absoluteUrl(path = '/') {
 export function useSeo({ title, description = SITE.description, path, image, type = 'website', noindex, jsonLd }: SeoOptions) {
   const ld = jsonLd ? JSON.stringify(jsonLd) : '';
   useEffect(() => {
-    const fullTitle = title ? `${title} | ${SITE.name}` : `${SITE.name} · Compara programas de tecnología`;
+    // Los títulos que ya incluyen la marca (los compartidos con el HTML del servidor) se usan tal cual.
+    const fullTitle = title ? (title.includes(SITE.name) ? title : `${title} | ${SITE.name}`) : `${SITE.name} | Compara cursos y descubre qué aprender`;
     document.title = fullTitle;
     const url = absoluteUrl(path ?? window.location.pathname.replace(import.meta.env.BASE_URL.replace(/\/$/, ''), '') ?? '/');
     const img = image ?? `${SITE.url}/og-image.png`;

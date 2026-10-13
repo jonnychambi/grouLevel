@@ -97,3 +97,9 @@ export function itemListSchema(courses: CourseWithInstitution[]) {
     itemListElement: courses.map((c, i) => ({ '@type': 'ListItem', position: i + 1, url: abs(`/programa/${c.slug}`), name: c.name }))
   };
 }
+
+/** Artículo editorial (carreras, habilidades, guías y comparaciones). Solo fecha de actualización real del contenido. */
+export function articleSchema(path: string, headline: string, description: string, dateModified: string) {
+  const org = { '@type': 'Organization', name: SITE.name, url: abs('/') };
+  return { '@context': 'https://schema.org', '@type': 'Article', headline, description, inLanguage: 'es', dateModified, mainEntityOfPage: abs(path), author: org, publisher: { ...org, logo: { '@type': 'ImageObject', url: abs('/favicon.svg') } } };
+}

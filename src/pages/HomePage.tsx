@@ -39,6 +39,12 @@ function GrowthSignals() {
   );
 }
 
+// Carreras destacadas (slugs de src/content/careers.mjs; literales para no cargar el contenido en el inicio).
+const HOME_CAREERS = [
+  ['data-analyst', 'Data Analyst'], ['data-engineer', 'Data Engineer'], ['data-scientist', 'Data Scientist'], ['ai-engineer', 'AI Engineer'],
+  ['software-developer', 'Software Developer'], ['cybersecurity-analyst', 'Cybersecurity Analyst'], ['business-analyst', 'Business Analyst']
+] as const;
+
 const TYPES: { type: ProgramType; icon: IconName; hint: string }[] = [
   { type: 'curso', icon: 'book', hint: 'Habilidades puntuales' },
   { type: 'bootcamp', icon: 'target', hint: 'Cambio de carrera' },
@@ -83,25 +89,23 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[radial-gradient(80%_70%_at_75%_30%,#0d1838_0%,#050816_70%)]" aria-hidden="true" />
         <GrowthSignals />
         <div className="container-page relative pb-16 pt-14 sm:pb-24 sm:pt-24">
-          <span className="eyebrow">Comparador de formación tecnológica</span>
-          <h1 className="mt-5 max-w-3xl text-[40px] leading-[1.02] text-white sm:text-6xl lg:text-7xl">
-            Encuentra la formación que te lleva al <span className="grad-text">siguiente nivel.</span>
+          <span className="eyebrow">Tu carrera primero. El curso después.</span>
+          <h1 className="mt-5 max-w-4xl text-[38px] leading-[1.04] text-white sm:text-6xl lg:text-[68px]">
+            Descubre qué aprender para llegar al <span className="grad-text">siguiente nivel profesional.</span>
           </h1>
           <p className="mt-5 max-w-2xl text-lg text-gray sm:text-xl">
-            Compara cursos, bootcamps, diplomados y maestrías en tecnología de las principales instituciones.
+            Analiza tu perfil, identifica las habilidades que necesitas desarrollar y compara cursos, diplomados, bootcamps y maestrías de las principales instituciones.
           </p>
 
-          <SearchBar size="hero" source="home" className="mt-8 max-w-3xl" />
+          <div className="mt-8 flex max-w-3xl flex-wrap gap-3">
+            <Link to="/analizar-perfil" className="btn btn-accent"><Icon name="sparkle" size={17} />Analizar mi perfil</Link>
+            <a href="#buscar" className="btn btn-primary" onClick={(e) => { e.preventDefault(); document.querySelector<HTMLInputElement>('#buscar input')?.focus(); }}><Icon name="search" size={17} />Buscar programas</a>
+            <Link to="/carreras" className="btn btn-ghost">Explorar carreras tecnológicas</Link>
+          </div>
 
-          <Link to="/mi-ruta" className="group mt-4 flex max-w-3xl items-center gap-4 rounded-2xl border border-violet/40 bg-violet/10 p-4 transition-colors hover:border-violet/70 hover:bg-violet/15">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet to-blue text-white"><Icon name="sparkle" size={20} /></span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-medium text-white">¿No sabes qué estudiar? Analiza mi perfil</span>
-              <span className="block text-sm text-gray">Sube tu CV y descubre tu brecha con el rol que buscas, tu salario referencial y qué estudiar.</span>
-            </span>
-            <span className="btn btn-accent btn-sm hidden shrink-0 sm:inline-flex">Analiza mi perfil <Icon name="arrow-right" size={15} className="transition-transform group-hover:translate-x-0.5" /></span>
-            <Icon name="arrow-right" size={18} className="shrink-0 text-violet-soft sm:hidden" />
-          </Link>
+          <div id="buscar" className="mt-6 max-w-3xl scroll-mt-24">
+            <SearchBar size="hero" source="home" />
+          </div>
 
           <div className="mt-5 flex max-w-3xl flex-wrap items-center gap-2">
             <span className="mr-1 text-sm text-muted">Búsquedas populares:</span>
@@ -144,6 +148,32 @@ export default function HomePage() {
             </li>
           ))}
         </ol>
+      </section>
+
+      {/* CARRERAS */}
+      <section className="container-page py-8" aria-labelledby="careers-title">
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <span className="label-mono">Carreras</span>
+            <h2 id="careers-title" className="mt-2 text-3xl text-white sm:text-4xl">¿A qué rol quieres llegar?</h2>
+            <p className="mt-2 max-w-2xl text-gray">Qué hace cada rol, qué habilidades pide y qué estudiar para llegar.</p>
+          </div>
+          <Link to="/carreras" className="btn btn-ghost btn-sm hidden sm:inline-flex">Ver carreras <Icon name="arrow-right" size={15} /></Link>
+        </div>
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {HOME_CAREERS.map(([slug, name]) => (
+            <li key={slug}>
+              <Link to={`/carreras/${slug}`} className="card group flex h-full items-center justify-between gap-2 p-4 font-medium text-white transition-colors hover:border-cyan/40 hover:text-cyan">
+                {name}<Icon name="arrow-right" size={15} className="shrink-0 text-dim group-hover:text-cyan" />
+              </Link>
+            </li>
+          ))}
+          <li>
+            <Link to="/guias" className="card group flex h-full items-center justify-between gap-2 p-4 text-gray transition-colors hover:border-cyan/40 hover:text-white">
+              Guías para decidir qué estudiar<Icon name="arrow-right" size={15} className="shrink-0 text-dim" />
+            </Link>
+          </li>
+        </ul>
       </section>
 
       {/* CATEGORÍAS */}

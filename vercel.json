@@ -142,6 +142,78 @@
     {
       "source": "/institucion/:slug/opiniones",
       "destination": "/api/seo?path=/institucion/:slug/opiniones"
+    },
+    {
+      "source": "/carreras",
+      "destination": "/api/seo?path=/carreras"
+    },
+    {
+      "source": "/carreras/:slug",
+      "destination": "/api/seo?path=/carreras/:slug"
+    },
+    {
+      "source": "/habilidades",
+      "destination": "/api/seo?path=/habilidades"
+    },
+    {
+      "source": "/habilidades/:slug",
+      "destination": "/api/seo?path=/habilidades/:slug"
+    },
+    {
+      "source": "/cursos",
+      "destination": "/api/seo?path=/cursos"
+    },
+    {
+      "source": "/cursos/:slug",
+      "destination": "/api/seo?path=/cursos/:slug"
+    },
+    {
+      "source": "/diplomados",
+      "destination": "/api/seo?path=/diplomados"
+    },
+    {
+      "source": "/diplomados/:slug",
+      "destination": "/api/seo?path=/diplomados/:slug"
+    },
+    {
+      "source": "/bootcamps",
+      "destination": "/api/seo?path=/bootcamps"
+    },
+    {
+      "source": "/bootcamps/:slug",
+      "destination": "/api/seo?path=/bootcamps/:slug"
+    },
+    {
+      "source": "/maestrias",
+      "destination": "/api/seo?path=/maestrias"
+    },
+    {
+      "source": "/maestrias/:slug",
+      "destination": "/api/seo?path=/maestrias/:slug"
+    },
+    {
+      "source": "/especializaciones",
+      "destination": "/api/seo?path=/especializaciones"
+    },
+    {
+      "source": "/especializaciones/:slug",
+      "destination": "/api/seo?path=/especializaciones/:slug"
+    },
+    {
+      "source": "/guias",
+      "destination": "/api/seo?path=/guias"
+    },
+    {
+      "source": "/guias/:slug",
+      "destination": "/api/seo?path=/guias/:slug"
+    },
+    {
+      "source": "/comparar/:slug",
+      "destination": "/api/seo?path=/comparar/:slug"
+    },
+    {
+      "source": "/analizar-perfil",
+      "destination": "/api/seo?path=/analizar-perfil"
     }
   ],
   "functions": {

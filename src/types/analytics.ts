@@ -17,6 +17,12 @@ export interface AnalyticsEventMap {
   reviews_viewed: { course_id: string; count: number };
   profile_submitted: { source: 'cv' | 'texto'; engine: string; stages: number; target_areas: string[] };
   route_course_clicked: { course_id: string; stage: number };
+  /** Páginas de contenido SEO (sin datos personales: solo slugs y conteos). */
+  career_viewed: { career: string; programs_count: number };
+  skill_viewed: { skill: string; programs_count: number };
+  landing_viewed: { kind: 'cursos' | 'tipo' | 'tipo-area' | 'guia' | 'comparacion' | 'hub'; slug: string; programs_count: number };
+  /** El formulario del analizador pasó la validación y se envió (el resultado es profile_submitted). */
+  profile_analysis_started: { source: 'cv' | 'texto'; prefilled_objective: boolean };
 }
 
 export interface CourseContext {

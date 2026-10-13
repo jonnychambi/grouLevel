@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Breadcrumbs } from '../components/ui/Breadcrumbs';
 import { Icon, type IconName } from '../components/ui/Icon';
 import { useSeo } from '../hooks/useSeo';
@@ -32,7 +32,10 @@ export default function RoutePage() {
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [description, setDescription] = useState('');
-  const [objective, setObjective] = useState('');
+  const [params] = useSearchParams();
+  // Objetivo precargado desde las páginas de carreras (?objetivo=Quiero ser Data Analyst). Solo texto, acotado.
+  const prefill = (params.get('objetivo') ?? '').replace(/[<>]/g, '').slice(0, 160);
+  const [objective, setObjective] = useState(prefill);
   const [prefs, setPrefs] = useState<ProfilePreferences>({ modality: 'cualquiera', budget_pen: null, hours_per_week: 6, target_role: '', expected_salary: null, salary_currency: 'PEN' });
   const [consent, setConsent] = useState(false);
   const [contactOk, setContactOk] = useState(false);
@@ -101,6 +104,7 @@ export default function RoutePage() {
     fd.set('consent', String(consent));
     fd.set('contact_ok', String(contactOk));
     fd.set('website', trap);
+    track('profile_analysis_started', { source: mode, prefilled_objective: !!prefill && objective.trim() === prefill.trim() });
     setSending(true);
     setServerError(null);
     try {
