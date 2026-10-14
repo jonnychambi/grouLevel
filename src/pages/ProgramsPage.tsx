@@ -15,6 +15,7 @@ import { SITE } from '../config/site';
 import { useCatalog } from '../hooks/useCatalog';
 import { createPersistentStore } from '../hooks/usePersistentStore';
 import { useSeo } from '../hooks/useSeo';
+import { categoryMeta, programsMeta } from '../content/meta.mjs';
 import { track } from '../services/analytics';
 import { queryPrograms } from '../services/catalogService';
 import type { Currency } from '../types';
@@ -90,17 +91,17 @@ export default function ProgramsPage() {
   };
 
   const recordedOnly = state.format === 'grabado';
+  const catMeta = category && catalog ? categoryMeta(category, catalog.courses.filter((c) => c.category === category.id)) : null;
+  const allMeta = programsMeta(catalog?.courses.length ?? 0);
   const title = category
-    ? `${recordedOnly ? 'Cursos grabados' : 'Programas'} de ${category.name}`
-    : state.q ? `Resultados para “${state.q}”` : recordedOnly ? 'Cursos grabados de tecnología' : 'Programas de tecnología';
+    ? recordedOnly ? `Cursos grabados de ${category.name}` : catMeta!.h1
+    : state.q ? `Resultados para “${state.q}”` : recordedOnly ? 'Cursos grabados de tecnología' : allMeta.h1;
   const path = category ? `/programas/${category.slug}` : '/programas';
   const crumbs = [{ label: 'Inicio', to: '/' }, { label: 'Programas', to: '/programas' }, ...(category ? [{ label: category.name }] : [])];
 
   useSeo({
-    title: category ? `Cursos y programas de ${category.name} en Perú` : state.q ? `Programas de ${state.q}` : 'Explora y compara programas de tecnología',
-    description: category
-      ? `Compara cursos, bootcamps, diplomados y maestrías de ${category.name}: precios, duración, modalidad y certificación. ${category.description}`
-      : 'Explora programas de Data, IA, desarrollo de software, cloud, ciberseguridad y más. Filtra por precio, modalidad, duración y nivel.',
+    title: catMeta ? catMeta.title : state.q ? `Programas de ${state.q}` : allMeta.title,
+    description: catMeta ? catMeta.description : allMeta.description,
     path,
     noindex: !!state.q || activeFilterCount(state) > (routeCategory ? 1 : 0) || state.format !== 'vivo',
     jsonLd: result ? [breadcrumbSchema(crumbs.map((c) => ({ name: c.label, path: c.to ?? path }))), itemListSchema(result.items)] : undefined

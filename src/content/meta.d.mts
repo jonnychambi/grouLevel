@@ -1,0 +1,26 @@
+/** Tipos de los metadatos compartidos (ver meta.mjs). */
+type Course = { id: string; name: string; program_type: string; category: string; institution_id: string; modality: string | null; status?: string; price: number | null; discount_price: number | null; currency: string; duration_hours: number | null; duration_text?: string | null; syllabus?: unknown[]; description?: string | null; short_description?: string | null };
+type Inst = { name: string; short_name?: string | null };
+type Meta = { title: string; description: string };
+type St = { count: number; institutions: number; pricePEN: unknown };
+export const BRAND: string;
+export function fitTitle(...candidates: string[]): string;
+export const TYPE_INFO: Record<string, { plural: string; singular: string; fem: boolean }>;
+export const TYPE_PLURAL: Record<string, string>;
+export const TYPE_SINGULAR: Record<string, string>;
+export function typesLabel(list: { program_type: string }[], max?: number): string;
+export const HOME_COPY: { h1: string; subtitle: string; note: string };
+export function homeMeta(nCourses: number, nInstitutions: number): Meta;
+export function programHeading(c: Course, inst: Inst | null | undefined): string;
+export function programTitle(c: Course, inst: Inst | null | undefined): string;
+export function programDescription(c: Course, inst: Inst | null | undefined): string;
+export function programCompareCopy(type: string): { question: string; cta: string; intro: string };
+export function comparablePrograms<T extends Course>(c: T, all: T[], limit?: number): T[];
+export function institutionMeta(inst: Inst, list: { program_type: string; institution_id: string; price: number | null; discount_price: number | null }[]): Meta;
+export function categoryMeta(cat: { name: string }, list: { program_type: string; institution_id: string; price: number | null; discount_price: number | null }[]): Meta & { h1: string };
+export function typeHubCopy(type: string): { h1: string; subtitle: string; note: string };
+export function typeHubMeta(type: string, st: St): Meta;
+export function typeAreaMeta(type: string, category: { name: string }, st: St): Meta & { label: string };
+export function programsMeta(nCourses: number): Meta & { h1: string };
+export const TYPE_PATHS: Record<'diplomado' | 'bootcamp' | 'maestria' | 'especializacion', string>;
+export function compareListingPath(c: { program_type: string; category: string }, all: { program_type: string; category: string; institution_id: string; status?: string }[], categorySlug?: string): string;

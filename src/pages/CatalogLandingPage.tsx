@@ -11,6 +11,7 @@ import {
   skillLandingMeta, skillLandings, skillPath, stats, typeAreaLandings, typeAreaMeta, typeAreaPath, typeHubMeta
 } from '../content/seoModel.mjs';
 import { breadcrumbSchema, itemListSchema } from '../utils/schema';
+import { typeHubCopy } from '../content/meta.mjs';
 import type { CourseWithInstitution } from '../types';
 import NotFoundPage from './NotFoundPage';
 
@@ -63,8 +64,8 @@ function TypeHub({ type, courses, categories }: { type: keyof typeof TYPE_PATHS;
   return (
     <Landing
       kind="tipo" slug={type} list={all} meta={typeHubMeta(type, stats(all))} path={`/${TYPE_PATHS[type]}`}
-      crumbs={[{ label: TYPE_PLURAL[type] }]} eyebrow="Compara por tipo" h1={`${TYPE_PLURAL[type]} de tecnología`} faqLabel={TYPE_SINGULAR[type]}
-      areas={areas.map((l) => ({ to: typeAreaPath(type, l.category.slug), label: `${TYPE_PLURAL[type]} de ${l.category.name}`, hint: `${l.courses.length} programas` }))}
+      crumbs={[{ label: TYPE_PLURAL[type] }]} eyebrow="Compara por tipo" h1={typeHubCopy(type).h1} intro={typeHubCopy(type).subtitle} note={typeHubCopy(type).note} faqLabel={TYPE_SINGULAR[type]}
+      areas={areas.map((l) => ({ to: typeAreaPath(type, l.category.slug), label: `${TYPE_PLURAL[type]} en ${l.category.name}`, hint: `${l.courses.length} programas` }))}
     />
   );
 }
@@ -84,9 +85,9 @@ function TypeAreaLanding({ type, slug, courses, categories }: { type: keyof type
   );
 }
 
-function Landing({ kind, slug, list, meta, path, crumbs, eyebrow, h1, intro, faqLabel, links = [], areas = [] }: {
+function Landing({ kind, slug, list, meta, path, crumbs, eyebrow, h1, intro, note, faqLabel, links = [], areas = [] }: {
   kind: 'cursos' | 'tipo' | 'tipo-area'; slug: string; list: CourseWithInstitution[]; meta: { title: string; description: string }; path: string;
-  crumbs: { label: string; to?: string }[]; eyebrow: string; h1: string; intro?: string; faqLabel: string;
+  crumbs: { label: string; to?: string }[]; eyebrow: string; h1: string; intro?: string; note?: string; faqLabel: string;
   links?: { to: string; label: string }[]; areas?: { to: string; label: string; hint?: string }[];
 }) {
   const st = stats(list);
@@ -100,6 +101,7 @@ function Landing({ kind, slug, list, meta, path, crumbs, eyebrow, h1, intro, faq
       <Breadcrumbs items={[{ label: 'Inicio', to: '/' }, ...crumbs]} />
       <PageHeader eyebrow={eyebrow} title={h1} intro={intro}>
         <StatsLine st={st} />
+        {note && <p className="mt-2 text-xs text-dim">{note}</p>}
       </PageHeader>
       <LinkCards title="Por área" items={areas} />
       <section className="mt-10" aria-label="Programas">

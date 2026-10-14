@@ -15,7 +15,8 @@ const LEVEL = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 import { buildContentRoutes } from './seoContentPages.mjs';
-import { fitTitle, isContentPath, matchesSkill, SKILLS, skillPath, typeAreaLandings, typeAreaPath, TYPE_PLURAL } from '../src/content/seoModel.mjs';
+import { HOME_COPY, compareListingPath, categoryMeta, programsMeta, comparablePrograms, homeMeta, institutionMeta, programCompareCopy, programDescription, programHeading, programTitle } from '../src/content/meta.mjs';
+import { TYPE_PATHS, isContentPath, matchesSkill, SKILLS, skillPath, typeAreaLandings, typeAreaPath, TYPE_PLURAL } from '../src/content/seoModel.mjs';
 
 export const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const clip = (s, n) => {
@@ -62,33 +63,35 @@ export function buildRoutes(catalog, { siteUrl, base = '', ratings = new Map(), 
     const inst = instById.get(c.institution_id);
     return `<li><a href="${href(`/programa/${c.slug}`)}">${esc(c.name)}</a> — ${esc(inst?.name ?? '')}. ${esc(facts(c))}</li>`;
   };
-  const organization = { '@context': 'https://schema.org', '@type': 'Organization', name: 'Groulevel', url: abs('/'), logo: `${siteUrl}/favicon.svg` };
+  // Groulevel es un comparador (Organization), no una institución educativa (esas son el `provider` de cada Course).
+  const ABOUT = 'Comparador de maestrías, diplomados, cursos y bootcamps de distintas universidades e instituciones.';
+  const organization = { '@context': 'https://schema.org', '@type': 'Organization', name: 'Groulevel', url: abs('/'), logo: `${siteUrl}/favicon.svg`, description: ABOUT };
 
   const routes = [];
 
   routes.push({
     path: '/', kind: 'catalog', lastmod: siteLastmod,
-    title: 'Groulevel | Compara cursos y descubre qué aprender',
-    description: `Analiza tu perfil, identifica las habilidades que necesitas y compara ${courses.length} cursos, diplomados, bootcamps y maestrías de ${institutions.length} instituciones en Perú.`,
+    ...homeMeta(courses.length, institutions.length),
     jsonLd: [
       organization,
-      { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Groulevel', url: abs('/'), inLanguage: 'es-PE', potentialAction: { '@type': 'SearchAction', target: `${abs('/programas')}?q={search_term_string}`, 'query-input': 'required name=search_term_string' } }
+      { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Groulevel', url: abs('/'), description: ABOUT, inLanguage: 'es-PE', publisher: { '@type': 'Organization', name: 'Groulevel', url: abs('/') }, potentialAction: { '@type': 'SearchAction', target: `${abs('/programas')}?q={search_term_string}`, 'query-input': 'required name=search_term_string' } }
     ],
-    body: `<h1>Descubre qué aprender para llegar al siguiente nivel profesional</h1>
-<p>Analiza tu perfil, identifica las habilidades que necesitas desarrollar y compara cursos, diplomados, bootcamps y maestrías de las principales instituciones.</p>
-<p><a href="${href('/analizar-perfil')}">Analizar mi perfil</a> · <a href="${href('/programas')}">Buscar programas</a> · <a href="${href('/carreras')}">Explorar carreras tecnológicas</a></p>
+    body: `<h1>${esc(HOME_COPY.h1)}</h1>
+<p>${esc(HOME_COPY.subtitle)}</p>
+<p><a href="${href('/programas')}">Buscar y comparar programas</a> · <a href="${href('/analizar-perfil')}">Analizar mi perfil</a> · <a href="${href('/carreras')}">Explorar carreras tecnológicas</a></p>
+<p>Compara por tipo: ${Object.entries(TYPE_PATHS).filter(([t]) => courses.filter((c) => c.program_type === t).length >= 3).map(([t, seg]) => `<a href="${href(`/${seg}`)}">${esc(TYPE_PLURAL[t])}</a>`).join(' · ')}</p>
+<p>${esc(HOME_COPY.note)}</p>
 <p>${courses.length} programas de ${institutions.length} instituciones: precios, duración, modalidad y fechas de inicio en un solo lugar. <a href="${href('/comparar')}">Comparar programas</a> · <a href="${href('/guias')}">Guías</a></p>
-<h2>Áreas</h2><ul>${categories.map((c) => `<li><a href="${href(`/programas/${c.slug}`)}">Cursos de ${esc(c.name)}</a> (${courses.filter((x) => x.category === c.id).length})</li>`).join('')}</ul>
-<h2>Instituciones</h2><ul>${institutions.map((i) => `<li><a href="${href(`/institucion/${i.slug}`)}">${esc(i.name)}</a></li>`).join('')}</ul>`
+<h2>Áreas</h2><ul>${categories.map((c) => `<li><a href="${href(`/programas/${c.slug}`)}">Programas de ${esc(c.name)}</a> (${courses.filter((x) => x.category === c.id).length})</li>`).join('')}</ul>
+<h2>Instituciones que puedes comparar</h2><ul>${institutions.map((i) => `<li><a href="${href(`/institucion/${i.slug}`)}">Programas de ${esc(i.name)}</a></li>`).join('')}</ul>`
   });
 
   const bcPrograms = breadcrumb([{ name: 'Inicio', path: '/' }, { name: 'Programas', path: '/programas' }]);
   routes.push({
     path: '/programas', kind: 'catalog', lastmod: siteLastmod,
-    title: 'Programas de tecnología, datos e IA en Perú | Groulevel',
-    description: `Explora ${courses.length} programas de Data, IA, desarrollo de software, cloud, ciberseguridad, producto y negocios digitales. Filtra por precio, modalidad, duración y nivel.`,
+    title: programsMeta(courses.length).title, description: programsMeta(courses.length).description,
     jsonLd: [bcPrograms.ld, itemList(courses.slice(0, 100))],
-    body: `${bcPrograms.html}<h1>Programas de tecnología</h1>
+    body: `${bcPrograms.html}<h1>${esc(programsMeta(courses.length).h1)}</h1>
 <h2>Por área</h2><ul>${categories.map((c) => `<li><a href="${href(`/programas/${c.slug}`)}">${esc(c.name)}</a></li>`).join('')}</ul>
 <h2>Todos los programas</h2><ul>${courses.map(courseItem).join('')}</ul>`
   });
@@ -108,12 +111,12 @@ export function buildRoutes(catalog, { siteUrl, base = '', ratings = new Map(), 
     const list = courses.filter((c) => c.category === cat.id);
     const bc = breadcrumb([{ name: 'Inicio', path: '/' }, { name: 'Programas', path: '/programas' }, { name: cat.name, path: `/programas/${cat.slug}` }]);
     const prices = list.map(priceOf).filter((p) => p != null && p > 0);
+    const catMeta = categoryMeta(cat, list);
     routes.push({
       path: `/programas/${cat.slug}`, kind: 'catalog', lastmod: lastmodOf(list),
-      title: fitTitle(`Cursos de ${cat.name} en Perú: ${list.length} programas comparados`, `Cursos de ${cat.name}: ${list.length} programas comparados`, `Cursos de ${cat.name}: compara programas`, `Cursos de ${cat.name}`),
-      description: clip(`Compara ${list.length} cursos, bootcamps, diplomados y maestrías de ${cat.name}: precios, duración, modalidad, inicio y certificación. ${cat.description ?? ''}`, 300),
+      title: catMeta.title, description: catMeta.description,
       jsonLd: [bc.ld, itemList(list)],
-      body: `${bc.html}<h1>Cursos y programas de ${esc(cat.name)}</h1><p>${esc(cat.description ?? '')}</p>
+      body: `${bc.html}<h1>${esc(catMeta.h1)}</h1><p>${esc(cat.description ?? '')}</p>
 <p>${list.length} programas de ${new Set(list.map((c) => c.institution_id)).size} instituciones${prices.length ? `, desde ${esc(money(Math.min(...prices), 'PEN'))}` : ''}.</p>
 <ul>${list.map(courseItem).join('')}</ul>
 ${byArea.get(cat.id)?.length ? `<h2>Por tipo de programa</h2><ul>${byArea.get(cat.id).map((l) => `<li><a href="${href(typeAreaPath(l.type, cat.slug))}">${esc(`${TYPE_PLURAL[l.type]} de ${cat.name}`)}</a> (${l.courses.length})</li>`).join('')}</ul>` : ''}
@@ -143,7 +146,10 @@ ${byArea.get(cat.id)?.length ? `<h2>Por tipo de programa</h2><ul>${byArea.get(ca
       ['Certificado', esc(c.certificate?.description ?? '')],
       ['Nivel', esc(LEVEL[c.level] ?? '')]
     ].filter(([, v]) => v);
-    const related = courses.filter((x) => x.category === c.category && x.id !== c.id).slice(0, 6);
+    const comparable = comparablePrograms(c, courses, 4);
+    const cmpCopy = programCompareCopy(c.program_type);
+    const cmpHref = compareListingPath(c, courses, cat?.slug);
+    const related = courses.filter((x) => x.category === c.category && x.id !== c.id && !comparable.includes(x)).slice(0, 6);
     const instance = {
       '@type': 'CourseInstance',
       courseMode: COURSE_MODE[c.modality] ?? 'online',
@@ -154,9 +160,9 @@ ${byArea.get(cat.id)?.length ? `<h2>Por tipo de programa</h2><ul>${byArea.get(ca
     };
     routes.push({
       path: `/programa/${c.slug}`, kind: 'catalog', lastmod: c.updated_at ?? null,
-      title: clip(`${c.name} – ${inst?.short_name ?? inst?.name ?? ''}`, 58) + ' | Groulevel',
-      altTitle: `${c.name} – ${inst?.short_name ?? inst?.name ?? ''}`,
-      description: clip(`${c.name} de ${inst?.name ?? ''}: ${[MODALITY[c.modality], duration(c), priceText(c), start ? `inicio ${start}` : null].filter(Boolean).join(', ')}. ${c.short_description ?? ''}`, 300),
+      title: programTitle(c, inst),
+      altTitle: `${programHeading(c, inst)} (${[MODALITY[c.modality], start].filter(Boolean).join(', ') || c.slug}) | Groulevel`,
+      description: programDescription(c, inst),
       image: c.image || null,
       jsonLd: [
         bc.ld,
@@ -178,8 +184,8 @@ ${byArea.get(cat.id)?.length ? `<h2>Por tipo de programa</h2><ul>${byArea.get(ca
           ...(rating ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(rating.avg), reviewCount: rating.count, bestRating: 5, worstRating: 1 } } : {})
         }) && courseLd.get(c.id)
       ],
-      body: `${bc.html}<h1>${esc(c.name)}</h1>
-<p>${esc(inst?.name ?? '')} · ${esc(facts(c))}</p>
+      body: `${bc.html}<h1>${esc(programHeading(c, inst))}</h1>
+<p>Programa de ${esc(inst?.name ?? '')} · ${esc(facts(c))}</p>
 ${rating ? `<p>Valoración: ${Number(rating.avg).toFixed(1)} de 5 (${rating.count} ${rating.count === 1 ? 'reseña' : 'reseñas'})</p>` : ''}
 <dl>${details.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
 <p>${esc(c.description)}</p>
@@ -188,7 +194,10 @@ ${c.objectives?.length ? `<h2>Lo que aprenderás</h2><ul>${c.objectives.map((o) 
 ${c.syllabus?.length ? `<h2>Temario</h2><ol>${c.syllabus.map((m) => `<li>${esc(m.title)}${m.hours ? ` (${m.hours} h)` : ''}</li>`).join('')}</ol>` : ''}
 ${c.tools?.length ? `<h2>Herramientas</h2><p>${c.tools.map(esc).join(', ')}</p>` : ''}
 ${c.requirements?.length ? `<h2>Requisitos</h2><ul>${c.requirements.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
-${related.length ? `<h2>Programas similares de ${esc(cat?.name ?? '')}</h2><ul>${related.map(courseItem).join('')}</ul>` : ''}
+<h2>${esc(cmpCopy.question)}</h2><p>${esc(cmpCopy.intro)}</p>
+${comparable.length ? `<ul>${comparable.map(courseItem).join('')}</ul>` : ''}
+<p><a href="${href(cmpHref)}">${esc(cmpCopy.cta)}</a> · <a href="${href('/comparar')}">Abrir el comparador</a></p>
+${related.length ? `<h2>Otros programas de ${esc(cat?.name ?? '')}</h2><ul>${related.map(courseItem).join('')}</ul>` : ''}
 ${(() => { const sk = SKILLS.filter((s) => matchesSkill(s, c)).slice(0, 4); return sk.length ? `<h2>Habilidades que desarrolla</h2><ul>${sk.map((s) => `<li><a href="${href(skillPath(s.slug))}">${esc(s.name)}</a></li>`).join('')}</ul>` : ''; })()}`
     });
   }
@@ -213,14 +222,13 @@ ${(() => { const sk = SKILLS.filter((s) => matchesSkill(s, c)).slice(0, 4); retu
     const bc = breadcrumb([{ name: 'Inicio', path: '/' }, { name: 'Instituciones', path: '/instituciones' }, { name: i.name, path: `/institucion/${i.slug}` }]);
     routes.push({
       path: `/institucion/${i.slug}`, kind: 'catalog', lastmod: lastmodOf(list),
-      title: clip(`${i.name}: ${list.length} cursos y programas`, 58) + ' | Groulevel',
-      description: clip(`Programas de ${i.name} en tecnología y negocios: precios, duración, modalidad y fechas de inicio. ${i.description ?? ''}`, 300),
+      ...institutionMeta(i, list),
       jsonLd: [
         bc.ld,
         orgLd(i),
         itemList(list)
       ],
-      body: `${bc.html}<h1>${esc(i.name)}</h1><p>${esc(i.description)}</p>
+      body: `${bc.html}<h1>${esc(i.name)}</h1><p>${esc(institutionMeta(i, list).description)}</p><p>${esc(i.description)}</p>
 ${instFacts(list)}
 <h2>Programas (${list.length})</h2><ul>${list.map(courseItem).join('')}</ul>
 <p><a href="${href('/comparar')}">Comparar programas</a>${reviews?.items.get(`i:${i.id}`)?.length ? ` · <a href="${href(`/institucion/${i.slug}/opiniones`)}">Opiniones de ${esc(i.name)}</a>` : ''}</p>`

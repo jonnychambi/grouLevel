@@ -5,6 +5,8 @@ import { effectivePrice } from './format';
 import { MODALITY_LABELS } from './labels';
 
 const abs = (path: string) => `${SITE.url}${path}`;
+/** Groulevel es un comparador (Organization), no una institución educativa. Igual que en scripts/seoPages.mjs. */
+const ABOUT = 'Comparador de maestrías, diplomados, cursos y bootcamps de distintas universidades e instituciones.';
 
 export function websiteSchema() {
   return {
@@ -12,6 +14,9 @@ export function websiteSchema() {
     '@type': 'WebSite',
     name: SITE.name,
     url: abs('/'),
+    description: ABOUT,
+    inLanguage: 'es-PE',
+    publisher: { '@type': 'Organization', name: SITE.name, url: abs('/') },
     potentialAction: {
       '@type': 'SearchAction',
       target: `${abs('/programas')}?q={search_term_string}`,
@@ -21,7 +26,7 @@ export function websiteSchema() {
 }
 
 export function siteOrganizationSchema() {
-  return { '@context': 'https://schema.org', '@type': 'Organization', name: SITE.name, url: abs('/'), logo: abs('/favicon.svg') };
+  return { '@context': 'https://schema.org', '@type': 'Organization', name: SITE.name, url: abs('/'), logo: abs('/favicon.svg'), description: ABOUT };
 }
 
 export function breadcrumbSchema(items: { name: string; path: string }[]) {

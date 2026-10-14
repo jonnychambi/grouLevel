@@ -9,6 +9,7 @@ import {
   HUB_META, TYPE_SINGULAR, coursesHubDescription, coursesForCareer, coursesForSkill, coursesPath, faqFor, fitTitle, skillLandingMeta, typeAreaMeta, typeHubMeta, guidePath, skillBySlug, skillLandings, skillPath, stats, typeAreaLandings, typeAreaPath
 } from '../src/content/seoModel.mjs';
 import { ANALYZER_SECTIONS } from '../src/content/analyzer.mjs';
+import { typeHubCopy } from '../src/content/meta.mjs';
 
 export { ANALYZER_SECTIONS };
 
@@ -145,8 +146,8 @@ ${analyzerCta('Analiza tu perfil y descubre qué te falta')}`
       path: `/${seg}`, kind: 'catalog', lastmod: ctx.lastmodOf(all),
       ...typeHubMeta(type, st),
       jsonLd: [bcHub.ld, itemList(all)],
-      body: `${bcHub.html}<h1>${TYPE_PLURAL[type]} de tecnología</h1><p>${escHtml(statsLine(st))}</p>
-${mine.length ? `<h2>Por área</h2><ul>${mine.map((l) => `<li>${link(typeAreaPath(type, l.category.slug), `${TYPE_PLURAL[type]} de ${l.category.name}`)} (${l.courses.length})</li>`).join('')}</ul>` : ''}
+      body: `${bcHub.html}<h1>${escHtml(typeHubCopy(type).h1)}</h1><p>${escHtml(typeHubCopy(type).subtitle)}</p><p>${escHtml(statsLine(st))}</p><p><small>${escHtml(typeHubCopy(type).note)}</small></p>
+${mine.length ? `<h2>Por área</h2><ul>${mine.map((l) => `<li>${link(typeAreaPath(type, l.category.slug), `${TYPE_PLURAL[type]} en ${l.category.name}`)} (${l.courses.length})</li>`).join('')}</ul>` : ''}
 <h2>Todos los ${TYPE_PLURAL[type].toLowerCase()}</h2>${programList(all)}
 ${faqHtml(faqFor(TYPE_SINGULAR[type], st, instNames(all)))}`
     });

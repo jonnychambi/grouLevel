@@ -8,6 +8,7 @@ import { Icon } from '../components/ui/Icon';
 import { Stars } from '../components/reviews/Stars';
 import { useCatalog } from '../hooks/useCatalog';
 import { useSeo } from '../hooks/useSeo';
+import { institutionMeta } from '../content/meta.mjs';
 import { track } from '../services/analytics';
 import { coursesByInstitution } from '../services/catalogService';
 import { isRecorded } from '../utils/filters';
@@ -31,8 +32,7 @@ export default function InstitutionDetailPage() {
   useSeo(
     institution
       ? {
-          title: `${institution.name}: programas y cursos`,
-          description: `${institution.description.slice(0, 140)} Compara sus ${programs.length} programas en Groulevel.`,
+          ...institutionMeta(institution, programs),
           path: `/institucion/${institution.slug}`,
           jsonLd: [organizationSchema(institution), breadcrumbSchema([{ name: 'Inicio', path: '/' }, { name: 'Instituciones', path: '/instituciones' }, { name: institution.name, path: `/institucion/${institution.slug}` }])]
         }
@@ -65,6 +65,7 @@ export default function InstitutionDetailPage() {
               </p>
             </div>
           </div>
+          <p className="mt-5 max-w-2xl text-gray">{institutionMeta(institution, programs).description}</p>
           {institution.rating != null && (institution.reviews_count ?? 0) > 0 && (
             <p className="mt-5 flex items-center gap-2"><Stars value={institution.rating} size={18} /><span className="tnum text-lg font-semibold text-white">{institution.rating.toFixed(1)}</span><a href="#resenas" className="text-sm text-muted hover:text-white">· {institution.reviews_count} {institution.reviews_count === 1 ? 'opinión' : 'opiniones'} de estudiantes</a></p>
           )}

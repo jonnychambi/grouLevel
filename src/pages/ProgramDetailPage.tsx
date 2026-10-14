@@ -1,6 +1,8 @@
 import { useEffect, type ReactNode } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CompareButton } from '../components/course/CompareButton';
+import { CourseList } from '../components/course/CourseList';
+import { compareListingPath, comparablePrograms, programCompareCopy, programDescription, programTitle } from '../content/meta.mjs';
 import { FavoriteButton } from '../components/course/FavoriteButton';
 import { RecentlyViewed } from '../components/course/RecentlyViewed';
 import { RelatedCourses } from '../components/course/RelatedCourses';
@@ -24,7 +26,7 @@ import { useSeo } from '../hooks/useSeo';
 import { courseContext, track } from '../services/analytics';
 import { getRelated } from '../services/catalogService';
 import { durationLabel, effectivePrice, formatDate, formatMoney, formatWeeks, startLabel } from '../utils/format';
-import { CERTIFICATE_LABELS, LEVEL_LABELS, MODALITY_EXPLANATIONS, MODALITY_LABELS, MODALITY_SHORT, PROGRAM_TYPE_LABELS } from '../utils/labels';
+import { CERTIFICATE_LABELS, LEVEL_LABELS, MODALITY_EXPLANATIONS, MODALITY_LABELS, MODALITY_SHORT } from '../utils/labels';
 import type { CourseWithInstitution } from '../types';
 import { breadcrumbSchema, courseSchema } from '../utils/schema';
 import { TypeBadge } from '../components/course/TypeBadge';
@@ -38,6 +40,7 @@ const SECTIONS = [
   { id: 'certificacion', label: 'Certificación' },
   { id: 'precio', label: 'Precio' },
   { id: 'institucion', label: 'Institución' },
+  { id: 'comparar', label: 'Comparar' },
   { id: 'resenas', label: 'Valoraciones' }
 ];
 
@@ -58,15 +61,6 @@ function KeyFact({ icon, label, value, sub }: { icon: IconName; label: string; v
       {sub && <dd className="text-xs text-muted">{sub}</dd>}
     </div>
   );
-}
-
-function seoDescription(c: CourseWithInstitution): string {
-  const p = effectivePrice(c);
-  const parts = [PROGRAM_TYPE_LABELS[c.program_type]];
-  if (c.modality) parts.push(MODALITY_LABELS[c.modality].toLowerCase());
-  if (c.duration_hours) parts.push(`${c.duration_hours} horas`);
-  if (p != null) parts.push(p === 0 ? 'gratis' : `desde ${formatMoney(p, c.currency)}`);
-  return `${c.short_description} ${parts.join(', ')}. Compáralo con otros programas en Groulevel.`.slice(0, 300);
 }
 
 function includesList(c: CourseWithInstitution): string[] {
@@ -95,7 +89,8 @@ export default function ProgramDetailPage() {
   const { slug = '' } = useParams();
   const { catalog, loading, error, retry } = useCatalog();
   const { push } = useRecentlyViewed();
-  const { count: compareCount } = useCompare();
+  const { count: compareCount, replace: replaceCompare } = useCompare();
+  const navigate = useNavigate();
   const openLead = useLeadModal();
   const notify = useToast();
   const [course] = useCourseDetails([catalog?.bySlug.get(slug)]);
@@ -125,8 +120,8 @@ export default function ProgramDetailPage() {
   useSeo(
     course
       ? {
-          title: `${course.name} · ${course.institution.short_name}`,
-          description: seoDescription(course),
+          title: programTitle(course, course.institution),
+          description: programDescription(course, course.institution),
           path: `/programa/${course.slug}`,
           type: 'product',
           jsonLd: [courseSchema(course), breadcrumbSchema(crumbs.map((c) => ({ name: c.label, path: c.to ?? `/programa/${course.slug}` })))]
@@ -144,7 +139,15 @@ export default function ProgramDetailPage() {
     );
   }
 
-  const related = getRelated(catalog, course, 4);
+  const comparable = comparablePrograms(course, catalog.courses, 4);
+  const cmpCopy = programCompareCopy(course.program_type);
+  const cmpListing = compareListingPath(course, catalog.courses, category?.slug);
+  const related = getRelated(catalog, course, 8).filter((c) => !comparable.includes(c)).slice(0, 4);
+  const compareWithSimilar = () => {
+    replaceCompare([course.id, ...comparable.slice(0, 3).map((c) => c.id)]);
+    track('compare_added', { ...courseContext(course), compare_count: Math.min(4, comparable.length + 1), source: 'detalle-similares' });
+    navigate('/comparar');
+  };
   const price = effectivePrice(course);
   const learn = course.objectives.length ? course.objectives : course.skills;
   const includes = includesList(course);
@@ -184,7 +187,7 @@ export default function ProgramDetailPage() {
                 {course.level && <Badge>{LEVEL_LABELS[course.level]}</Badge>}
                 {course.featured && <Badge tone="featured" mono>Destacado</Badge>}
               </div>
-              <h1 className="mt-4 text-4xl leading-[1.05] text-white sm:text-5xl">{course.name}</h1>
+              <h1 className="mt-4 text-4xl leading-[1.05] text-white sm:text-5xl">{course.name} <span className="text-gray">- {course.institution.short_name || course.institution.name}</span></h1>
               <p className="mt-4 max-w-2xl text-lg text-gray">{course.short_description}</p>
               <a href="#resenas" className="mt-4 inline-flex items-center gap-2 text-sm text-gray hover:text-white">
                 {course.rating != null && course.reviews_count ? (
@@ -390,6 +393,15 @@ export default function ProgramDetailPage() {
                   Página oficial del programa <Icon name="external" size={14} />
                 </a>
               </div>
+            </div>
+          </Section>
+
+          <Section id="comparar" title={cmpCopy.question}>
+            <p className="max-w-3xl text-gray">{cmpCopy.intro}</p>
+            {comparable.length > 0 && <div className="mt-5"><CourseList courses={comparable} source="detalle" /></div>}
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link to={cmpListing} className="btn btn-accent">{cmpCopy.cta} <Icon name="arrow-right" size={16} /></Link>
+              {comparable.length > 0 && <button className="btn btn-ghost h-auto max-w-full whitespace-normal py-2.5 text-left" onClick={compareWithSimilar}><Icon name="compare" size={16} className="shrink-0" />Comparar lado a lado con {comparable.length === 1 ? 'esta opción' : `estas ${comparable.length} opciones`}</button>}
             </div>
           </Section>
 

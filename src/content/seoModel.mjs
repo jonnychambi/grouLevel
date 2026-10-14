@@ -13,14 +13,15 @@ import { SKILLS } from './skills.mjs';
 import { COMPARISONS } from './comparisons.mjs';
 import { GUIDES } from './guides.mjs';
 
-export { CAREERS, SKILLS, COMPARISONS, GUIDES };
+import { TYPE_PATHS, TYPE_PLURAL, TYPE_SINGULAR, fitTitle, typeAreaMeta, typeHubMeta } from './meta.mjs';
+
+export { CAREERS, SKILLS, COMPARISONS, GUIDES, TYPE_PLURAL, TYPE_SINGULAR, fitTitle, typeAreaMeta, typeHubMeta };
 
 export const MIN = { skill: 5, typeArea: 3, institutions: 2 };
 export const CONTENT_UPDATED = '2026-10-13';
 
 /** Tipos de programa con página propia (ruta en plural). */
-export const TYPE_PATHS = { diplomado: 'diplomados', bootcamp: 'bootcamps', maestria: 'maestrias', especializacion: 'especializaciones' };
-export const TYPE_PLURAL = { diplomado: 'Diplomados', bootcamp: 'Bootcamps', maestria: 'Maestrías', especializacion: 'Especializaciones', curso: 'Cursos' };
+export { TYPE_PATHS };
 export const TYPE_BY_PATH = Object.fromEntries(Object.entries(TYPE_PATHS).map(([t, p]) => [p, t]));
 
 export const careerPath = (slug) => `/carreras/${slug}`;
@@ -144,13 +145,6 @@ export function comparisonStats(comparison, courses) {
   });
 }
 
-/** Primer título candidato que cabe en ≈ 65 caracteres (con la marca si entra; si no, sin ella). */
-export function fitTitle(...candidates) {
-  const max = 65;
-  for (const t of candidates) if (`${t} | Groulevel`.length <= max) return `${t} | Groulevel`;
-  for (const t of candidates) if (t.length <= max) return t;
-  return candidates.at(-1);
-}
 
 const clipText = (s, n) => (String(s).length <= n ? String(s) : `${String(s).slice(0, n - 1).replace(/\s+\S*$/, '')}…`);
 const fromPrice = (st) => (st.pricePEN ? `, desde ${soles(st.pricePEN.min)}` : '');
@@ -168,17 +162,3 @@ export const skillLandingMeta = (skill, st) => ({
   title: fitTitle(`Cursos de ${skill.name}: compara precios y programas`, `Cursos de ${skill.name}: compara precios`, `Cursos de ${skill.name}: compara programas`),
   description: clipText(`Compara ${st.count} cursos y programas de ${skill.name} de ${st.institutions} instituciones por precio, duración, modalidad y contenido${fromPrice(st)}. Encuentra la formación adecuada para tu perfil.`, 300)
 });
-export const typeHubMeta = (type, st) => ({
-  title: `${TYPE_PLURAL[type]} de tecnología en Perú: compara | Groulevel`,
-  description: clipText(`Compara ${st.count} ${TYPE_PLURAL[type].toLowerCase()} de tecnología, datos e IA de ${st.institutions} instituciones: precio, duración, modalidad y contenido.`, 300)
-});
-export const typeAreaMeta = (type, category, st) => {
-  const label = `${TYPE_PLURAL[type]} de ${category.name}`;
-  return {
-    label,
-    title: fitTitle(`${label} en Perú: compara ${st.count} programas`, `${label}: compara ${st.count} programas`, `${label}: compara programas`, label),
-    description: clipText(`Compara ${st.count} ${TYPE_PLURAL[type].toLowerCase()} de ${category.name} de ${st.institutions} instituciones por precio, duración, modalidad y contenido${fromPrice(st)}.`, 300)
-  };
-};
-/** Etiqueta en singular para las preguntas frecuentes ("diplomado de Data Analytics"). */
-export const TYPE_SINGULAR = { diplomado: 'diplomado', bootcamp: 'bootcamp', maestria: 'maestría', especializacion: 'especialización', curso: 'curso' };

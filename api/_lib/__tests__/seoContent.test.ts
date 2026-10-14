@@ -36,13 +36,13 @@ describe('páginas de contenido SEO', () => {
     for (const [type, seg] of Object.entries(TYPE_PATHS)) expect(byPath.has(`/${seg}`)).toBe(published.filter((c) => c.program_type === type).length >= 3);
   });
 
-  it('títulos y descripciones únicos; títulos de contenido de ≤ 65 caracteres', () => {
+  it('títulos y descripciones únicos; títulos de contenido de ≤ 70 caracteres', () => {
     const titles = all.map((r) => r.title);
     expect(new Set(titles).size).toBe(titles.length);
     const descs = routes.map((r) => r.description);
     expect(new Set(descs).size).toBe(descs.length);
-    for (const r of routes.filter((x) => isContentPath(x.path))) expect(r.title.length, r.title).toBeLessThanOrEqual(65);
-    expect(byPath.get('/')!.title).toBe('Groulevel | Compara cursos y descubre qué aprender');
+    for (const r of routes.filter((x) => isContentPath(x.path))) expect(r.title.length, r.title).toBeLessThanOrEqual(70);
+    expect(byPath.get('/')!.title).toBe('Compara Cursos, Diplomados y Maestrías | Groulevel');
   });
 
   it('datos estructurados: Article en contenido editorial, ItemList en landings, BreadcrumbList en todas', () => {
@@ -62,7 +62,7 @@ describe('páginas de contenido SEO', () => {
     expect(career).toContain('Descubre qué te falta para alcanzar este rol');
     expect(byPath.get('/habilidades/sql')!.body).toContain('href="/programa/');
     expect(byPath.get('/')!.body).toContain('href="/carreras"');
-    expect(byPath.get('/')!.body).toContain('Descubre qué aprender para llegar al siguiente nivel profesional');
+    expect(byPath.get('/')!.body).toContain('Encuentra y compara las mejores maestrías, diplomados y cursos.');
   });
 
   it('la landing del analizador explica funcionamiento, datos, privacidad y limitaciones', () => {

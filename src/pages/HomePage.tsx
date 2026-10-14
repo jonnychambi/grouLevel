@@ -9,6 +9,7 @@ import { PriceDisplay } from '../components/ui/PriceDisplay';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCompare } from '../hooks/useCompare';
 import { useSeo } from '../hooks/useSeo';
+import { HOME_COPY, homeMeta } from '../content/meta.mjs';
 import { featuredCourses } from '../services/catalogService';
 import { siteOrganizationSchema, websiteSchema } from '../utils/schema';
 import { PROGRAM_TYPE_LABELS } from '../utils/labels';
@@ -59,7 +60,8 @@ export default function HomePage() {
   const { replace } = useCompare();
   const navigate = useNavigate();
 
-  useSeo({ path: '/', jsonLd: [siteOrganizationSchema(), websiteSchema()] });
+  const meta = homeMeta(catalog?.courses.length ?? 0, catalog?.institutions.length ?? 0);
+  useSeo({ title: meta.title, description: catalog ? meta.description : HOME_COPY.subtitle, path: '/', jsonLd: [siteOrganizationSchema(), websiteSchema()] });
 
   const counts = useMemo(() => {
     const m = new Map<string, number>();
@@ -89,17 +91,15 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[radial-gradient(80%_70%_at_75%_30%,#0d1838_0%,#050816_70%)]" aria-hidden="true" />
         <GrowthSignals />
         <div className="container-page relative pb-16 pt-14 sm:pb-24 sm:pt-24">
-          <span className="eyebrow">Tu carrera primero. El curso después.</span>
+          <span className="eyebrow">Comparador de formación profesional</span>
           <h1 className="mt-5 max-w-4xl text-[38px] leading-[1.04] text-white sm:text-6xl lg:text-[68px]">
-            Descubre qué aprender para llegar al <span className="grad-text">siguiente nivel profesional.</span>
+            Encuentra y compara las mejores <span className="grad-text">maestrías, diplomados y cursos.</span>
           </h1>
-          <p className="mt-5 max-w-2xl text-lg text-gray sm:text-xl">
-            Analiza tu perfil, identifica las habilidades que necesitas desarrollar y compara cursos, diplomados, bootcamps y maestrías de las principales instituciones.
-          </p>
+          <p className="mt-5 max-w-2xl text-lg text-gray sm:text-xl">{HOME_COPY.subtitle}</p>
 
           <div className="mt-8 flex max-w-3xl flex-wrap gap-3">
-            <Link to="/analizar-perfil" className="btn btn-accent"><Icon name="sparkle" size={17} />Analizar mi perfil</Link>
-            <a href="#buscar" className="btn btn-primary" onClick={(e) => { e.preventDefault(); document.querySelector<HTMLInputElement>('#buscar input')?.focus(); }}><Icon name="search" size={17} />Buscar programas</a>
+            <a href="#buscar" className="btn btn-accent" onClick={(e) => { e.preventDefault(); document.querySelector<HTMLInputElement>('#buscar input')?.focus(); }}><Icon name="search" size={17} />Buscar programas</a>
+            <Link to="/analizar-perfil" className="btn btn-primary"><Icon name="sparkle" size={17} />Analizar mi perfil</Link>
             <Link to="/carreras" className="btn btn-ghost">Explorar carreras tecnológicas</Link>
           </div>
 
@@ -114,7 +114,9 @@ export default function HomePage() {
             ))}
           </div>
 
-          <dl className="mt-14 grid max-w-3xl grid-cols-3 gap-4 border-t border-line pt-6">
+          <p className="mt-6 max-w-3xl text-xs text-muted">{HOME_COPY.note}</p>
+
+          <dl className="mt-10 grid max-w-3xl grid-cols-3 gap-4 border-t border-line pt-6">
             {[
               { k: 'Programas en vivo', v: catalog?.live.length },
               { k: 'Instituciones', v: catalog?.institutions.length },
