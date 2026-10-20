@@ -98,7 +98,7 @@ export function Header() {
               <Link to="/mi-ruta" className="btn btn-accent w-full"><Icon name="sparkle" size={16} />Analiza mi perfil</Link>
             </div>
             <nav aria-label="Principal móvil" className="flex flex-col gap-1 p-4">
-              {[...NAV, { to: '/guias', label: 'Guías' }, { to: '/nosotros', label: 'Nosotros' }, { to: '/favoritos', label: 'Favoritos' }, ...(accumulated != null ? [{ to: '/mis-creditos', label: 'Mis créditos' }] : [])].map((n) => (
+              {[...NAV, { to: '/guias', label: 'Guías' }, { to: '/rewards', label: 'Rewards: gana S/ 100' }, { to: '/nosotros', label: 'Nosotros' }, { to: '/favoritos', label: 'Favoritos' }, ...(accumulated != null ? [{ to: '/mis-creditos', label: 'Mis créditos' }] : [])].map((n) => (
                 <NavLink key={n.to} to={n.to} className={({ isActive }) => `flex items-center justify-between rounded-xl px-4 py-3.5 text-lg ${isActive ? 'bg-raise text-white' : 'text-gray'}`}>
                   {n.label}
                   {n.to === '/comparar' && count > 0 && <span className="font-mono text-sm text-cyan">{count}/3</span>}

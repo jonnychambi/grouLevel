@@ -20,6 +20,11 @@
       ],
       "destination": "https://www.groulevel.com/:path",
       "permanent": true
+    },
+    {
+      "source": "/recompensas",
+      "destination": "/rewards",
+      "permanent": true
     }
   ],
   "headers": [

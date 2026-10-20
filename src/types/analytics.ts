@@ -22,6 +22,10 @@ export interface AnalyticsEventMap {
   skill_viewed: { skill: string; programs_count: number };
   landing_viewed: { kind: 'cursos' | 'tipo' | 'tipo-area' | 'guia' | 'comparacion' | 'hub'; slug: string; programs_count: number };
   /** El formulario del analizador pasó la validación y se envió (el resultado es profile_submitted). */
+  /** Groulevel Rewards (sin datos personales: solo la acción y el canal). */
+  rewards_viewed: { referred: boolean; signed_in: boolean };
+  rewards_cta_clicked: { cta: 'resena' | 'invitar' | 'institucion' | 'mis-creditos' };
+  referral_shared: { channel: 'whatsapp' | 'linkedin' | 'email' | 'copiar' | 'nativo' };
   profile_analysis_started: { source: 'cv' | 'texto'; prefilled_objective: boolean };
 }
 

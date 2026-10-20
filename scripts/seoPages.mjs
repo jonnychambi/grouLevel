@@ -15,6 +15,7 @@ const LEVEL = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 import { buildContentRoutes } from './seoContentPages.mjs';
+import { REWARDS_FAQ, REWARDS_HERO, REWARDS_META, REWARDS_RULES, REWARDS_STEPS } from '../src/content/rewards.mjs';
 import { HOME_COPY, compareListingPath, categoryMeta, programsMeta, comparablePrograms, homeMeta, institutionMeta, programCompareCopy, programDescription, programHeading, programTitle } from '../src/content/meta.mjs';
 import { TYPE_PATHS, isContentPath, matchesSkill, SKILLS, skillPath, typeAreaLandings, typeAreaPath, TYPE_PLURAL } from '../src/content/seoModel.mjs';
 
@@ -303,6 +304,11 @@ export function staticRoutes(base = '') {
   return [
     { path: '/comparar', title: 'Comparador de programas de tecnología | Groulevel', description: 'Compara hasta 4 programas de tecnología lado a lado: precio, duración, modalidad, certificación, docentes y financiamiento.', body: `<h1>Comparador de programas</h1><p>Elige hasta 4 programas y compáralos lado a lado.</p><p><a href="${base}/programas">Explorar programas</a> · <a href="${base}/guias">Guías y comparaciones</a></p>` },
     { path: '/opinar', title: 'Opina sobre tu institución o programa | Groulevel', description: 'Comparte tu experiencia como estudiante o egresado: calidad académica, docentes, cumplimiento y relación calidad-precio. Reseñas verificadas en Groulevel.', body: `<h1>Opina sobre tu institución</h1><p>Tu experiencia ayuda a otros profesionales a elegir dónde estudiar tecnología.</p><p><a href="${base}/instituciones">Ver instituciones</a></p>` },
+    { path: '/rewards', ...REWARDS_META, jsonLd: [{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: REWARDS_FAQ.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }],
+      body: `<h1>${esc(REWARDS_HERO.h1)}</h1><p>${esc(REWARDS_HERO.subtitle)}</p><p><a href="${base}/opinar">Escribir mi reseña</a> · <a href="${base}/mis-creditos">Ver mis créditos</a></p>
+<h2>Cómo funciona</h2><ol>${REWARDS_STEPS.map((x) => `<li><strong>${esc(x.title)}:</strong> ${esc(x.text)}</li>`).join('')}</ol>
+<h2>Bases de la campaña</h2><ul>${REWARDS_RULES.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+<h2>Preguntas frecuentes</h2>${REWARDS_FAQ.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join('')}` },
     { path: '/mis-creditos', index: false, title: 'Mis créditos | Groulevel', description: 'Tus créditos de descuento en Groulevel.', body: '<h1>Mis créditos</h1>' },
     { path: '/instituciones/partners', title: 'Para instituciones: publica tus programas | Groulevel', description: 'Publica tus programas de tecnología en Groulevel y recibe leads calificados con Signal Score™, visibilidad destacada y métricas de interés.', body: '<h1>Conecta tus programas con profesionales que están buscando dónde estudiar</h1>' },
     { path: '/nosotros', title: 'Nosotros | Groulevel', description: 'Elegir dónde aprender tecnología no debería ser complicado. Groulevel hace más transparente y eficiente la decisión de formación profesional.', body: `<h1>Elegir dónde aprender tecnología no debería ser complicado</h1><p><a href="${base}/programas">Ver programas</a></p>` },

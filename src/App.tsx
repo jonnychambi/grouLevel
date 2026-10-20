@@ -28,6 +28,7 @@ const SkillsPage = lazy(() => import('./pages/SkillsPage'));
 const GuidesPage = lazy(() => import('./pages/GuidesPage'));
 const CatalogLandingPage = lazy(() => import('./pages/CatalogLandingPage'));
 const AnalyzerLandingPage = lazy(() => import('./pages/AnalyzerLandingPage'));
+const RewardsPage = lazy(() => import('./pages/RewardsPage'));
 
 export default function App() {
   return (
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="institucion/:slug" element={<InstitutionDetailPage />} />
         <Route path="institucion/:slug/opiniones" element={<ReviewsPage scope="institucion" />} />
         <Route path="opinar" element={<OpinarPage />} />
+        <Route path="rewards" element={<RewardsPage />} />
         <Route path="mis-creditos" element={<MisCreditosPage />} />
         <Route path="nosotros" element={<AboutPage />} />
         <Route path="favoritos" element={<FavoritesPage />} />

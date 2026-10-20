@@ -245,6 +245,7 @@ export default function OpinarPage() {
                   <li>· No depende de tu calificación: valoramos igual opiniones positivas y críticas.</li>
                   <li>· Se activa con la reseña publicada y la constancia verificada.</li>
                   <li>· Las reseñas con crédito se identifican públicamente como “Incentivada”.</li>
+                  <li>· <Link to="/rewards" className="text-blue-soft hover:text-white">Bases de Groulevel Rewards</Link></li>
                 </ul>
                 {wantsIncentive && !evidence && <p className="mt-3 text-sm text-warn">Adjunta una constancia en el paso anterior: sin verificación el crédito no se activa.</p>}
               </Section>

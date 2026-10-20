@@ -18,7 +18,7 @@ export default function MisCreditosPage() {
       <header className="mt-5 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
           <h1 className="text-3xl text-white sm:text-4xl">Mis créditos</h1>
-          <p className="mt-2 text-gray">Ganas S/ 100 por cada reseña y S/ 100 por cada persona que invites y opine. Úsalos como descuento adicional en el programa que elijas.</p>
+          <p className="mt-2 text-gray">Ganas S/ 100 por cada reseña y S/ 100 por cada persona que invites y opine. Úsalos como descuento adicional en el programa que elijas. <Link to="/rewards" className="text-blue-soft hover:text-white">Cómo funciona Groulevel Rewards</Link></p>
         </div>
         {session && (
           <p className="text-sm text-gray">{session.email} · <button className="text-blue-soft hover:text-white" onClick={() => clearReviewSession()}>Salir</button></p>

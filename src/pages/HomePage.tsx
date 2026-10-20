@@ -152,6 +152,19 @@ export default function HomePage() {
         </ol>
       </section>
 
+      {/* GROULEVEL REWARDS (campaña) */}
+      <section className="container-page pb-8" aria-labelledby="rewards-title">
+        <Link to="/rewards" className="card group flex flex-col gap-4 border-pos/30 bg-[linear-gradient(120deg,rgba(34,197,94,.10),rgba(118,87,255,.10))] p-6 transition-colors hover:border-pos/60 sm:flex-row sm:items-center sm:p-8">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet to-blue text-white"><Icon name="star" size={22} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="label-mono text-pos">Groulevel Rewards</span>
+            <span id="rewards-title" className="mt-1 block text-2xl font-semibold text-white">¿Estudiaste en una universidad o instituto? Tu reseña vale S/ 100.</span>
+            <span className="mt-1 block text-gray">Gana S/ 100 de descuento por tu reseña aprobada y S/ 100 por cada persona que invites y publique la suya.</span>
+          </span>
+          <span className="btn btn-accent shrink-0">Ver cómo funciona <Icon name="arrow-right" size={16} /></span>
+        </Link>
+      </section>
+
       {/* CARRERAS */}
       <section className="container-page py-8" aria-labelledby="careers-title">
         <div className="mb-8 flex items-end justify-between gap-4">

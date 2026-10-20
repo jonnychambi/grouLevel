@@ -141,7 +141,9 @@ export function rememberReferral(code: string | null) {
   const clean = (code ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
   if (clean) storage.set(REF_KEY, clean);
 }
-export const referralLink = (code: string) => `${window.location.origin}${import.meta.env.BASE_URL}opinar?ref=${encodeURIComponent(code)}`;
+/** Enlace personal de referido: lleva a la landing de Groulevel Rewards, que guarda el código y explica la campaña. */
+export const referralLink = (code: string, channel?: string) =>
+  `${window.location.origin}${import.meta.env.BASE_URL}rewards?ref=${encodeURIComponent(code)}${channel ? `&utm_source=${channel}&utm_medium=referral&utm_campaign=rewards` : ''}`;
 
 export async function submitReviewForm(v: ReviewSubmission, evidence: File | null, honeypot: string): Promise<{ incentive: number }> {
   const s = getReviewSession();
