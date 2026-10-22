@@ -5,7 +5,9 @@
  * Así Google ve siempre el contenido vigente (precios, inicios, programas nuevos) con título, descripción,
  * canonical y datos estructurados, sin esperar un nuevo despliegue. Respuestas cacheadas en el CDN.
  */
-import { getSql, isDbConfigured } from './_lib/db.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { getSql, isDbConfigured, resetSql } from './_lib/db.js';
 import { getCurrentCatalog } from './_lib/catalogRepo.js';
 import { buildRoutes, isCatalogPath, renderPage, sitemapXml, staticRoutes, type ReviewsData, type SeoRoute } from '../scripts/seoPages.mjs';
 import { publicSummary, toPublic } from './_lib/reviews.js';
@@ -21,8 +23,28 @@ let routes: Routes | null = null;
 /** ¿Es la plantilla de Groulevel? (y no, por ejemplo, la página de acceso de un despliegue protegido de Vercel). */
 export const isAppShell = (html: string) => html.includes('<div id="root">') && html.includes('type="module"') && !/Protected Deployment|Log in to Vercel/.test(html);
 
+/**
+ * Plantilla incluida en la función (vercel.json → includeFiles: dist/_shell.html). Es la del mismo build, así que
+ * sus assets siempre coinciden, y no depende de pedir el propio sitio: el Firewall de Vercel puede desafiar
+ * (HTTP 429) esa solicitud y las páginas responderían 503.
+ */
+function bundledShell(): string | null {
+  for (const p of [join(process.cwd(), 'dist', '_shell.html'), join(process.cwd(), '_shell.html')]) {
+    try {
+      const html = readFileSync(p, 'utf8');
+      if (isAppShell(html)) return html;
+    } catch { /* no incluida: se pide por red */ }
+  }
+  return null;
+}
+
 async function getShell(origin: string): Promise<string> {
   if (shell && Date.now() - shell.at < 10 * TTL) return shell.html;
+  const local = bundledShell();
+  if (local) {
+    shell = { html: local, at: Date.now() };
+    return local;
+  }
   // En Vercel siempre desde el dominio público: las URLs internas del despliegue (*.vercel.app) están
   // protegidas y devuelven la página de acceso de Vercel en lugar de la plantilla.
   const base = process.env.VERCEL_ENV ? SITE_URL : origin;
@@ -82,7 +104,13 @@ async function getRoutes() {
   if (routes && Date.now() - routes.at < TTL) return routes;
   // Una sola construcción a la vez; máximo 20 s (si no, la página sale con la app sin contenido previo).
   const pending = (building ??= buildAll().finally(() => { building = null; }));
-  routes = await withTimeout(pending, 20_000, 'rutas');
+  try {
+    routes = await withTimeout(pending, 20_000, 'rutas');
+  } catch (err) {
+    // Si la base no respondió, no dejar a las siguientes solicitudes esperando la misma consulta colgada.
+    if (err instanceof Error && err.message === 'timeout_rutas') { building = null; resetSql(); }
+    throw err;
+  }
   return routes;
 }
 

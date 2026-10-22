@@ -53,6 +53,14 @@ export function getSql(): Sql {
   return client;
 }
 
+/**
+ * Descarta el cliente actual (p. ej. tras una consulta que no respondió): con `max: 1`, una conexión muerta
+ * dejaría esperando a todas las solicitudes siguientes de la instancia. La próxima consulta abre una nueva.
+ */
+export function resetSql() {
+  if (!testClient) client = null;
+}
+
 /** Solo para pruebas: inyecta una conexión. */
 export function setSqlForTests(sql: Sql | null) {
   client = sql;
