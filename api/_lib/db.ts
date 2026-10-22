@@ -2,7 +2,7 @@
  * Conexión a la base de datos (Supabase / PostgreSQL) desde las Vercel Functions.
  *
  * La base es la fuente principal de los datos (catálogo, leads, reseñas, diagnósticos).
- * Usa POSTGRES_URL (pooler de Supabase en modo transacción): sin sentencias preparadas y con
+ * Usa el pooler de Supabase (ver dbUrl: modo sesión por defecto): sin sentencias preparadas y con
  * pocas conexiones por instancia.
  */
 import postgres from 'postgres';
@@ -41,12 +41,22 @@ export function createSql(url: string, opts: postgres.Options<Record<string, pos
   });
 }
 
+/**
+ * URL de conexión. Por defecto POSTGRES_URL_NON_POOLING (pooler de Supabase en modo sesión): en oct-2026 el modo
+ * transacción (POSTGRES_URL, puerto 6543) dejó colgadas todas las consultas desde las funciones, mientras el modo
+ * sesión respondía en ~1 s. Con max: 1 e idle_timeout corto, cada instancia usa una sola conexión y la libera pronto.
+ * DB_POOL_MODE=transaction vuelve a POSTGRES_URL.
+ */
+const dbUrl = () => (process.env.DB_POOL_MODE === 'transaction'
+  ? process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING
+  : process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL);
+
 export function getSql(): Sql {
   const now = Date.now();
   if (client && !testClient && now - lastUsed > MAX_IDLE_MS) client = null;
   lastUsed = now;
   if (!client) {
-    const url = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING;
+    const url = dbUrl();
     if (!url) throw new Error('db_not_configured');
     client = createSql(url);
   }
@@ -66,23 +76,25 @@ export function resetSql() {
  * conexión y un `select 1`, y registra host, puerto y nombres de parámetros de la URL (nunca usuario ni clave).
  */
 export async function diagnoseDb(): Promise<string> {
-  const url = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING;
-  if (!url) return 'sin POSTGRES_URL';
-  const u = new URL(url);
-  const where = `${u.hostname}:${u.port || '5432'} (${process.env.POSTGRES_URL ? 'POSTGRES_URL' : 'NON_POOLING'}; params: ${[...u.searchParams.keys()].join(',') || '—'})`;
-  const sql = createSql(url, { connect_timeout: 6, idle_timeout: 1 });
-  const t = Date.now();
-  try {
-    const r = await Promise.race([
-      sql`select 1 as ok`.then(() => `select 1 en ${Date.now() - t} ms`),
-      new Promise<string>((resolve) => setTimeout(() => resolve(`select 1 sin respuesta tras ${Date.now() - t} ms`), 12_000))
-    ]);
-    return `${where} → ${r}`;
-  } catch (err) {
-    return `${where} → error tras ${Date.now() - t} ms: ${err instanceof Error ? `${(err as { code?: string }).code ?? ''} ${err.message}` : String(err)}`;
-  } finally {
-    void sql.end({ timeout: 1 }).catch(() => {});
-  }
+  const urls = [['POSTGRES_URL', process.env.POSTGRES_URL], ['POSTGRES_URL_NON_POOLING', process.env.POSTGRES_URL_NON_POOLING]].filter(([, u]) => u) as [string, string][];
+  if (!urls.length) return 'sin POSTGRES_URL';
+  const results = await Promise.all(urls.map(async ([name, url]) => {
+    const u = new URL(url);
+    const where = `${name} ${u.hostname}:${u.port || '5432'}`;
+    const sql = createSql(url, { connect_timeout: 6, idle_timeout: 1 });
+    const t = Date.now();
+    try {
+      return `${where} → ${await Promise.race([
+        sql`select 1 as ok`.then(() => `select 1 en ${Date.now() - t} ms`),
+        new Promise<string>((resolve) => setTimeout(() => resolve(`sin respuesta tras ${Date.now() - t} ms`), 12_000))
+      ])}`;
+    } catch (err) {
+      return `${where} → error tras ${Date.now() - t} ms: ${err instanceof Error ? `${(err as { code?: string }).code ?? ''} ${err.message}` : String(err)}`;
+    } finally {
+      void sql.end({ timeout: 1 }).catch(() => {});
+    }
+  }));
+  return results.join(' | ');
 }
 
 /** Solo para pruebas: inyecta una conexión. */
