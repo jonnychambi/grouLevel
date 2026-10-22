@@ -84,10 +84,18 @@ export async function diagnoseDb(): Promise<string> {
     const sql = createSql(url, { connect_timeout: 6, idle_timeout: 1 });
     const t = Date.now();
     try {
-      return `${where} → ${await Promise.race([
-        sql`select 1 as ok`.then(() => `select 1 en ${Date.now() - t} ms`),
-        new Promise<string>((resolve) => setTimeout(() => resolve(`sin respuesta tras ${Date.now() - t} ms`), 12_000))
-      ])}`;
+      const timed = (label: string, q: () => Promise<unknown>) => {
+        const t0 = Date.now();
+        return Promise.race([
+          q().then(() => `${label} en ${Date.now() - t0} ms`),
+          new Promise<string>((resolve) => setTimeout(() => resolve(`${label} sin respuesta tras ${Date.now() - t0} ms`), 10_000))
+        ]);
+      };
+      // Una respuesta chica y otras grandes: si solo fallan las grandes, el problema es de red (p. ej. MTU), no de la base.
+      const small = await timed('select 1', () => sql`select 1 as ok`);
+      const big = small.includes('sin respuesta') ? 'omitida' : await timed('256 KB', () => sql`select repeat('x', 262144) as big`);
+      const real = big.includes('sin respuesta') || big === 'omitida' ? 'omitida' : await timed('catálogo', () => sql`select length(data::text) from catalog_versions where is_current limit 1`.then(() => sql`select data from catalog_versions where is_current limit 1`));
+      return `${where} → ${small} · ${big} · ${real}`;
     } catch (err) {
       return `${where} → error tras ${Date.now() - t} ms: ${err instanceof Error ? `${(err as { code?: string }).code ?? ''} ${err.message}` : String(err)}`;
     } finally {
