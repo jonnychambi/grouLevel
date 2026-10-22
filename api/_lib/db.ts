@@ -61,6 +61,30 @@ export function resetSql() {
   if (!testClient) client = null;
 }
 
+/**
+ * Diagnóstico cuando una consulta no responde: con un cliente nuevo y límites cortos mide por separado la
+ * conexión y un `select 1`, y registra host, puerto y nombres de parámetros de la URL (nunca usuario ni clave).
+ */
+export async function diagnoseDb(): Promise<string> {
+  const url = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING;
+  if (!url) return 'sin POSTGRES_URL';
+  const u = new URL(url);
+  const where = `${u.hostname}:${u.port || '5432'} (${process.env.POSTGRES_URL ? 'POSTGRES_URL' : 'NON_POOLING'}; params: ${[...u.searchParams.keys()].join(',') || '—'})`;
+  const sql = createSql(url, { connect_timeout: 6, idle_timeout: 1 });
+  const t = Date.now();
+  try {
+    const r = await Promise.race([
+      sql`select 1 as ok`.then(() => `select 1 en ${Date.now() - t} ms`),
+      new Promise<string>((resolve) => setTimeout(() => resolve(`select 1 sin respuesta tras ${Date.now() - t} ms`), 12_000))
+    ]);
+    return `${where} → ${r}`;
+  } catch (err) {
+    return `${where} → error tras ${Date.now() - t} ms: ${err instanceof Error ? `${(err as { code?: string }).code ?? ''} ${err.message}` : String(err)}`;
+  } finally {
+    void sql.end({ timeout: 1 }).catch(() => {});
+  }
+}
+
 /** Solo para pruebas: inyecta una conexión. */
 export function setSqlForTests(sql: Sql | null) {
   client = sql;

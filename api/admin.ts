@@ -54,7 +54,7 @@ import { validateCatalog } from './_lib/validate.js';
 import { deleteLead, listLeads, updateLead } from './_lib/leads.js';
 import { deleteReview, IncentiveError, listAllReviews, listIncentives, listRedemptions, listReports, moderateReview, resolveReport, reviewEvidence, setReviewerBlocked, updateIncentive, updateRedemption } from './_lib/reviews.js';
 import { deleteProfile, listProfiles, profileFile, readProfile, updateProfile } from './_lib/profiles.js';
-import { getSql, isDbConfigured, resetSql } from './_lib/db.js';
+import { diagnoseDb, getSql, isDbConfigured, resetSql } from './_lib/db.js';
 import { dbStatus, importFromBlob } from './_lib/dbSync.js';
 import { getCurrentCatalog, listVersions, publishCatalog, readVersion, VersionConflictError } from './_lib/catalogRepo.js';
 import { legacyBlobSources } from './_lib/legacyBlob.js';
@@ -303,9 +303,11 @@ function withTimeout(handler: (request: Request) => Promise<Response>) {
     const target = mutating ? auditTarget(request.clone()) : null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<Response>((resolve) => {
-      timer = setTimeout(() => {
+      timer = setTimeout(async () => {
         console.error(`admin: ${request.method} ${act} sin respuesta tras ${ms / 1000}s`);
         resetSql();
+        // Antes de responder (después Vercel congela la instancia): ¿falla la conexión o la consulta?
+        console.error(`admin: diagnóstico base → ${await diagnoseDb()}`);
         resolve(json(504, { error: 'timeout', message: 'El servidor tardó demasiado en responder. Intenta de nuevo.' }));
       }, ms);
     });
