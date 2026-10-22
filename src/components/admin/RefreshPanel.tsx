@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Course } from '../../types';
 import {
-  applyProgramUpdate, checkProgram, discardProgramUpdate, fetchRefresh, runRefreshNow, saveRefreshSettings,
+  applyAllProgramUpdates, applyProgramUpdate, checkProgram, discardProgramUpdate, fetchRefresh, runRefreshNow, saveRefreshSettings,
   type CheckStatus, type ProgramUpdate, type RefreshFrequency, type RefreshOverview
 } from '../../services/adminApi';
 import { Icon } from '../ui/Icon';
@@ -115,6 +115,14 @@ export function RefreshPanel({ courses, onError, onNotice, onApplied, onEdit }: 
     await Promise.all([load(), onApplied()]);
   });
 
+  const [confirmAll, setConfirmAll] = useState(false);
+  const applyAll = () => run('apply-all', async () => {
+    const r = await applyAllProgramUpdates();
+    setConfirmAll(false);
+    onNotice(`${num(r.applied)} propuestas aplicadas en una sola versión${r.skipped.length ? `; ${r.skipped.length} quedan pendientes para revisar a mano (sin cambios concretos o programa eliminado)` : ''}. Si algo salió mal, puedes volver a la versión anterior en Versiones. Los cambios se verán en el sitio en aproximadamente 1 minuto.`);
+    await Promise.all([load(), onApplied()]);
+  });
+
   const discard = (u: ProgramUpdate) => run(`discard:${u.id}`, async () => {
     await discardProgramUpdate(u.id);
     await load();
@@ -188,7 +196,22 @@ export function RefreshPanel({ courses, onError, onNotice, onApplied, onEdit }: 
         </div>
       </div>
 
-      <h2 className="mt-10 text-lg text-white">Propuestas pendientes {data && <span className="text-gray">({data.pending.length})</span>}</h2>
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg text-white">Propuestas pendientes {data && <span className="text-gray">({data.pending.length})</span>}</h2>
+        {!!data?.pending.length && !confirmAll && (
+          <button className="btn btn-accent btn-sm" disabled={!!busy} onClick={() => setConfirmAll(true)}><Icon name="check" size={15} /> Aplicar todas ({num(data.pending.length)})</button>
+        )}
+      </div>
+      {!!data?.pending.length && confirmAll && (
+        <div className="mt-3 rounded-xl border border-warn/40 bg-warn/5 p-4 text-sm" role="alertdialog" aria-label="Confirmar aplicar todas">
+          <p className="text-white">¿Aplicar las {num(data.pending.length)} propuestas con todos sus campos?</p>
+          <p className="mt-1 text-gray">Se publica una sola versión nueva del catálogo; puedes volver a la anterior desde Versiones. Antes, descarta las que no quieras aplicar. Las que no tienen cambios concretos (solo “la página cambió”) quedan pendientes.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button className="btn btn-accent btn-sm" disabled={!!busy} onClick={applyAll}>{busy === 'apply-all' ? 'Aplicando…' : `Sí, aplicar ${num(data.pending.length)}`}</button>
+            <button className="btn btn-quiet btn-sm" disabled={!!busy} onClick={() => setConfirmAll(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
       {!data ? <p className="mt-3 text-sm text-gray">Cargando…</p> : !data.pending.length ? (
         <p className="mt-3 text-sm text-gray">No hay cambios por revisar.</p>
       ) : (

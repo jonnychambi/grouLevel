@@ -569,6 +569,45 @@ export async function applyUpdate(id: number, fields: string[] | null, sql: Sql 
   throw new Error('No se pudo publicar por cambios simultáneos. Intenta de nuevo.');
 }
 
+/**
+ * Aplica en bloque las propuestas pendientes (todas, o las de `ids`) con todos sus campos, en UNA sola
+ * publicación del catálogo: una versión nueva que se puede revertir desde Versiones. Las propuestas sin
+ * cambios concretos (detectadas solo por huella) o de programas que ya no existen quedan pendientes.
+ */
+export async function applyAllUpdates(ids: number[] | null = null, sql: Sql = getSql()) {
+  const rows = ids?.length
+    ? await sql`select * from program_updates where status = 'pendiente' and id = any(${ids}) order by id`
+    : await sql`select * from program_updates where status = 'pendiente' order by id`;
+  const updates = rows.map(toUpdate);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = await getCurrentCatalog(sql);
+    if (!current) throw new UpdateNotPendingError('No hay catálogo publicado.');
+    const courses = [...(current.data.courses as Rec[])];
+    const index = new Map(courses.map((c, i) => [String(c.id), i]));
+    const applied: UpdateRow[] = [];
+    const skipped: { id: number; course_name: string; reason: string }[] = [];
+    for (const u of updates) {
+      const i = index.get(u.course_id);
+      if (i == null) { skipped.push({ id: u.id, course_name: u.course_name, reason: 'El programa ya no existe en el catálogo.' }); continue; }
+      if (!u.changes.length) { skipped.push({ id: u.id, course_name: u.course_name, reason: 'Sin cambios concretos: revísala a mano.' }); continue; }
+      courses[i] = applyChanges(courses[i], u.changes);
+      applied.push(u);
+    }
+    if (!applied.length) return { version: null, applied: 0, skipped };
+    const next: CatalogPayload = { ...current.data, courses, meta: { ...(current.data.meta ?? {}), saved_at: new Date().toISOString(), note: `actualización en bloque (${applied.length})` } } as CatalogPayload;
+    try {
+      const version = await publishCatalog(next, `actualizacion en bloque: ${applied.length} programas`, current.version.pathname, {}, sql);
+      const appliedIds = applied.map((u) => u.id);
+      await sql`update program_updates set status = 'aplicada', decided_at = now(), version = ${version.pathname}, note = 'Aplicado en bloque: todos los campos'
+        where id = any(${appliedIds}) and status = 'pendiente'`;
+      return { version, applied: applied.length, skipped };
+    } catch (err) {
+      if (!(err instanceof VersionConflictError)) throw err; // otra sesión publicó justo antes: reintenta sobre lo nuevo
+    }
+  }
+  throw new Error('No se pudo publicar por cambios simultáneos. Intenta de nuevo.');
+}
+
 export async function discardUpdate(id: number, sql: Sql = getSql()): Promise<boolean> {
   const rows = await sql`update program_updates set status = 'descartada', decided_at = now(), note = 'Descartada por el administrador.' where id = ${id} and status = 'pendiente' returning id`;
   return rows.length > 0;

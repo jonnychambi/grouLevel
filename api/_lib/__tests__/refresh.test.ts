@@ -126,6 +126,29 @@ describe('revisión de programas', () => {
     expect((await admin.POST(authed('POST', 'refresh-apply', { id }))).status).toBe(409); // ya aplicada
   });
 
+  it('aplica todas las propuestas pendientes en una sola versión y deja pendientes las que no tienen cambios', async () => {
+    const cat = (await getCurrentCatalog(sql))!;
+    const [a, b, c3] = (cat.data.courses as C[]).filter((c) => c.status === 'publicado' && !c.is_demo && c.id !== target.id);
+    const change = (field: string, label: string, current: unknown, proposed: unknown) => ({ field, label, current, proposed });
+    await sql`insert into program_updates (course_id, course_name, status, changes, method) values
+      (${a.id}, ${String(a.name)}, 'pendiente', ${sql.json([change('schedule', 'Horario', a.schedule ?? null, 'Sábados 9:00 a.m.')] as never)}, 'ia'),
+      (${b.id}, ${String(b.name)}, 'pendiente', ${sql.json([change('duration_text', 'Duración (texto)', b.duration_text ?? null, '3 meses')] as never)}, 'ia'),
+      (${c3.id}, ${String(c3.name)}, 'pendiente', ${sql.json([] as never)}, 'huella')`;
+    const versionsBefore = (await sql`select count(*)::int n from catalog_versions`)[0].n;
+    const res = await admin.POST(authed('POST', 'refresh-apply-all', {}));
+    expect(res.status).toBe(200);
+    const out = (await res.json()) as { applied: number; skipped: { reason: string }[] };
+    expect(out.applied).toBe(2);
+    expect(out.skipped).toHaveLength(1);
+    expect((await sql`select count(*)::int n from catalog_versions`)[0].n).toBe(versionsBefore + 1); // una sola versión
+    const cur = (await getCurrentCatalog(sql))!;
+    expect((cur.data.courses as C[]).find((c) => c.id === a.id)!.schedule).toBe('Sábados 9:00 a.m.');
+    expect((cur.data.courses as C[]).find((c) => c.id === b.id)!.duration_text).toBe('3 meses');
+    const left = await sql`select method from program_updates where status = 'pendiente'`;
+    expect(left.map((r) => r.method)).toEqual(['huella']);
+    await sql`update program_updates set status = 'descartada' where status = 'pendiente'`;
+  });
+
   it('revisión manual de un programa: siempre lee el link y consulta al modelo', async () => {
     aiFacts = { price: 1800, start_date: '2099-03-15', start_text: '15 de marzo de 2099' };
     const res = await admin.POST(authed('POST', 'refresh-check', { course_id: target.id }));
