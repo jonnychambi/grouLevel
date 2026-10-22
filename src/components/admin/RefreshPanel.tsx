@@ -38,11 +38,14 @@ export function RefreshPanel({ courses, onError, onNotice, onApplied, onEdit }: 
   const [busy, setBusy] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('todos');
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setData(await fetchRefresh());
+      setLoadFailed(false);
     } catch (e) {
+      setLoadFailed(true);
       onError(e);
     }
   }, [onError]);
@@ -156,7 +159,10 @@ export function RefreshPanel({ courses, onError, onNotice, onApplied, onEdit }: 
         </div>
         <div className="card p-5">
           <p className="label-mono">Modelo de IA</p>
-          {data?.ai.configured ? (
+          {!data ? (
+            // Sin datos todavía no se sabe si hay API key: no mostrar el aviso de "sin ANTHROPIC_API_KEY".
+            <p className={`mt-2 text-sm ${loadFailed ? 'text-warn' : 'text-gray'}`}>{loadFailed ? 'No se pudo cargar el estado: el servidor o la base de datos no respondió. Vuelve a intentar con “Actualizar”.' : 'Cargando…'}</p>
+          ) : data.ai.configured ? (
             <p className="mt-2 text-sm text-white"><span className="font-mono">{data.ai.model}</span> <span className="text-gray">· extracción con salida estructurada, sin razonamiento extendido</span></p>
           ) : (
             <p className="mt-2 text-sm text-warn">Sin ANTHROPIC_API_KEY: solo se detecta que la página cambió (por huella) y se marca para revisión manual.</p>
