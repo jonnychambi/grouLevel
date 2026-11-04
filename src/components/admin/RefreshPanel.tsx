@@ -1,14 +1,30 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Course } from '../../types';
 import {
-  applyAllProgramUpdates, applyProgramUpdate, checkProgram, discardProgramUpdate, fetchRefresh, runRefreshNow, saveRefreshSettings,
+  applyAllProgramUpdates, applyProgramUpdate, fetchSyllabus, runSyllabus, type SyllabusOverview, checkProgram, discardProgramUpdate, fetchRefresh, runRefreshNow, saveRefreshSettings,
   type CheckStatus, type ProgramUpdate, type RefreshFrequency, type RefreshOverview
 } from '../../services/adminApi';
 import { Icon } from '../ui/Icon';
 
 const when = (iso: string) => new Date(iso).toLocaleString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 const num = (n: number) => n.toLocaleString('es-PE');
-const show = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : typeof v === 'boolean' ? (v ? 'Sí' : 'No') : String(v));
+const show = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : typeof v === 'boolean' ? (v ? 'Sí' : 'No') : Array.isArray(v) ? (v.length ? v.join(' · ') : '—') : String(v));
+
+type Mod = { title: string; hours?: number | null; topics?: string[] };
+/** Temario en una propuesta: resumen (módulos y temas) y la lista desplegable. */
+function SyllabusValue({ value }: { value: unknown }) {
+  const ms = (Array.isArray(value) ? value : []) as Mod[];
+  if (!ms.length) return <>—</>;
+  const topics = ms.reduce((n, m) => n + (m.topics?.length ?? 0), 0);
+  return (
+    <details>
+      <summary className="cursor-pointer">{ms.length} módulos · {topics} temas</summary>
+      <ol className="mt-1 list-decimal space-y-1 pl-5 text-xs">
+        {ms.map((m, i) => <li key={i}><span className="text-white">{m.title}</span>{m.hours ? ` (${m.hours} h)` : ''}{m.topics?.length ? <span className="text-gray">: {m.topics.join(' · ')}</span> : null}</li>)}
+      </ol>
+    </details>
+  );
+}
 
 const STATUS: Record<CheckStatus, { label: string; tone: string }> = {
   sin_cambios: { label: 'Sin cambios', tone: 'text-pos' },
@@ -39,9 +55,13 @@ export function RefreshPanel({ courses, onError, onNotice, onApplied, onEdit }: 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('todos');
   const [loadFailed, setLoadFailed] = useState(false);
+  const [syl, setSyl] = useState<SyllabusOverview | null>(null);
+  const [sylProgress, setSylProgress] = useState<{ done: number; proposed: number; usd: number } | null>(null);
+  const stopSyl = useRef(false);
 
   const load = useCallback(async () => {
     try {
+      fetchSyllabus().then(setSyl).catch(() => {});
       setData(await fetchRefresh());
       setLoadFailed(false);
     } catch (e) {
@@ -116,6 +136,25 @@ export function RefreshPanel({ courses, onError, onNotice, onApplied, onEdit }: 
   });
 
   const [confirmAll, setConfirmAll] = useState(false);
+
+  /** Completar temarios: lotes de ~4 minutos hasta terminar o pausar. */
+  const completeSyllabus = () => run('syllabus', async () => {
+    stopSyl.current = false;
+    const total = { done: 0, proposed: 0, usd: 0, errors: 0 };
+    setSylProgress({ done: 0, proposed: 0, usd: 0 });
+    try {
+      for (let round = 0; round < 30 && !stopSyl.current; round++) {
+        const { summary: s } = await runSyllabus();
+        total.done += s.checked; total.proposed += s.proposed; total.usd += s.estimated_usd; total.errors += s.errors;
+        setSylProgress({ done: total.done, proposed: total.proposed, usd: total.usd });
+        await load();
+        if (s.remaining === 0 || s.checked === 0) break;
+      }
+      onNotice(`Temarios: ${total.done} programas revisados, ${total.proposed} con temario más completo (revísalos en Propuestas pendientes)${total.errors ? `, ${total.errors} no se pudieron leer` : ''}. Costo aprox. US$ ${total.usd.toFixed(2)}.`);
+    } finally {
+      setSylProgress(null);
+    }
+  });
   const applyAll = () => run('apply-all', async () => {
     const r = await applyAllProgramUpdates();
     setConfirmAll(false);
@@ -128,7 +167,7 @@ export function RefreshPanel({ courses, onError, onNotice, onApplied, onEdit }: 
     await load();
   });
 
-  const lastRun = data?.runs.find((r) => r.trigger !== 'programa');
+  const lastRun = data?.runs.find((r) => r.trigger !== 'programa' && r.trigger !== 'temario');
 
   return (
     <div>
@@ -195,6 +234,33 @@ export function RefreshPanel({ courses, onError, onNotice, onApplied, onEdit }: 
           </dl>
         </div>
       </div>
+
+      <section className="card mt-6 p-5" aria-labelledby="syl-title">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-2xl">
+            <h2 id="syl-title" className="text-lg text-white">Completar temarios</h2>
+            <p className="mt-1 text-sm text-gray">Vuelve a leer la página de cada programa con temario escueto (y su brochure, malla o plan de estudios enlazado) para obtener los módulos con sus temas. El resultado queda como propuesta: nada se publica hasta que lo apliques.</p>
+            {syl && (
+              <p className="mt-2 text-sm text-muted">
+                <span className="tnum text-white">{num(syl.thin)}</span> de {num(syl.published)} programas con temario escueto · <span className="tnum text-white">{num(syl.pending)}</span> por revisar
+                {syl.checks.propuesta ? <> · {num(syl.checks.propuesta)} completados</> : null}
+                {syl.checks.sin_temario ? <> · {num(syl.checks.sin_temario)} sin temario publicado</> : null}
+                {syl.checks.error ? <> · {num(syl.checks.error)} con error (se reintentan en 7 días)</> : null}
+              </p>
+            )}
+          </div>
+          {sylProgress ? (
+            <div className="flex items-center gap-3 text-sm text-gray" role="status">
+              <span>Revisando… {num(sylProgress.done)} programas · {num(sylProgress.proposed)} propuestas · US$ {sylProgress.usd.toFixed(2)}</span>
+              <button className="btn btn-quiet btn-sm" onClick={() => { stopSyl.current = true; }}>Pausar</button>
+            </div>
+          ) : (
+            <button className="btn btn-accent btn-sm" disabled={!!busy || !syl?.pending || !data?.ai.configured} onClick={completeSyllabus}>
+              <Icon name="book" size={15} /> Completar temarios{syl?.pending ? ` (${num(syl.pending)})` : ''}
+            </button>
+          )}
+        </div>
+      </section>
 
       <div className="mt-10 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg text-white">Propuestas pendientes {data && <span className="text-gray">({data.pending.length})</span>}</h2>
@@ -358,8 +424,8 @@ function UpdateCard({ update: u, course, busy, onApply, onDiscard, onEdit, onChe
                 <tr key={c.field} className="border-t border-line">
                   <td className="py-1.5"><input type="checkbox" checked={selected.has(c.field)} onChange={() => toggle(c.field)} aria-label={`Aplicar ${c.label}`} className="accent-violet" /></td>
                   <td className="py-1.5 text-gray">{c.label}</td>
-                  <td className="py-1.5 text-gray line-through decoration-gray/50">{show(c.current)}</td>
-                  <td className="py-1.5 text-white">{show(c.proposed)}</td>
+                  <td className={`py-1.5 align-top text-gray ${c.field === 'syllabus' ? '' : 'line-through decoration-gray/50'}`}>{c.field === 'syllabus' ? <SyllabusValue value={c.current} /> : show(c.current)}</td>
+                  <td className="py-1.5 align-top text-white">{c.field === 'syllabus' ? <SyllabusValue value={c.proposed} /> : show(c.proposed)}</td>
                 </tr>
               ))}
             </tbody>

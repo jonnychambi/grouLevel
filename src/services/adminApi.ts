@@ -205,6 +205,10 @@ export const saveRefreshSettings = (settings: Partial<RefreshSettings>) => call<
 export const runRefreshNow = () => call<{ summary: RefreshSummary }>('refresh-run', { method: 'POST' });
 export const checkProgram = (course_id: string) => call<{ result: CheckResult }>('refresh-check', { method: 'POST', body: JSON.stringify({ course_id }) });
 export const applyProgramUpdate = (id: number, fields: string[]) => call<{ version: VersionInfo }>('refresh-apply', { method: 'POST', body: JSON.stringify({ id, fields }) });
+export interface SyllabusOverview { published: number; thin: number; pending: number; checks: Record<string, number> }
+export interface SyllabusRunSummary { checked: number; proposed: number; no_improvement: number; not_found: number; errors: number; remaining: number; input_tokens: number; output_tokens: number; estimated_usd: number }
+export const fetchSyllabus = () => call<SyllabusOverview>('syllabus');
+export const runSyllabus = () => call<{ summary: SyllabusRunSummary }>('syllabus-run', { method: 'POST', body: JSON.stringify({}) });
 export const applyAllProgramUpdates = (ids?: number[]) =>
   call<{ version: VersionInfo | null; applied: number; skipped: { id: number; course_name: string; reason: string }[] }>('refresh-apply-all', { method: 'POST', body: JSON.stringify(ids ? { ids } : {}) });
 export const discardProgramUpdate = (id: number) => call<{ ok: true }>('refresh-discard', { method: 'POST', body: JSON.stringify({ id }) });

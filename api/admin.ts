@@ -31,6 +31,8 @@
  *   POST /api/admin?action=refresh-settings { frequency, batch_size } → { settings }
  *   POST /api/admin?action=refresh-run                              → revisa un lote ahora → { summary }
  *   POST /api/admin?action=refresh-check { course_id }              → revisa un programa leyendo su link → { result }
+ *   GET  /api/admin?action=syllabus                                 → temarios escuetos y resultados de "Completar temarios"
+ *   POST /api/admin?action=syllabus-run { ids? }                     → completa temarios de un lote (propuestas en Actualizaciones)
  *   POST /api/admin?action=refresh-apply-all { ids? }                → aplica en bloque las pendientes (una sola versión) → { version, applied, skipped }
  *   POST /api/admin?action=refresh-apply { id, fields? }            → aplica la propuesta (todos o algunos campos) → { version, update }
  *   POST /api/admin?action=refresh-discard { id }                   → { ok }
@@ -61,6 +63,7 @@ import { getCurrentCatalog, listVersions, publishCatalog, readVersion, VersionCo
 import { legacyBlobSources } from './_lib/legacyBlob.js';
 import { demandReport } from './_lib/demand.js';
 import { adminSummary, enqueueLinks, listDrafts, processQueue, publishDrafts, PublishError, setDraftStatus, updateDraft } from './_lib/programImport.js';
+import { runSyllabusBatch, syllabusOverview } from './_lib/syllabusEnrich.js';
 import { applyAllUpdates, applyUpdate, checkOne, discardUpdate, refreshOverview, runRefresh, saveSettings, UpdateNotPendingError, type RefreshSettings } from './_lib/programRefresh.js';
 
 const action = (request: Request) => new URL(request.url).searchParams.get('action') ?? '';
@@ -196,6 +199,15 @@ async function handlePost(request: Request): Promise<Response> {
     const result = await checkOne(body.course_id);
     return result ? json(200, { result }) : json(404, { error: 'not_found', message: 'El programa no existe en el catálogo publicado.' });
   }
+  if (act === 'syllabus-run') {
+    const body = await readJson<{ ids?: string[] }>(request);
+    try {
+      return json(200, { summary: await runSyllabusBatch({ timeBudgetMs: 240_000, ids: Array.isArray(body?.ids) ? body.ids.map(String) : undefined }) });
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('ANTHROPIC_API_KEY')) return json(409, { error: 'ai_not_configured', message: err.message });
+      throw err;
+    }
+  }
   if (act === 'refresh-apply-all') {
     const body = await readJson<{ ids?: number[] }>(request);
     const ids = Array.isArray(body?.ids) ? body.ids.map(Number).filter(Number.isInteger) : null;
@@ -250,6 +262,7 @@ async function handleGet(request: Request): Promise<Response> {
   }
   if (act === 'versions') return json(200, { versions: await listVersions() });
   if (act === 'refresh') return json(200, await refreshOverview());
+  if (act === 'syllabus') return json(200, await syllabusOverview());
   if (act === 'import') return json(200, await listDrafts());
   if (act === 'summary') return json(200, await adminSummary());
   if (act === 'demand') return json(200, await demandReport({ days: Number(params.get('days')) || 30, channel: params.get('channel'), country: params.get('country'), category: params.get('category') }));
@@ -298,7 +311,7 @@ async function handlePut(request: Request): Promise<Response> {
 }
 
 /** Acciones que pueden tardar varios minutos (leen muchas páginas). */
-const LONG = new Set(['refresh-run', 'refresh-apply-all', 'db-import', 'refresh-check', 'import-process']);
+const LONG = new Set(['refresh-run', 'syllabus-run', 'refresh-apply-all', 'db-import', 'refresh-check', 'import-process']);
 
 /**
  * Límite por acción: si algo se queda colgado (p. ej. una conexión a la base) se responde un error claro
