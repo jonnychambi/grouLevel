@@ -233,7 +233,7 @@ export const updateDraft = (id: number, patch: { data?: Partial<DraftData>; inst
 export const retryDraft = (id: number) => call<{ ok: true }>('import-retry', { method: 'POST', body: JSON.stringify({ id }) });
 export const discardDraft = (id: number) => call<{ ok: true }>('import-discard', { method: 'POST', body: JSON.stringify({ id }) });
 export const publishDrafts = (ids: number[], status: 'publicado' | 'borrador') =>
-  call<{ version: VersionInfo; published: number; skipped: { id: number; reason: string }[] }>('import-publish', { method: 'POST', body: JSON.stringify({ ids, status }) });
+  call<{ version: VersionInfo; published: number; skipped: { id: number; reason: string }[]; notes?: string[] }>('import-publish', { method: 'POST', body: JSON.stringify({ ids, status }) });
 
 /* ---------------------------------------------------- Demanda */
 

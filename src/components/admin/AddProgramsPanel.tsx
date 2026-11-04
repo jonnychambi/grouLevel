@@ -128,7 +128,7 @@ export function AddProgramsPanel({ institutions, categories, onError, onNotice, 
     setSelected(new Set());
     setOpen(null);
     await onPublished();
-    onNotice(`${res.published} ${res.published === 1 ? 'programa agregado' : 'programas agregados'} ${status === 'publicado' ? 'y publicados en el sitio (se verán en ~1 minuto)' : 'como borrador (no visibles en el sitio)'}.${res.skipped.length ? ` ${res.skipped.length} no se publicaron: ${res.skipped.map((s) => s.reason).join(' ')}` : ''}`);
+    onNotice(`${res.published} ${res.published === 1 ? 'programa agregado' : 'programas agregados'} ${status === 'publicado' ? 'y publicados en el sitio (se verán en ~1 minuto)' : 'como borrador (no visibles en el sitio)'}.${res.notes?.length ? ` Ajustes automáticos: ${res.notes.join(' ')}` : ''}${res.skipped.length ? ` ${res.skipped.length} no se publicaron: ${res.skipped.map((s) => s.reason).join(' ')}` : ''}`);
   });
 
   const ready = groups.listos;
@@ -228,7 +228,14 @@ export function AddProgramsPanel({ institutions, categories, onError, onNotice, 
                           {d.data && <TypeBadge type={d.data.program_type as ProgramType} />}
                         </p>
                         <p className="mt-0.5 text-xs text-gray">
-                          {d.institution_id ? instName.get(d.institution_id) : <span className="text-warn">Elige la institución{d.data?.institution_name ? ` (la página dice “${d.data.institution_name}”)` : ''}</span>}
+                          {d.institution_id ? instName.get(d.institution_id) : (
+                            // Sin institución no se puede publicar: elegirla aquí mismo habilita la casilla.
+                            <select aria-label={`Institución de ${d.data?.name ?? 'este programa'}`} className="input inline-block min-h-7 w-auto cursor-pointer border-warn/50 py-0.5 text-xs text-warn" value="" disabled={!!busy}
+                              onChange={(e) => { const v = e.target.value; if (v) void act(`inst:${d.id}`, () => updateDraft(d.id, { institution_id: v })); }}>
+                              <option value="">Elige la institución{d.data?.institution_name ? ` (la página dice “${d.data.institution_name}”)` : ''}</option>
+                              {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                            </select>
+                          )}
                           {' · '}{catName.get(d.data?.category ?? '') ?? '—'}
                           {' · '}{d.data?.price != null ? formatMoney(d.data.discount_price ?? d.data.price, d.data.currency) : 'sin precio'}
                           {' · '}<a href={d.url} target="_blank" rel="noreferrer" className="text-blue-soft hover:text-white">ver página <Icon name="external" size={11} className="inline" /></a>

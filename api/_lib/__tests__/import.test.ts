@@ -128,4 +128,23 @@ describe('alta de programas desde links', () => {
     const summary = (await call('GET', 'summary')).body;
     expect(summary).toMatchObject({ drafts_ready: 0, drafts_queue: 0 });
   });
+
+  it('datos inválidos no frenan la publicación: se corrigen y se avisa; los borradores se publican igual', async () => {
+    const inst = String((await getCurrentCatalog(sql))!.data.institutions[0].id);
+    const bad = { ...fullAi({ name: 'Curso con datos raros', price: -5, discount_price: null, modality: 'online', level: 'experto', start_date: '15/03/2099', category: 'no-existe', certificate: { type: 'otro' } }),
+      syllabus: [], objectives: [], skills: [], requirements: [], tools: [] };
+    const good = { ...fullAi({ name: 'Curso correcto de SQL', discount_price: null }), syllabus: [{ title: 'SQL', hours: 10, description: '', topics: [] }], objectives: [], skills: [], requirements: [] };
+    const rows = await sql`insert into program_drafts (url, institution_id, status, data, missing) values
+      ('https://nueva.test/raro', ${inst}, 'listo', ${sql.json(bad as never)}, '{}'),
+      ('https://nueva.test/sql', ${inst}, 'listo', ${sql.json(good as never)}, '{}') returning id`;
+    const pub = await call('POST', 'import-publish', { ids: rows.map((r) => Number(r.id)) });
+    expect(pub.status).toBe(200);
+    expect(pub.body.published).toBe(2);
+    expect(pub.body.notes.join(' ')).toMatch(/modalidad.*nivel|área/);
+    const created = (await getCurrentCatalog(sql))!.data.courses.find((c) => c.name === 'Curso con datos raros')!;
+    expect(created).toMatchObject({ price: null, modality: null, level: null, start_date: null, certificate: null });
+    // El link repetido indica en qué pestaña está.
+    await sql`insert into program_drafts (url, institution_id, status) values ('https://nueva.test/en-cola', ${inst}, 'en_cola')`;
+    expect((await call('POST', 'import-add', { links: ['https://nueva.test/en-cola'] })).body.skipped[0].reason).toContain('En cola');
+  });
 });
