@@ -143,6 +143,16 @@ describe('alta de programas desde links', () => {
     expect(pub.body.notes.join(' ')).toMatch(/modalidad.*nivel|área/);
     const created = (await getCurrentCatalog(sql))!.data.courses.find((c) => c.name === 'Curso con datos raros')!;
     expect(created).toMatchObject({ price: null, modality: null, level: null, start_date: null, certificate: null });
+    // Un programa ya publicado con datos inválidos no impide agregar otros: se avisa.
+    const cur = (await getCurrentCatalog(sql))!;
+    const { publishCatalog } = await import('../catalogRepo');
+    const broken = cur.data.courses.map((c, i) => (i === 0 ? { ...c, price: 100, discount_price: 200 } : c));
+    await publishCatalog({ ...cur.data, courses: broken }, 'roto', cur.version.pathname, { force: true }, sql);
+    const [d3] = await sql`insert into program_drafts (url, institution_id, status, data, missing) values ('https://nueva.test/otro', ${inst}, 'listo', ${sql.json({ ...good, name: 'Otro curso' } as never)}, '{}') returning id`;
+    const pub3 = await call('POST', 'import-publish', { ids: [Number(d3.id)] });
+    expect(pub3.status).toBe(200);
+    expect(pub3.body.published).toBe(1);
+    expect(pub3.body.notes.join(' ')).toContain('ya publicados');
     // El link repetido indica en qué pestaña está.
     await sql`insert into program_drafts (url, institution_id, status) values ('https://nueva.test/en-cola', ${inst}, 'en_cola')`;
     expect((await call('POST', 'import-add', { links: ['https://nueva.test/en-cola'] })).body.skipped[0].reason).toContain('En cola');

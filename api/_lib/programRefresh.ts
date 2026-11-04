@@ -321,6 +321,8 @@ export function applyChanges(course: Rec, changes: FieldChange[], today = new Da
     else if (c.field === 'installments' || c.field === 'installment_amount') (next.financing as Rec)[c.field] = c.proposed;
     else next[c.field] = c.proposed;
   }
+  // Si el precio regular bajó por debajo del promocional, la promoción ya no aplica (y el catálogo la rechazaría).
+  if (typeof next.price === 'number' && typeof next.discount_price === 'number' && next.discount_price > next.price) next.discount_price = null;
   next.updated_at = today;
   return next;
 }

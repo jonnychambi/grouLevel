@@ -426,9 +426,11 @@ export async function publishDrafts(ids: number[], status: 'publicado' | 'borrad
       slugs.add(slug);
       const { course, fixes } = sanitizeCourse(draftToCourse(r.data!, r.institution_id!, id, slug, status), current.data.categories.map((k) => String(k.id)));
       // Cada borrador se valida por separado: uno con datos imposibles de corregir no frena a los demás.
-      const alone = validateCatalog({ ...current.data, courses: [...courses, course] });
+      // Solo el programa nuevo (ids y slugs únicos ya están garantizados arriba): un error en un programa ya
+      // publicado no debe impedir agregar otros.
+      const alone = validateCatalog({ ...current.data, courses: [course] });
       if (!alone.ok) {
-        skippedNow.push({ id: r.id, reason: `«${r.data!.name}»: ${alone.errors.filter((e) => e.includes(id)).join(' ') || alone.errors[0]}` });
+        skippedNow.push({ id: r.id, reason: `«${r.data!.name}»: ${alone.errors.join(' ')}` });
         ids.delete(id);
         slugs.delete(slug);
         continue;
@@ -439,10 +441,11 @@ export async function publishDrafts(ids: number[], status: 'publicado' | 'borrad
     }
     if (!created.length) throw new PublishError('Ningún borrador se pudo publicar.', skippedNow.map((s) => `#${s.id}: ${s.reason}`));
     const candidate = { ...current.data, courses, meta: { ...(current.data.meta ?? {}), saved_at: new Date().toISOString(), note: `alta de ${created.length} programas` } };
-    const valid = validateCatalog(candidate);
-    if (!valid.ok) throw new PublishError('Hay datos inválidos en los borradores.', valid.errors);
+    // Problemas que ya tenía el catálogo publicado (no los crea esta alta): se avisan para corregirlos en Programas.
+    const existing = validateCatalog(current.data);
+    if (!existing.ok) notes.push(`Programas ya publicados con datos por corregir (Programas → Editar): ${existing.errors.slice(0, 5).join(' ')}`);
     try {
-      const version = await publishCatalog(valid.catalog, `alta ${created.length} programas`, current.version.pathname, {}, sql);
+      const version = await publishCatalog(candidate as CatalogPayload, `alta ${created.length} programas`, current.version.pathname, {}, sql);
       for (const c of created) await sql`update program_drafts set status = 'publicado', course_id = ${c.course_id}, published_at = now(), updated_at = now() where id = ${c.draft}`;
       return { version, published: created.length, skipped: skippedNow, notes };
     } catch (err) {

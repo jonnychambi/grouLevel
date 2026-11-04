@@ -201,3 +201,10 @@ describe('ejecución programada', () => {
     expect(overview.usage_30d.estimated_usd).toBeGreaterThan(0);
   });
 });
+
+describe('aplicar cambios', () => {
+  it('si el precio regular baja por debajo del promocional, la promoción se quita', () => {
+    const next = refresh.applyChanges({ id: 'x', price: 3000, discount_price: 2500, financing: {}, features: {} }, [{ field: 'price', label: 'Precio', current: 3000, proposed: 2000 }]);
+    expect(next).toMatchObject({ price: 2000, discount_price: null });
+  });
+});
