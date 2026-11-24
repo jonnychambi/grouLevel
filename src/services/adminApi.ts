@@ -261,3 +261,28 @@ export const fetchDemand = (f: { days: number; channel?: string; country?: strin
   for (const k of ['channel', 'country', 'category'] as const) if (f[k]) q.set(k, f[k]!);
   return call<DemandReport>(`demand&${q.toString()}`);
 };
+
+/* ---------------------------------------------------- Descubrimiento autónomo */
+export interface DiscoverySettings { frequency: 'diario' | 'semanal' | 'desactivado'; max_per_source: number; auto_publish: boolean; search_institutions: boolean; auto_approve: boolean }
+export interface DiscoverySource {
+  id: number; url: string; path_prefix: string | null; institution_id: string | null; institution: { name?: string; website?: string; type?: string; country?: string } | null;
+  institution_name: string | null; origin: 'auto' | 'manual' | 'sugerida' | 'semilla'; status: 'activa' | 'pausada' | 'sugerida' | 'descartada'; reason: string | null;
+  last_run_at: string | null; last_found: number; last_added: number; last_error: string | null; created_at: string;
+}
+export interface InstitutionSearch { at?: string; suggested: number; approved: number; searches: number; cost_usd: number; error: string | null }
+export interface DiscoveryOverview {
+  settings: DiscoverySettings; ai: { configured: boolean; model: string }; sources: DiscoverySource[];
+  drafts: Record<string, number>; last_search: InstitutionSearch | null;
+}
+export interface DiscoveryRun {
+  discovered: { sources: number; found: number; added: number; errors: number; new_sources: number; timed_out: boolean };
+  imported: { processed: number; ready: number; errors: number; remaining: number };
+  published: { published: number; waiting: number; error: string | null };
+}
+export const fetchDiscovery = () => call<DiscoveryOverview>('discovery');
+export const saveDiscoverySettings = (s: Partial<DiscoverySettings>) => call<{ settings: DiscoverySettings }>('discovery-settings', { method: 'POST', body: JSON.stringify(s) });
+export const runDiscoveryNow = (ids?: number[]) => call<DiscoveryRun>('discovery-run', { method: 'POST', body: JSON.stringify(ids ? { ids } : {}) });
+export const searchInstitutionsNow = () => call<{ result: InstitutionSearch }>('discovery-search', { method: 'POST', body: '{}' });
+export const addDiscoverySource = (url: string, institution_id: string | null, name?: string) =>
+  call<{ source: DiscoverySource }>('discovery-source-add', { method: 'POST', body: JSON.stringify({ url, institution_id, name }) });
+export const setDiscoverySourceStatus = (id: number, status: 'activa' | 'pausada' | 'descartada') => call<{ ok: true }>('discovery-source-status', { method: 'POST', body: JSON.stringify({ id, status }) });

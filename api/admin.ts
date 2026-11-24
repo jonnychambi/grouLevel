@@ -44,6 +44,12 @@
  *   POST /api/admin?action=import-update { id, data?, institution_id? } → { draft }
  *   POST /api/admin?action=import-retry | import-discard { id }      → { ok }
  *   POST /api/admin?action=import-publish { ids, status? }          → publica los borradores como programas → { version, published, skipped }
+ *   GET  /api/admin?action=discovery                                → descubrimiento: configuración, fuentes, instituciones sugeridas
+ *   POST /api/admin?action=discovery-settings { frequency?, max_per_source?, auto_publish?, search_institutions?, auto_approve? }
+ *   POST /api/admin?action=discovery-run { ids? }                    → busca programas nuevos en las fuentes, los lee y publica los completos
+ *   POST /api/admin?action=discovery-search                         → busca instituciones nuevas en la web (Claude + búsqueda web)
+ *   POST /api/admin?action=discovery-source-add { url, institution_id?, name? } → { source }
+ *   POST /api/admin?action=discovery-source-status { id, status }   → activa (aprobar) | pausada | descartada
  *
  * Todas las acciones salvo login requieren Authorization: Bearer <token>.
  */
@@ -64,6 +70,7 @@ import { legacyBlobSources } from './_lib/legacyBlob.js';
 import { demandReport } from './_lib/demand.js';
 import { adminSummary, enqueueLinks, listDrafts, processQueue, publishDrafts, PublishError, setDraftStatus, updateDraft } from './_lib/programImport.js';
 import { runSyllabusBatch, syllabusOverview } from './_lib/syllabusEnrich.js';
+import { addSource, autoPublish, discoveryOverview, runDiscovery, saveDiscoverySettings, searchInstitutions, setSourceStatus, type DiscoverySettings } from './_lib/programDiscovery.js';
 import { applyAllUpdates, applyUpdate, checkOne, discardUpdate, refreshOverview, runRefresh, saveSettings, UpdateNotPendingError, type RefreshSettings } from './_lib/programRefresh.js';
 
 const action = (request: Request) => new URL(request.url).searchParams.get('action') ?? '';
@@ -188,6 +195,34 @@ async function handlePost(request: Request): Promise<Response> {
       throw err;
     }
   }
+  if (act === 'discovery-settings') {
+    const body = await readJson<Partial<DiscoverySettings>>(request);
+    return json(200, { settings: await saveDiscoverySettings(body ?? {}) });
+  }
+  if (act === 'discovery-run') {
+    const body = await readJson<{ ids?: number[] }>(request);
+    const ids = Array.isArray(body?.ids) ? body.ids.map(Number).filter(Number.isInteger) : undefined;
+    const discovered = await runDiscovery({ timeBudgetMs: 70_000, ids, force: true });
+    const imported = await processQueue({ timeBudgetMs: 170_000, concurrency: 6 });
+    const published = await autoPublish();
+    return json(200, { discovered, imported, published });
+  }
+  if (act === 'discovery-search') return json(200, { result: await searchInstitutions() });
+  if (act === 'discovery-source-add') {
+    const body = await readJson<{ url?: string; institution_id?: string | null; name?: string }>(request);
+    if (!body?.url) return json(400, { error: 'bad_request', message: 'Falta el link.' });
+    try {
+      return json(200, { source: await addSource({ url: body.url, institution_id: body.institution_id ?? null, name: body.name }) });
+    } catch (err) {
+      return json(400, { error: 'bad_request', message: err instanceof Error ? err.message : 'Link inválido.' });
+    }
+  }
+  if (act === 'discovery-source-status') {
+    const body = await readJson<{ id?: number; status?: string }>(request);
+    const status = body?.status === 'activa' || body?.status === 'pausada' || body?.status === 'descartada' ? body.status : null;
+    if (!Number.isInteger(Number(body?.id)) || !status) return json(400, { error: 'bad_request', message: 'Datos incompletos.' });
+    return (await setSourceStatus(Number(body!.id), status)) ? json(200, { ok: true }) : json(404, { error: 'not_found' });
+  }
   if (act === 'refresh-settings') {
     const body = await readJson<Partial<RefreshSettings>>(request);
     return json(200, { settings: await saveSettings(body ?? {}) });
@@ -264,6 +299,7 @@ async function handleGet(request: Request): Promise<Response> {
   if (act === 'refresh') return json(200, await refreshOverview());
   if (act === 'syllabus') return json(200, await syllabusOverview());
   if (act === 'import') return json(200, await listDrafts());
+  if (act === 'discovery') return json(200, await discoveryOverview());
   if (act === 'summary') return json(200, await adminSummary());
   if (act === 'demand') return json(200, await demandReport({ days: Number(params.get('days')) || 30, channel: params.get('channel'), country: params.get('country'), category: params.get('category') }));
   if (act === 'reviews') return json(200, { reviews: await listAllReviews() });
@@ -311,7 +347,7 @@ async function handlePut(request: Request): Promise<Response> {
 }
 
 /** Acciones que pueden tardar varios minutos (leen muchas páginas). */
-const LONG = new Set(['refresh-run', 'syllabus-run', 'refresh-apply-all', 'db-import', 'refresh-check', 'import-process']);
+const LONG = new Set(['refresh-run', 'syllabus-run', 'refresh-apply-all', 'db-import', 'refresh-check', 'import-process', 'discovery-run', 'discovery-search']);
 
 /**
  * Límite por acción: si algo se queda colgado (p. ej. una conexión a la base) se responde un error claro

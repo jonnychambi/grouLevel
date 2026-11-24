@@ -7,6 +7,7 @@ import { LeadsPanel } from '../components/admin/LeadsPanel';
 import { DatabasePanel } from '../components/admin/DatabasePanel';
 import { RefreshPanel } from '../components/admin/RefreshPanel';
 import { AddProgramsPanel } from '../components/admin/AddProgramsPanel';
+import { DiscoveryPanel } from '../components/admin/DiscoveryPanel';
 import { DemandPanel } from '../components/admin/DemandPanel';
 import { ProfilesPanel } from '../components/admin/ProfilesPanel';
 import { ReviewsPanel } from '../components/admin/ReviewsPanel';
@@ -24,7 +25,7 @@ import { effectivePrice, formatDate, formatMoney } from '../utils/format';
 import { PROGRAM_TYPE_LABELS } from '../utils/labels';
 import { normalize } from '../utils/text';
 
-type Tab = 'rendimiento' | 'programas' | 'agregar' | 'actualizaciones' | 'instituciones' | 'leads' | 'perfiles' | 'resenas' | 'importar' | 'versiones' | 'base-de-datos';
+type Tab = 'rendimiento' | 'programas' | 'agregar' | 'descubrimiento' | 'actualizaciones' | 'instituciones' | 'leads' | 'perfiles' | 'resenas' | 'importar' | 'versiones' | 'base-de-datos';
 type BadgeKey = keyof AdminSummary;
 
 /** Menú del administrador agrupado por tipo de tarea. Las insignias muestran pendientes. */
@@ -32,6 +33,7 @@ const SECTIONS: { group: string; items: { id: Tab; label: string; icon: IconName
   { group: 'Catálogo', items: [
     { id: 'programas', label: 'Programas', icon: 'book' },
     { id: 'agregar', label: 'Agregar programas', icon: 'plus', badge: 'drafts_ready', hint: 'Borradores listos para revisar' },
+    { id: 'descubrimiento', label: 'Descubrimiento', icon: 'globe' },
     { id: 'actualizaciones', label: 'Actualizaciones', icon: 'history', badge: 'updates', hint: 'Cambios detectados en los links' },
     { id: 'instituciones', label: 'Instituciones', icon: 'building' }
   ] },
@@ -323,6 +325,13 @@ export default function AdminPage() {
               const course = emptyCourse(institutionId ?? catalog.institutions[0]?.id ?? '', catalog.categories[0]?.id ?? '', new Set(catalog.courses.map((c) => c.id)));
               setEditing({ kind: 'course', course: { ...course, url }, isNew: true });
             }}
+          />
+        ) : tab === 'descubrimiento' ? (
+          <DiscoveryPanel
+            institutions={catalog.institutions}
+            onError={handleError}
+            onNotice={(text) => { setNotice({ tone: 'ok', text }); void loadSummary(); }}
+            onPublished={async () => { await refreshCatalog(); await loadSummary(); }}
           />
         ) : tab === 'actualizaciones' ? (
           <RefreshPanel

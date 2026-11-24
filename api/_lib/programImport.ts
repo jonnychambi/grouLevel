@@ -109,6 +109,7 @@ const obj = (properties: Record<string, unknown>) => ({ type: 'object', addition
 export function draftSchema(categoryIds: string[]) {
   return obj({
     found: { type: 'boolean' },
+    relevant: { type: 'boolean' },
     name: { type: 'string' },
     institution_name: str,
     program_type: { type: 'string', enum: [...PROGRAM_TYPES] },
@@ -143,6 +144,8 @@ export function draftSchema(categoryIds: string[]) {
 
 const SYSTEM = (categories: Rec[]) => `Conviertes la página oficial de UN programa de formación en una ficha para el catálogo de Groulevel (comparador de cursos de tecnología, datos y negocios digitales en Perú). Usa SOLO lo que la página dice; si un dato no aparece o es ambiguo: texto vacío ("") en los textos, null en números y opciones, lista vacía en listas. Nunca inventes precios, fechas ni horas.
 - found: false si la página no describe un programa concreto (listado general, error, home).
+- relevant: true solo si el programa es de tecnología (software, datos, IA, cloud, ciberseguridad, UX, producto, transformación digital) o de negocios y gestión (administración, MBA, finanzas, marketing, proyectos, liderazgo, estrategia). false para salud, derecho, educación, idiomas, arte, etc.
+- language: idioma en que se dicta el programa.
 - name: nombre del programa tal como lo publica la institución, sin el nombre de la institución.
 - program_type: curso | especializacion (programa/curso de especialización) | certificacion (preparación para una certificación) | bootcamp | diplomado | programa-ejecutivo (PEE, programa de alta dirección) | maestria (maestría, MBA, máster) | membresia (suscripción). published_type: la denominación literal que usa la institución.
 - category: el área del catálogo que mejor le corresponde: ${categories.map((c) => `${c.id} (${c.name})`).join(', ')}.
@@ -209,6 +212,7 @@ export function toDraftData(ai: Rec, url: string): DraftData {
     financing: { installments: int(ai.installments), installment_amount: num(ai.installment_amount), methods: [], notes: '' },
     enrollment_open: typeof ai.enrollment_open === 'boolean' ? ai.enrollment_open : null,
     institution_name: txt(ai.institution_name, 120),
+    relevant: ai.relevant !== false,
     url
   };
 }
@@ -223,6 +227,8 @@ export function missingFields(d: Rec): string[] {
   if (!Array.isArray(d.syllabus) || !d.syllabus.length) out.push('Temario');
   if (!d.certificate) out.push('Certificado');
   if (!String(d.short_description ?? '').trim()) out.push('Descripción');
+  if (d.relevant === false) out.push('Fuera de Tecnología y Negocios');
+  if (d.language && d.language !== 'Español') out.push(`Idioma: ${d.language}`);
   return out;
 }
 
@@ -245,6 +251,13 @@ export async function extractDraftWithAI(pageText: string, categories: Rec[]): P
 }
 
 // ───────────────────────── Cola ─────────────────────────
+
+/** Motivo para descartar un programa encontrado automáticamente (null si corresponde al catálogo). */
+export function autoDiscardReason(d: Rec): string | null {
+  if (d.relevant === false) return 'Descartado automáticamente: no es de Tecnología ni de Negocios.';
+  if (d.language && d.language !== 'Español') return `Descartado automáticamente: se dicta en ${String(d.language).toLowerCase()}.`;
+  return null;
+}
 
 async function processDraft(row: Rec, categories: Rec[], sql: Sql): Promise<'listo' | 'error'> {
   const id = Number(row.id);
@@ -269,6 +282,13 @@ async function processDraft(row: Rec, categories: Rec[], sql: Sql): Promise<'lis
     if (!out.data.found) return fail('La página no parece describir un programa concreto.', out);
     const data = toDraftData(out.data, url);
     if (!categories.some((c) => c.id === data.category)) data.category = String(categories[0]?.id ?? '');
+    // Descubiertos automáticamente: solo Tecnología y Negocios, dictados en español. El resto se descarta con el motivo.
+    const offTopic = row.auto === true ? autoDiscardReason(data) : null;
+    if (offTopic) {
+      await sql`update program_drafts set status = 'descartado', error = ${offTopic}, data = ${sql.json(data as never)}, missing = ${missingFields(data)}, model = ${out.model},
+        input_tokens = input_tokens + ${out.usage.input_tokens}, output_tokens = output_tokens + ${out.usage.output_tokens}, updated_at = now() where id = ${id}`;
+      return 'error';
+    }
     await sql`update program_drafts set status = 'listo', error = null, data = ${sql.json(data as never)}, missing = ${missingFields(data)}, model = ${out.model},
       input_tokens = input_tokens + ${out.usage.input_tokens}, output_tokens = output_tokens + ${out.usage.output_tokens}, updated_at = now() where id = ${id}`;
     return 'listo';
@@ -290,9 +310,9 @@ export async function processQueue(opts: { sql?: Sql; timeBudgetMs?: number; con
     while (Date.now() < deadline - 20_000) {
       const [row] = opts.ids?.length
         ? await sql`update program_drafts set status = 'procesando', attempts = attempts + 1, updated_at = now()
-            where id = (select id from program_drafts where status = 'en_cola' and id = any(${opts.ids}) order by id limit 1 for update skip locked) returning id, url`
+            where id = (select id from program_drafts where status = 'en_cola' and id = any(${opts.ids}) order by id limit 1 for update skip locked) returning id, url, auto`
         : await sql`update program_drafts set status = 'procesando', attempts = attempts + 1, updated_at = now()
-            where id = (select id from program_drafts where status = 'en_cola' order by id limit 1 for update skip locked) returning id, url`;
+            where id = (select id from program_drafts where status = 'en_cola' order by id limit 1 for update skip locked) returning id, url, auto`;
       if (!row) return;
       const r = await processDraft(row, categories, sql);
       summary.processed++;
@@ -346,13 +366,13 @@ export async function setDraftStatus(id: number, action: 'retry' | 'discard', sq
 const slugify = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'programa';
 
 /** Programa completo (formato del catálogo) a partir del borrador. */
-export function draftToCourse(d: DraftData, institutionId: string, id: string, slug: string, status: 'publicado' | 'borrador'): Rec {
+export function draftToCourse(d: DraftData, institutionId: string, id: string, slug: string, status: 'publicado' | 'borrador', country = 'Perú'): Rec {
   const KEY = [d.price != null, d.duration_hours != null || !!d.duration_text, !!d.modality, !!d.start_date || !!d.start_text || d.modality === 'grabado', !!d.level, !!d.certificate,
     (d.syllabus as unknown[]).length > 0, false, (d.tools as unknown[]).length > 0, String(d.short_description).trim().length > 20];
-  const { enrollment_open, institution_name: _i, financing, ...rest } = d as Rec;
+  const { enrollment_open, institution_name: _i, relevant: _r, financing, ...rest } = d as Rec;
   return {
     ...rest,
-    id, slug, institution_id: institutionId, subcategory: null, teachers: [], keywords: [], platform: null, country: 'Perú', image: null,
+    id, slug, institution_id: institutionId, subcategory: null, teachers: [], keywords: [], platform: null, country, image: null,
     featured: false, rating: null, reviews_count: null, status, is_demo: false,
     completeness: Math.round((KEY.filter(Boolean).length / KEY.length) * 100) / 100,
     updated_at: new Date().toISOString().slice(0, 10), manual_edit_at: null,
@@ -424,7 +444,7 @@ export async function publishDrafts(ids: number[], status: 'publicado' | 'borrad
       for (let k = 2; slugs.has(slug); k++) slug = `${slugify(r.data!.name)}-${k}`;
       ids.add(id);
       slugs.add(slug);
-      const { course, fixes } = sanitizeCourse(draftToCourse(r.data!, r.institution_id!, id, slug, status), current.data.categories.map((k) => String(k.id)));
+      const { course, fixes } = sanitizeCourse(draftToCourse(r.data!, r.institution_id!, id, slug, status, typeof inst?.country === 'string' && inst.country ? inst.country : 'Perú'), current.data.categories.map((k) => String(k.id)));
       // Cada borrador se valida por separado: uno con datos imposibles de corregir no frena a los demás.
       // Solo el programa nuevo (ids y slugs únicos ya están garantizados arriba): un error en un programa ya
       // publicado no debe impedir agregar otros.
