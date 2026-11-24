@@ -5,6 +5,7 @@ import { Breadcrumbs } from '../components/ui/Breadcrumbs';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useCatalog } from '../hooks/useCatalog';
 import { useSeo } from '../hooks/useSeo';
+import { INSTITUTION_GROUPS, institutionGroup } from '../content/institutionGroups.mjs';
 
 export default function InstitutionsPage() {
   const { catalog, loading, error, retry } = useCatalog();
@@ -15,6 +16,12 @@ export default function InstitutionsPage() {
     catalog?.courses.forEach((c) => m.set(c.institution_id, (m.get(c.institution_id) ?? 0) + 1));
     return m;
   }, [catalog]);
+
+  // Universidades e instituciones especializadas por separado; dentro de cada grupo, las de más programas primero.
+  const groups = useMemo(() => INSTITUTION_GROUPS.map((g) => ({
+    ...g,
+    items: [...(catalog?.institutions ?? [])].filter((i) => institutionGroup(i) === g.id).sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
+  })), [catalog, counts]);
 
   return (
     <div className="container-page pt-8">
@@ -30,13 +37,24 @@ export default function InstitutionsPage() {
       {error ? (
         <EmptyState className="mt-8" tone="error" icon="alert" title="No pudimos cargar las instituciones" action={<button className="btn btn-primary" onClick={retry}>Reintentar</button>} />
       ) : (
-        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {loading || !catalog
-            ? Array.from({ length: 6 }, (_, i) => <li key={i}><div className="skeleton h-56" /></li>)
-            : [...catalog.institutions]
-                .sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
-                .map((i) => <li key={i.id}><InstitutionCard institution={i} programs={counts.get(i.id) ?? 0} /></li>)}
-        </ul>
+        loading || !catalog ? (
+          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <li key={i}><div className="skeleton h-56" /></li>)}</ul>
+        ) : (
+          <>
+            <nav aria-label="Tipo de institución" className="mt-8 flex flex-wrap gap-2">
+              {groups.map((g) => <a key={g.id} href={`#${g.id}`} className="chip">{g.title} <span className="tnum text-muted">({g.items.length})</span></a>)}
+            </nav>
+            {groups.filter((g) => g.items.length).map((g) => (
+              <section key={g.id} id={g.id} aria-labelledby={`${g.id}-t`} className="mt-12 scroll-mt-24">
+                <h2 id={`${g.id}-t`} className="text-2xl text-white sm:text-3xl">{g.title} <span className="tnum text-lg text-muted">({g.items.length})</span></h2>
+                <p className="mt-1 max-w-2xl text-sm text-gray">{g.description}</p>
+                <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {g.items.map((i) => <li key={i.id}><InstitutionCard institution={i} programs={counts.get(i.id) ?? 0} /></li>)}
+                </ul>
+              </section>
+            ))}
+          </>
+        )
       )}
     </div>
   );

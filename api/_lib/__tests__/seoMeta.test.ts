@@ -83,3 +83,16 @@ describe('Groulevel como comparador educativo', () => {
     for (const c of (courses as C[]).filter((x) => x.status === 'publicado').slice(0, 50)) expect(programTitle(c as never, instOf(c)).length).toBeLessThanOrEqual(90);
   });
 });
+
+describe('instituciones: universidades e instituciones especializadas', async () => {
+  const { institutionGroup } = await import('../../../src/content/institutionGroups.mjs');
+  it('separa universidades (y sus escuelas de posgrado o negocios) de institutos, academias y bootcamps', () => {
+    expect(institutionGroup({ name: 'Escuela de Postgrado UTP', type: 'Universidad' })).toBe('universidades');
+    expect(institutionGroup({ name: 'Pacífico Business School', type: 'Escuela de negocios' })).toBe('universidades');
+    expect(institutionGroup({ name: 'Cibertec', type: 'Instituto' })).toBe('especializadas');
+    expect(institutionGroup({ name: 'Le Wagon', type: 'Bootcamp' })).toBe('especializadas');
+    const body = byPath.get('/instituciones')!.body;
+    expect(body.indexOf('<h2>Universidades</h2>')).toBeGreaterThan(-1);
+    expect(body.indexOf('<h2>Instituciones especializadas</h2>')).toBeGreaterThan(body.indexOf('<h2>Universidades</h2>'));
+  });
+});

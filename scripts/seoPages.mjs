@@ -15,6 +15,7 @@ const LEVEL = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 import { buildContentRoutes } from './seoContentPages.mjs';
+import { INSTITUTION_GROUPS, institutionGroup } from '../src/content/institutionGroups.mjs';
 import { REWARDS_FAQ, REWARDS_HERO, REWARDS_META, REWARDS_RULES, REWARDS_STEPS } from '../src/content/rewards.mjs';
 import { HOME_COPY, compareListingPath, categoryMeta, programsMeta, comparablePrograms, homeMeta, institutionMeta, programCompareCopy, programDescription, programHeading, programTitle } from '../src/content/meta.mjs';
 import { TYPE_PATHS, isContentPath, matchesSkill, SKILLS, skillPath, typeAreaLandings, typeAreaPath, TYPE_PLURAL } from '../src/content/seoModel.mjs';
@@ -103,7 +104,10 @@ export function buildRoutes(catalog, { siteUrl, base = '', ratings = new Map(), 
     title: 'Universidades, escuelas y bootcamps de tecnología | Groulevel',
     description: `Conoce ${institutions.length} universidades, escuelas de negocio, institutos y bootcamps con programas de tecnología, y compara su oferta.`,
     jsonLd: [bcInst.ld],
-    body: `${bcInst.html}<h1>Instituciones</h1><ul>${institutions.map((i) => `<li><a href="${href(`/institucion/${i.slug}`)}">${esc(i.name)}</a> — ${courses.filter((c) => c.institution_id === i.id).length} programas</li>`).join('')}</ul>`
+    body: `${bcInst.html}<h1>Instituciones</h1>${INSTITUTION_GROUPS.map((g) => {
+      const items = institutions.filter((i) => institutionGroup(i) === g.id);
+      return items.length ? `<h2>${esc(g.title)}</h2><p>${esc(g.description)}</p><ul>${items.map((i) => `<li><a href="${href(`/institucion/${i.slug}`)}">${esc(i.name)}</a> — ${courses.filter((c) => c.institution_id === i.id).length} programas</li>`).join('')}</ul>` : '';
+    }).join('')}`
   });
 
   const byArea = new Map();
