@@ -444,7 +444,8 @@ export async function searchInstitutions(opts: { sql?: Sql; timeoutMs?: number }
         model,
         max_tokens: 6000,
         output_config: { effort: 'low' },
-        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6, user_location: { type: 'approximate', country: 'PE', city: 'Lima', timezone: 'America/Lima' } }],
+        // Sin user_location: la búsqueda no admite localizar en Perú (código PE); el enfoque en Perú va en el pedido.
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6 }],
         messages
       } as Anthropic.MessageCreateParamsNonStreaming);
       input += res.usage?.input_tokens ?? 0;

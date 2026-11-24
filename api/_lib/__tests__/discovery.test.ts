@@ -161,8 +161,8 @@ describe('fuentes automáticas e instituciones sugeridas', () => {
     calls.length = 0;
     const r = await disc.searchInstitutions({ sql });
     expect(r).toMatchObject({ suggested: 1, approved: 0, searches: 3, error: null });
-    const search = calls[0] as { tools: { type: string; max_uses: number; user_location: { country: string } }[] };
-    expect(search.tools[0]).toMatchObject({ type: 'web_search_20250305', max_uses: 6, user_location: { country: 'PE' } });
+    const search = calls[0] as { tools: Record<string, unknown>[] };
+    expect(search.tools[0]).toEqual({ type: 'web_search_20250305', name: 'web_search', max_uses: 6 });
     const [s] = await sql`select * from discovery_sources where origin = 'sugerida'`;
     expect(s).toMatchObject({ url: 'https://www.escuela-nueva.test/posgrado/', status: 'sugerida', path_prefix: '/posgrado/' });
     expect(await disc.searchDue(sql)).toBe(false);
