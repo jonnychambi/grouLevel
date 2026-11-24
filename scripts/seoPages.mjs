@@ -8,7 +8,7 @@
  * React reemplaza el contenido al montar; los JSON-LD llevan data-seo-jsonld para que la app los actualice.
  */
 
-const TYPE = { curso: 'Curso', especializacion: 'Especialización', certificacion: 'Certificación', bootcamp: 'Bootcamp', diplomado: 'Diplomado', 'programa-ejecutivo': 'Programa ejecutivo', maestria: 'Maestría', membresia: 'Membresía' };
+const TYPE = { curso: 'Curso', especializacion: 'Especialización', certificacion: 'Certificación', bootcamp: 'Bootcamp', diplomado: 'Diplomado', 'programa-ejecutivo': 'Programa ejecutivo', maestria: 'Maestría', mba: 'MBA', membresia: 'Membresía' };
 const MODALITY = { 'en-vivo': 'Online en vivo', grabado: 'Online a tu ritmo', hibrido: 'Híbrido', presencial: 'Presencial' };
 const COURSE_MODE = { 'en-vivo': 'online', grabado: 'online', hibrido: 'blended', presencial: 'onsite' };
 const LEVEL = { basico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };

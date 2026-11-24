@@ -21,6 +21,7 @@ export function fitTitle(...candidates) {
 /** Tipos de programa: plural, singular y género (para "la mejor maestría" / "el mejor curso"). */
 export const TYPE_INFO = {
   maestria: { plural: 'Maestrías', singular: 'maestría', fem: true },
+  mba: { plural: 'MBA', singular: 'MBA', fem: false },
   diplomado: { plural: 'Diplomados', singular: 'diplomado', fem: false },
   especializacion: { plural: 'Especializaciones', singular: 'especialización', fem: true },
   bootcamp: { plural: 'Bootcamps', singular: 'bootcamp', fem: false },
@@ -30,12 +31,14 @@ export const TYPE_INFO = {
   membresia: { plural: 'Membresías', singular: 'membresía', fem: true }
 };
 /** Orden en que se nombran los tipos (los de mayor nivel primero, como en "Maestrías y Cursos"). */
-const TYPE_ORDER = ['maestria', 'diplomado', 'especializacion', 'bootcamp', 'curso', 'certificacion', 'programa-ejecutivo', 'membresia'];
+const TYPE_ORDER = ['mba', 'maestria', 'diplomado', 'especializacion', 'bootcamp', 'curso', 'certificacion', 'programa-ejecutivo', 'membresia'];
 export const TYPE_PLURAL = Object.fromEntries(Object.entries(TYPE_INFO).map(([k, v]) => [k, v.plural]));
 export const TYPE_SINGULAR = Object.fromEntries(Object.entries(TYPE_INFO).map(([k, v]) => [k, v.singular]));
 
 const joinEs = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} y ${xs.at(-1)}`);
-const lower = (s) => s.toLowerCase();
+/** Minúsculas que respetan siglas ("MBA"). */
+export const lowerLabel = (s) => s.replace(/\S+/g, (w) => (/^[A-ZÁÉÍÓÚÑ]{2,}$/.test(w) ? w : w.toLowerCase()));
+const lower = lowerLabel;
 
 /** "Maestrías, Diplomados y Cursos": los tipos que de verdad existen en la lista (máximo `max`). */
 export function typesLabel(list, max = 3) {
@@ -150,7 +153,7 @@ export function categoryMeta(cat, list) {
 export function typeHubCopy(type) {
   const t = TYPE_INFO[type];
   const best = t.fem ? 'las mejores' : 'los mejores';
-  const who = type === 'maestria' || type === 'especializacion' ? 'universidades' : type === 'bootcamp' ? 'academias e instituciones' : 'universidades e instituciones';
+  const who = type === 'mba' ? 'escuelas de negocios y universidades' : type === 'maestria' || type === 'especializacion' ? 'universidades' : type === 'bootcamp' ? 'academias e instituciones' : 'universidades e instituciones';
   return {
     h1: `Encuentra y compara ${best} ${lower(t.plural)}`,
     subtitle: `Explora ${lower(t.plural)} de distintas ${who}, compara precios, duración, modalidad y contenido, y elige ${t.fem ? 'la' : 'el'} que mejor se adapta a tus objetivos.`,
@@ -169,7 +172,7 @@ export const typeHubMeta = (type, st) => {
 export const typeAreaMeta = (type, category, st) => {
   const t = TYPE_INFO[type];
   const label = `${t.plural} en ${category.name}`;
-  const who = type === 'maestria' || type === 'especializacion' ? 'universidades' : 'instituciones';
+  const who = type === 'mba' ? 'escuelas de negocios' : type === 'maestria' || type === 'especializacion' ? 'universidades' : 'instituciones';
   return {
     label,
     title: `${label}: Compara Programas | ${BRAND}`.length <= 70 ? `${label}: Compara Programas | ${BRAND}` : fitTitle(`${label}: Compara Programas`, label),
@@ -182,11 +185,11 @@ export const typeAreaMeta = (type, category, st) => {
 export const programsMeta = (nCourses) => ({
   title: `Todos los Programas: Busca, Filtra y Compara | ${BRAND}`,
   h1: 'Busca y compara programas',
-  description: `Explora ${nCourses} maestrías, diplomados, cursos y bootcamps de distintas universidades e instituciones. Filtra por precio, modalidad, duración y nivel, y compáralos lado a lado.`
+  description: `Explora ${nCourses} maestrías, MBA, diplomados, cursos y bootcamps de distintas universidades e instituciones. Filtra por precio, modalidad, duración y nivel, y compáralos lado a lado.`
 });
 
 /** Rutas de los listados por tipo (mismas que TYPE_PATHS de seoModel.mjs). */
-export const TYPE_PATHS = { diplomado: 'diplomados', bootcamp: 'bootcamps', maestria: 'maestrias', especializacion: 'especializaciones' };
+export const TYPE_PATHS = { diplomado: 'diplomados', bootcamp: 'bootcamps', maestria: 'maestrias', mba: 'mba', especializacion: 'especializaciones' };
 
 /**
  * Listado al que lleva "Comparar con otras maestrías": /{tipo}/{área} si esa página existe (≥ 3 programas de

@@ -59,6 +59,7 @@ const TYPE_INTENTS: [string[], ProgramType][] = [
   [['curso', 'cursos', 'taller', 'talleres'], 'curso'],
   [['bootcamp', 'bootcamps'], 'bootcamp'],
   [['diplomado', 'diplomados', 'diploma'], 'diplomado'],
+  [['mba', 'mbas'], 'mba'],
   [['maestria', 'maestrias', 'master', 'masters', 'magister', 'posgrado', 'postgrado'], 'maestria'],
   [['especializacion', 'especializaciones', 'especialidad'], 'especializacion'],
   [['certificacion', 'certificaciones'], 'certificacion'],

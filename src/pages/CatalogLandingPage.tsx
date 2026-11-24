@@ -11,7 +11,7 @@ import {
   skillLandingMeta, skillLandings, skillPath, stats, typeAreaLandings, typeAreaMeta, typeAreaPath, typeHubMeta
 } from '../content/seoModel.mjs';
 import { breadcrumbSchema, itemListSchema } from '../utils/schema';
-import { typeHubCopy } from '../content/meta.mjs';
+import { lowerLabel, typeHubCopy } from '../content/meta.mjs';
 import type { CourseWithInstitution } from '../types';
 import NotFoundPage from './NotFoundPage';
 
@@ -80,7 +80,7 @@ function TypeAreaLanding({ type, slug, courses, categories }: { type: keyof type
       kind="tipo-area" slug={`${type}/${slug}`} list={list} meta={meta} path={typeAreaPath(type, slug)}
       crumbs={[{ label: TYPE_PLURAL[type], to: `/${TYPE_PATHS[type]}` }, { label: category.name }]} eyebrow={`${TYPE_PLURAL[type]} por área`} h1={label} intro={category.description ?? undefined}
       faqLabel={`${TYPE_SINGULAR[type]} de ${category.name}`}
-      links={[{ to: `/programas/${category.slug}`, label: `Todos los programas de ${category.name}` }, { to: `/${TYPE_PATHS[type]}`, label: `Todos los ${TYPE_PLURAL[type].toLowerCase()}` }]}
+      links={[{ to: `/programas/${category.slug}`, label: `Todos los programas de ${category.name}` }, { to: `/${TYPE_PATHS[type]}`, label: `Todos los ${lowerLabel(TYPE_PLURAL[type])}` }]}
     />
   );
 }

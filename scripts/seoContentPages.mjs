@@ -9,7 +9,7 @@ import {
   HUB_META, TYPE_SINGULAR, coursesHubDescription, coursesForCareer, coursesForSkill, coursesPath, faqFor, fitTitle, skillLandingMeta, typeAreaMeta, typeHubMeta, guidePath, skillBySlug, skillLandings, skillPath, stats, typeAreaLandings, typeAreaPath
 } from '../src/content/seoModel.mjs';
 import { ANALYZER_SECTIONS } from '../src/content/analyzer.mjs';
-import { typeHubCopy } from '../src/content/meta.mjs';
+import { lowerLabel, typeHubCopy } from '../src/content/meta.mjs';
 
 export { ANALYZER_SECTIONS };
 
@@ -148,7 +148,7 @@ ${analyzerCta('Analiza tu perfil y descubre qué te falta')}`
       jsonLd: [bcHub.ld, itemList(all)],
       body: `${bcHub.html}<h1>${escHtml(typeHubCopy(type).h1)}</h1><p>${escHtml(typeHubCopy(type).subtitle)}</p><p>${escHtml(statsLine(st))}</p><p><small>${escHtml(typeHubCopy(type).note)}</small></p>
 ${mine.length ? `<h2>Por área</h2><ul>${mine.map((l) => `<li>${link(typeAreaPath(type, l.category.slug), `${TYPE_PLURAL[type]} en ${l.category.name}`)} (${l.courses.length})</li>`).join('')}</ul>` : ''}
-<h2>Todos los ${TYPE_PLURAL[type].toLowerCase()}</h2>${programList(all)}
+<h2>Todos los ${lowerLabel(TYPE_PLURAL[type])}</h2>${programList(all)}
 ${faqHtml(faqFor(TYPE_SINGULAR[type], st, instNames(all)))}`
     });
     for (const l of mine) {
@@ -163,7 +163,7 @@ ${faqHtml(faqFor(TYPE_SINGULAR[type], st, instNames(all)))}`
         body: `${bc.html}<h1>${escHtml(label)}</h1><p>${escHtml(l.category.description ?? '')}</p><p>${escHtml(statsLine(st2))}</p>
 ${programList(l.courses)}
 ${faqHtml(faqFor(`${TYPE_SINGULAR[type]} de ${l.category.name}`, st2, instNames(l.courses)))}
-<p>${link(`/programas/${l.category.slug}`, `Todos los programas de ${l.category.name}`)} · ${link(`/${seg}`, `Todos los ${TYPE_PLURAL[type].toLowerCase()}`)}</p>
+<p>${link(`/programas/${l.category.slug}`, `Todos los programas de ${l.category.name}`)} · ${link(`/${seg}`, `Todos los ${lowerLabel(TYPE_PLURAL[type])}`)}</p>
 ${analyzerCta('Analiza tu perfil gratis')}`
       });
     }

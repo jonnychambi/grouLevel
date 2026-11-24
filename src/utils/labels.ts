@@ -9,6 +9,7 @@ export const PROGRAM_TYPE_ACCENT: Record<ProgramType, string> = {
   diplomado: 'var(--color-blue-soft)',
   'programa-ejecutivo': 'var(--color-warn)',
   maestria: 'var(--color-violet-soft)',
+  mba: 'var(--color-warn)',
   membresia: 'var(--color-pos)'
 };
 
@@ -20,6 +21,7 @@ export const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
   diplomado: 'Diplomado',
   'programa-ejecutivo': 'Programa ejecutivo',
   maestria: 'Maestría',
+  mba: 'MBA',
   membresia: 'Membresía'
 };
 

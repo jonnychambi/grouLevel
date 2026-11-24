@@ -22,5 +22,6 @@ export function typeHubCopy(type: string): { h1: string; subtitle: string; note:
 export function typeHubMeta(type: string, st: St): Meta;
 export function typeAreaMeta(type: string, category: { name: string }, st: St): Meta & { label: string };
 export function programsMeta(nCourses: number): Meta & { h1: string };
-export const TYPE_PATHS: Record<'diplomado' | 'bootcamp' | 'maestria' | 'especializacion', string>;
+export const TYPE_PATHS: Record<'diplomado' | 'bootcamp' | 'maestria' | 'mba' | 'especializacion', string>;
+export function lowerLabel(s: string): string;
 export function compareListingPath(c: { program_type: string; category: string }, all: { program_type: string; category: string; institution_id: string; status?: string }[], categorySlug?: string): string;

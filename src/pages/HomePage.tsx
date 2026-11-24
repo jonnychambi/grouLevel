@@ -51,6 +51,7 @@ const TYPES: { type: ProgramType; icon: IconName; hint: string }[] = [
   { type: 'bootcamp', icon: 'target', hint: 'Cambio de carrera' },
   { type: 'diplomado', icon: 'award', hint: 'Especialización formal' },
   { type: 'maestria', icon: 'layers', hint: 'Posgrado' },
+  { type: 'mba', icon: 'building', hint: 'Dirección de empresas' },
   { type: 'certificacion', icon: 'shield', hint: 'Credencial de industria' },
   { type: 'programa-ejecutivo', icon: 'chart', hint: 'Líderes y gerentes' }
 ];
@@ -309,7 +310,7 @@ export default function HomePage() {
       {/* TIPOS */}
       <section className="container-page py-16" aria-labelledby="types-title">
         <h2 id="types-title" className="text-2xl text-white sm:text-3xl">¿Qué tipo de formación buscas?</h2>
-        <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
           {TYPES.map((t) => (
             <li key={t.type}>
               <Link to={`/programas?tipo=${t.type}`} className="card flex h-full flex-col gap-3 p-4 transition-colors hover:border-cyan/40">

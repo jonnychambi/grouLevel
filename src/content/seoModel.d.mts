@@ -18,7 +18,7 @@ export const COMPARISONS: Comparison[];
 export const GUIDES: Guide[];
 export const MIN: { skill: number; typeArea: number; institutions: number };
 export const CONTENT_UPDATED: string;
-export const TYPE_PATHS: Record<'diplomado' | 'bootcamp' | 'maestria' | 'especializacion', string>;
+export const TYPE_PATHS: Record<'diplomado' | 'bootcamp' | 'maestria' | 'mba' | 'especializacion', string>;
 export const TYPE_BY_PATH: Record<string, string>;
 export function careerPath(slug: string): string;
 export function skillPath(slug: string): string;

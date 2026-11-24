@@ -59,7 +59,7 @@ const NAME_CATEGORY_OVERRIDES: Record<string, string> = {
 };
 
 const TYPE_MAP: Record<string, ProgramType> = {
-  curso: 'curso', especializacion: 'especializacion', maestria: 'maestria', bootcamp: 'bootcamp', certificacion: 'certificacion',
+  curso: 'curso', especializacion: 'especializacion', maestria: 'maestria', mba: 'mba', bootcamp: 'bootcamp', certificacion: 'certificacion',
   diplomado: 'diplomado', diplomatura: 'diplomado', 'programa ejecutivo': 'programa-ejecutivo', membresia: 'membresia'
 };
 const PUBLISHED_TYPE_HINTS: [string, ProgramType][] = [

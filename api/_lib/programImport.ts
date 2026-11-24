@@ -17,7 +17,7 @@ import { extractFullText, fetchPage, isRefreshAiConfigured, refreshModel } from 
 
 type Rec = Record<string, unknown>;
 
-export const PROGRAM_TYPES = ['curso', 'especializacion', 'certificacion', 'bootcamp', 'diplomado', 'programa-ejecutivo', 'maestria', 'membresia'] as const;
+export const PROGRAM_TYPES = ['curso', 'especializacion', 'certificacion', 'bootcamp', 'diplomado', 'programa-ejecutivo', 'maestria', 'mba', 'membresia'] as const;
 const MODALITIES = ['en-vivo', 'grabado', 'hibrido', 'presencial'] as const;
 const LEVELS = ['basico', 'intermedio', 'avanzado'] as const;
 const CERTS = ['incluye', 'internacional', 'preparacion'] as const;
@@ -147,7 +147,7 @@ const SYSTEM = (categories: Rec[]) => `Conviertes la página oficial de UN progr
 - relevant: true solo si el programa es de tecnología (software, datos, IA, cloud, ciberseguridad, UX, producto, transformación digital) o de negocios y gestión (administración, MBA, finanzas, marketing, proyectos, liderazgo, estrategia). false para salud, derecho, educación, idiomas, arte, etc.
 - language: idioma en que se dicta el programa.
 - name: nombre del programa tal como lo publica la institución, sin el nombre de la institución.
-- program_type: curso | especializacion (programa/curso de especialización) | certificacion (preparación para una certificación) | bootcamp | diplomado | programa-ejecutivo (PEE, programa de alta dirección) | maestria (maestría, MBA, máster) | membresia (suscripción). published_type: la denominación literal que usa la institución.
+- program_type: curso | especializacion (programa/curso de especialización) | certificacion (preparación para una certificación) | bootcamp | diplomado | programa-ejecutivo (PEE, programa de alta dirección) | maestria (maestría o máster que no es un MBA) | mba (MBA, Executive MBA, maestría en administración de empresas o de negocios) | membresia (suscripción). published_type: la denominación literal que usa la institución.
 - category: el área del catálogo que mejor le corresponde: ${categories.map((c) => `${c.id} (${c.name})`).join(', ')}.
 - short_description: 1 frase de máximo 170 caracteres con el beneficio principal. description: 2 a 4 frases basadas en la página.
 - price: precio regular total; discount_price: precio promocional total. Números sin símbolos. currency: PEN (S/) o USD (US$, $).

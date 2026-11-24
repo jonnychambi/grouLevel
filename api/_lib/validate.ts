@@ -2,7 +2,7 @@
  * Validación del catálogo antes de guardarlo. Rechaza datos que romperían el sitio
  * (ids/slugs duplicados, referencias inexistentes, enums inválidos, tipos incorrectos).
  */
-const PROGRAM_TYPES = ['curso', 'especializacion', 'certificacion', 'bootcamp', 'diplomado', 'programa-ejecutivo', 'maestria', 'membresia'];
+const PROGRAM_TYPES = ['curso', 'especializacion', 'certificacion', 'bootcamp', 'diplomado', 'programa-ejecutivo', 'maestria', 'mba', 'membresia'];
 const MODALITIES = ['en-vivo', 'grabado', 'hibrido', 'presencial'];
 const LEVELS = ['basico', 'intermedio', 'avanzado'];
 const STATUSES = ['publicado', 'borrador', 'oculto'];

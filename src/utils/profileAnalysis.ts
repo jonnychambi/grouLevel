@@ -486,7 +486,7 @@ export function courseLevel(c: RouteCourse): StageLevel {
   if (c.level) return c.level;
   const n = normalize(c.name);
   if (/\b(fundamentos|introduccion|desde cero|basico|basica|inicial|principiantes|primeros pasos|esencial)\b/.test(n)) return 'basico';
-  if (/\b(avanzado|avanzada|experto|master|masterclass|arquitectura|senior)\b/.test(n) || ['maestria', 'programa-ejecutivo'].includes(c.program_type)) return 'avanzado';
+  if (/\b(avanzado|avanzada|experto|master|masterclass|arquitectura|senior)\b/.test(n) || ['maestria', 'mba', 'programa-ejecutivo'].includes(c.program_type)) return 'avanzado';
   return 'intermedio';
 }
 
@@ -813,7 +813,7 @@ export function buildGap(
 }
 
 export const SHORT_TERM_TYPES = ['curso', 'especializacion', 'bootcamp', 'diplomado', 'certificacion', 'programa-ejecutivo'];
-export const LONG_TERM_TYPES = ['maestria'];
+export const LONG_TERM_TYPES = ['maestria', 'mba'];
 
 /** Hasta 5 estudios de corto plazo y 5 de largo plazo (maestrías), priorizando lo que cierra las brechas. */
 export function buildStudies(

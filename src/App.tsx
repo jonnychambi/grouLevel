@@ -4,7 +4,7 @@ import { Layout, PageFallback } from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 
 // Rutas por tipo de programa (mismas que TYPE_PATHS en src/content/seoModel.mjs; aquí literales para no cargar el contenido en el bundle inicial).
-const TYPE_ROUTES = [['diplomado', 'diplomados'], ['bootcamp', 'bootcamps'], ['maestria', 'maestrias'], ['especializacion', 'especializaciones']] as const;
+const TYPE_ROUTES = [['diplomado', 'diplomados'], ['bootcamp', 'bootcamps'], ['maestria', 'maestrias'], ['mba', 'mba'], ['especializacion', 'especializaciones']] as const;
 
 // Code-splitting por ruta: el home carga primero; el resto bajo demanda.
 const ProgramsPage = lazy(() => import('./pages/ProgramsPage'));

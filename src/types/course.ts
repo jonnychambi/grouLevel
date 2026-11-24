@@ -10,6 +10,7 @@ export type ProgramType =
   | 'diplomado'
   | 'programa-ejecutivo'
   | 'maestria'
+  | 'mba'
   | 'membresia';
 
 export type Modality = 'en-vivo' | 'grabado' | 'hibrido' | 'presencial';

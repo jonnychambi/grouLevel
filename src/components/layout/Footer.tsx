@@ -28,6 +28,7 @@ export function Footer() {
             <li><Link className="text-gray hover:text-white" to="/cursos">Cursos por habilidad</Link></li>
             <li><Link className="text-gray hover:text-white" to="/diplomados">Diplomados</Link></li>
             <li><Link className="text-gray hover:text-white" to="/maestrias">Maestrías</Link></li>
+            <li><Link className="text-gray hover:text-white" to="/mba">MBA</Link></li>
           </ul>
         </nav>
         <nav aria-label="Groulevel">

@@ -197,6 +197,14 @@
       "destination": "/api/seo?path=/maestrias/:slug"
     },
     {
+      "source": "/mba",
+      "destination": "/api/seo?path=/mba"
+    },
+    {
+      "source": "/mba/:slug",
+      "destination": "/api/seo?path=/mba/:slug"
+    },
+    {
       "source": "/especializaciones",
       "destination": "/api/seo?path=/especializaciones"
     },
